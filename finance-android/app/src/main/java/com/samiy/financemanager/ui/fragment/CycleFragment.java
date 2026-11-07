@@ -17,6 +17,7 @@ import com.samiy.financemanager.R;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
+import com.samiy.financemanager.data.model.ExpenseTrackerItem;
 import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.ui.view.CycleChartView;
 
@@ -39,6 +40,12 @@ public class CycleFragment extends Fragment {
     private TextView tvChipBudget, tvChipExpense, tvChipInvestment;
     private TextView tvChartSelectedTitle, tvChartSelectedStatus;
     private TextView tvChartDetailBudget, tvChartDetailExpense, tvChartDetailInvestment, tvChartDetailSurplus;
+
+    // Expense Tracker Views
+    private TextView tvTrackerGoodCount, tvTrackerAlertCount;
+    private TextView btnTrackerFilterAll, btnTrackerFilterSavings, btnTrackerFilterExpenses;
+    private LinearLayout layoutExpenseTrackerItems;
+    private int currentTrackerFilter = 0; // 0=All, 1=Savings, 2=Expenses
 
     private int currentRangeMode = 0; // 0=6M, 1=1Y, 2=All
     private boolean isBudgetVisible = true;
@@ -83,6 +90,16 @@ public class CycleFragment extends Fragment {
         tvChartDetailSurplus = v.findViewById(R.id.tvChartDetailSurplus);
 
         setupChartControls();
+
+        // Expense Tracker components
+        tvTrackerGoodCount = v.findViewById(R.id.tvTrackerGoodCount);
+        tvTrackerAlertCount = v.findViewById(R.id.tvTrackerAlertCount);
+        btnTrackerFilterAll = v.findViewById(R.id.btnTrackerFilterAll);
+        btnTrackerFilterSavings = v.findViewById(R.id.btnTrackerFilterSavings);
+        btnTrackerFilterExpenses = v.findViewById(R.id.btnTrackerFilterExpenses);
+        layoutExpenseTrackerItems = v.findViewById(R.id.layoutExpenseTrackerItems);
+
+        setupTrackerFilterControls();
 
         swipeRefresh.setOnRefreshListener(this::refreshData);
 
@@ -263,6 +280,213 @@ public class CycleFragment extends Fragment {
 
                 layoutCycleReceivables.addView(item);
             }
+        }
+    }
+
+
+    private void setupTrackerFilterControls() {
+        btnTrackerFilterAll.setOnClickListener(v -> {
+            currentTrackerFilter = 0;
+            updateTrackerFilterButtons();
+            populateExpenseTracker();
+        });
+        btnTrackerFilterSavings.setOnClickListener(v -> {
+            currentTrackerFilter = 1;
+            updateTrackerFilterButtons();
+            populateExpenseTracker();
+        });
+        btnTrackerFilterExpenses.setOnClickListener(v -> {
+            currentTrackerFilter = 2;
+            updateTrackerFilterButtons();
+            populateExpenseTracker();
+        });
+    }
+
+    private void updateTrackerFilterButtons() {
+        btnTrackerFilterAll.setBackgroundResource(currentTrackerFilter == 0 ? R.drawable.bg_pill_emerald : 0);
+        btnTrackerFilterAll.setTextColor(currentTrackerFilter == 0 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+
+        btnTrackerFilterSavings.setBackgroundResource(currentTrackerFilter == 1 ? R.drawable.bg_pill_emerald : 0);
+        btnTrackerFilterSavings.setTextColor(currentTrackerFilter == 1 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+
+        btnTrackerFilterExpenses.setBackgroundResource(currentTrackerFilter == 2 ? R.drawable.bg_pill_emerald : 0);
+        btnTrackerFilterExpenses.setTextColor(currentTrackerFilter == 2 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+    }
+
+    private void populateExpenseTracker() {
+        if (!isAdded()) return;
+        FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+        if (db == null || db.expenseTracker == null) return;
+
+        List<ExpenseTrackerItem> allItems = db.expenseTracker;
+        int goodCount = 0;
+        int alertCount = 0;
+        int savingsCount = 0;
+        int expensesCount = 0;
+
+        for (ExpenseTrackerItem item : allItems) {
+            if (item.isSaving()) savingsCount++;
+            else expensesCount++;
+
+            if (item.isGood()) goodCount++;
+            else alertCount++;
+        }
+
+        btnTrackerFilterAll.setText("All (" + allItems.size() + ")");
+        btnTrackerFilterSavings.setText("Savings (" + savingsCount + ")");
+        btnTrackerFilterExpenses.setText("Expenses (" + expensesCount + ")");
+
+        tvTrackerGoodCount.setText(goodCount + " Good");
+        tvTrackerAlertCount.setText(alertCount + " Alert");
+
+        layoutExpenseTrackerItems.removeAllViews();
+
+        for (ExpenseTrackerItem item : allItems) {
+            // Apply filter
+            if (currentTrackerFilter == 1 && !item.isSaving()) continue;
+            if (currentTrackerFilter == 2 && item.isSaving()) continue;
+
+            LinearLayout card = new LinearLayout(getContext());
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackgroundResource(R.drawable.bg_pill_dark);
+            card.setPadding(32, 28, 32, 28);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, 0, 0, 16);
+            card.setLayoutParams(lp);
+
+            // Row 1: SubCategory Name + Type + Status Badge
+            LinearLayout headerRow = new LinearLayout(getContext());
+            headerRow.setOrientation(LinearLayout.HORIZONTAL);
+            headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+            LinearLayout titleContainer = new LinearLayout(getContext());
+            titleContainer.setOrientation(LinearLayout.VERTICAL);
+            titleContainer.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            TextView tvName = new TextView(getContext());
+            tvName.setText(item.subCategory);
+            tvName.setTextColor(0xFFFFFFFF);
+            tvName.setTextSize(13.5f);
+            tvName.setTypeface(null, android.graphics.Typeface.BOLD);
+
+            TextView tvType = new TextView(getContext());
+            tvType.setText(item.expenseType != null && !item.expenseType.isEmpty() ? item.expenseType : (item.isSaving() ? "Savings" : "Expense"));
+            tvType.setTextColor(getResources().getColor(item.isSaving() ? R.color.green_mint : R.color.blue_sky));
+            tvType.setTextSize(10.5f);
+
+            titleContainer.addView(tvName);
+            titleContainer.addView(tvType);
+
+            // Status Badge based on user rule:
+            // If Saving: current >= past -> good (Saved More); current < past -> alert (Less Saved)
+            // If Expense: current <= past -> good/better (Reduced); current > past -> alert (Higher Expense)
+            TextView tvBadge = new TextView(getContext());
+            tvBadge.setTextSize(10.5f);
+            tvBadge.setTypeface(null, android.graphics.Typeface.BOLD);
+            tvBadge.setPadding(20, 8, 20, 8);
+
+            double diff = item.getCostDifference();
+            String diffStr = formatCurrency(Math.abs(diff));
+
+            if (item.isSaving()) {
+                if (item.currentMonthCost >= item.previousMonthCost) {
+                    tvBadge.setText(diff > 0 ? "▲ +" + diffStr + " (Good)" : "✓ On Track");
+                    tvBadge.setBackgroundResource(R.drawable.bg_badge_good);
+                    tvBadge.setTextColor(getResources().getColor(R.color.green_mint));
+                } else {
+                    tvBadge.setText("▼ -" + diffStr + " (Less Saved)");
+                    tvBadge.setBackgroundResource(R.drawable.bg_badge_amber);
+                    tvBadge.setTextColor(getResources().getColor(R.color.amber_gold));
+                }
+            } else {
+                if (item.currentMonthCost <= item.previousMonthCost) {
+                    tvBadge.setText(diff < 0 ? "▼ -" + diffStr + " (Better)" : "✓ On Track");
+                    tvBadge.setBackgroundResource(R.drawable.bg_badge_good);
+                    tvBadge.setTextColor(getResources().getColor(R.color.green_mint));
+                } else {
+                    tvBadge.setText("▲ +" + diffStr + " (Higher)");
+                    tvBadge.setBackgroundResource(R.drawable.bg_badge_warning);
+                    tvBadge.setTextColor(getResources().getColor(R.color.red_rose));
+                }
+            }
+
+            headerRow.addView(titleContainer);
+            headerRow.addView(tvBadge);
+            card.addView(headerRow);
+
+            // Row 2: 3 Values Columns (Current Cycle, Past Cycle, Budget / Target)
+            LinearLayout valuesRow = new LinearLayout(getContext());
+            valuesRow.setOrientation(LinearLayout.HORIZONTAL);
+            valuesRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            valuesRow.setPadding(0, 18, 0, 8);
+
+            // Col 1: Current Cycle
+            LinearLayout colCurrent = new LinearLayout(getContext());
+            colCurrent.setOrientation(LinearLayout.VERTICAL);
+            colCurrent.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            TextView lblCurrent = new TextView(getContext());
+            lblCurrent.setText("Current Cycle");
+            lblCurrent.setTextSize(10f);
+            lblCurrent.setTextColor(getResources().getColor(R.color.text_secondary));
+
+            TextView valCurrent = new TextView(getContext());
+            valCurrent.setText(formatCurrency(item.currentMonthCost));
+            valCurrent.setTextSize(13f);
+            valCurrent.setTypeface(null, android.graphics.Typeface.BOLD);
+            int curColor = item.isGood() ? getResources().getColor(R.color.green_mint)
+                    : (item.isSaving() ? getResources().getColor(R.color.amber_gold) : getResources().getColor(R.color.red_rose));
+            valCurrent.setTextColor(curColor);
+
+            colCurrent.addView(lblCurrent);
+            colCurrent.addView(valCurrent);
+
+            // Col 2: Past Cycle
+            LinearLayout colPast = new LinearLayout(getContext());
+            colPast.setOrientation(LinearLayout.VERTICAL);
+            colPast.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            TextView lblPast = new TextView(getContext());
+            lblPast.setText("Past Cycle");
+            lblPast.setTextSize(10f);
+            lblPast.setTextColor(getResources().getColor(R.color.text_secondary));
+
+            TextView valPast = new TextView(getContext());
+            valPast.setText(formatCurrency(item.previousMonthCost));
+            valPast.setTextSize(13f);
+            valPast.setTypeface(null, android.graphics.Typeface.BOLD);
+            valPast.setTextColor(getResources().getColor(R.color.text_primary));
+
+            colPast.addView(lblPast);
+            colPast.addView(valPast);
+
+            // Col 3: Budget / Target
+            LinearLayout colTarget = new LinearLayout(getContext());
+            colTarget.setOrientation(LinearLayout.VERTICAL);
+            colTarget.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            TextView lblTarget = new TextView(getContext());
+            lblTarget.setText("Target / Budget");
+            lblTarget.setTextSize(10f);
+            lblTarget.setTextColor(getResources().getColor(R.color.text_secondary));
+
+            TextView valTarget = new TextView(getContext());
+            valTarget.setText(formatCurrency(item.amountToBePaid));
+            valTarget.setTextSize(13f);
+            valTarget.setTypeface(null, android.graphics.Typeface.BOLD);
+            valTarget.setTextColor(getResources().getColor(R.color.blue_sky));
+
+            colTarget.addView(lblTarget);
+            colTarget.addView(valTarget);
+
+            valuesRow.addView(colCurrent);
+            valuesRow.addView(colPast);
+            valuesRow.addView(colTarget);
+            card.addView(valuesRow);
+
+            layoutExpenseTrackerItems.addView(card);
         }
     }
 

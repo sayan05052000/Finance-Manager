@@ -166,6 +166,25 @@ The Cycles screen features an interactive multi-series comparison chart (`CycleC
 
 ---
 
+### Cycle Expense Tracker (Past vs Current Cycle Comparison)
+The **Expense Tracker** compares itemized spending and investments between the **past cycle** and **current active cycle**:
+* **Savings vs. Expenses Business Rules**:
+  - **Category of Saving** (e.g., Mutual Fund, Emergency Fund, US Stocks, NPS, PPF, LIC, Family Savings):
+    $$\text{Current Cycle} \ge \text{Past Cycle} \implies \mathbf{Good\ /\ Better} \quad (\text{Emerald Badge: } \text{▲ Saved More})$$
+    $$\text{Current Cycle} < \text{Past Cycle} \implies \mathbf{Alert} \quad (\text{Amber Badge: } \text{▼ Less Saved})$$
+  - **Other Categories / Expenses** (e.g., Electricity, Food, Transit, House Rent, Mobile Bill, Family Expenses):
+    $$\text{Current Cycle} \le \text{Past Cycle} \implies \mathbf{Good\ /\ Better} \quad (\text{Emerald Badge: } \text{▼ Reduced Expense})$$
+    $$\text{Current Cycle} > \text{Past Cycle} \implies \mathbf{Alert} \quad (\text{Rose Red Badge: } \text{▲ Higher Expense})$$
+* **Interactive Filtering & Summary**:
+  - **Filter Tabs**: Toggle between **All Items**, **Savings**, and **Expenses**.
+  - **Summary Counters**: Header displays live count of **On-Track/Good** vs. **Alert** items.
+  - **Three-Column Metrics**: Each card presents **Current Cycle Cost**, **Past Cycle Cost**, and **Target / Budget** amount.
+* **Backend Sync**:
+  - Fetched from the `Expense Tracker` sheet in Google Sheets via `Code.gs` (`action=all`).
+  - Automatically reconciled with active billing cycle transactions by `CalculationEngine`.
+
+---
+
 ### App Branding & Visual Identity (FinMngr)
 * **Visual Identity**:
   - **Icon**: Stylized teal/cyan piggy bank with gold coin (`$`), bar chart graphic on body, and upward trending orange arrow inside a deep navy squircle (`#071727`).

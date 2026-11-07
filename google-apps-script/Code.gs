@@ -33,6 +33,7 @@ function doGet(e) {
           insurance: getInsurance(ss),
           sips: getSips(ss),
           categories: getCategories(ss),
+          expenseTracker: getExpenseTracker(ss),
           transactions: getTransactions(ss, 300) // latest 300 or pagination
         }
       });
@@ -393,6 +394,22 @@ function getLoans(ss) {
     outstanding: Number(l['Current OutStanding']) || 0,
     interestRate: Number(l['Interest Rate']) || 0,
     isDebt: String(l['IsDebt']).toUpperCase() === 'TRUE'
+  }));
+}
+
+function getExpenseTracker(ss) {
+  const raw = getSheetValues(ss, 'Expense Tracker');
+  return raw.map(e => ({
+    expenseType: e['Expense Type'] || '',
+    subCategory: e['Sub-Category'] || '',
+    amountToBePaid: Number(e['Amount To Be Paid']) || 0,
+    amount: Number(e['Amount']) || 0,
+    year: Number(e['Year']) || 0,
+    month: Number(e['Month']) || 0,
+    percent: Number(e['Percent']) || 0,
+    previousMonthCost: Number(e['Previouse Months Cost'] !== undefined ? e['Previouse Months Cost'] : (e['Previous Months Cost'] || 0)) || 0,
+    deviation: Number(e['Deviation']) || 0,
+    currentMonthCost: Number(e['Current Month Costing']) || 0
   }));
 }
 

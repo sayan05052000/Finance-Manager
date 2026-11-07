@@ -2,6 +2,7 @@ package com.samiy.financemanager.data;
 
 import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
+import com.samiy.financemanager.data.model.ExpenseTrackerItem;
 import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.Holding;
 import com.samiy.financemanager.data.model.PortfolioSummary;
@@ -11,6 +12,8 @@ import com.samiy.financemanager.data.model.Transaction;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -241,6 +244,58 @@ public class CalculationEngine {
             db.currentCycle.interestThisCycle = Math.round(interestOccurredAccounts * 100.0) / 100.0;
         }
 
+        // Past cycle spend calculation per subcategory
+        int pastMonth = (cMonth == 1) ? 12 : cMonth - 1;
+        int pastYear = (cMonth == 1) ? cYear - 1 : cYear;
+        Map<String, Double> pastSubCatSpend = new HashMap<>();
+
+        if (db.transactions != null) {
+            for (Transaction t : db.transactions) {
+                if (t.isInCycle(pastYear, pastMonth) && t.isExpense()) {
+                    double contribution = t.getExpenseContribution();
+                    String subCat = t.subCategory != null && !t.subCategory.trim().isEmpty() ? t.subCategory.trim() : "Other";
+                    pastSubCatSpend.put(subCat, pastSubCatSpend.getOrDefault(subCat, 0.0) + contribution);
+                }
+            }
+        }
+
+        // Synchronize and populate Expense Tracker (Past vs Current Cycle comparison)
+        if (db.expenseTracker == null || db.expenseTracker.isEmpty()) {
+            db.expenseTracker = createDefaultExpenseTrackerItems();
+        }
+
+        Set<String> trackedSubCats = new HashSet<>();
+        for (ExpenseTrackerItem item : db.expenseTracker) {
+            if (item.subCategory != null) {
+                trackedSubCats.add(item.subCategory.trim().toLowerCase(Locale.ROOT));
+                if (subCatSpend.containsKey(item.subCategory)) {
+                    item.currentMonthCost = subCatSpend.get(item.subCategory);
+                }
+                if (pastSubCatSpend.containsKey(item.subCategory) && item.previousMonthCost == 0) {
+                    item.previousMonthCost = pastSubCatSpend.get(item.subCategory);
+                }
+                item.deviation = Math.abs(item.currentMonthCost - item.previousMonthCost);
+            }
+        }
+
+        for (Map.Entry<String, Double> entry : subCatSpend.entrySet()) {
+            String sc = entry.getKey();
+            if (!trackedSubCats.contains(sc.trim().toLowerCase(Locale.ROOT))) {
+                String expenseType = "Variable Expense";
+                String lower = sc.toLowerCase(Locale.ROOT);
+                if (lower.contains("mutual fund") || lower.contains("saving")) {
+                    expenseType = "Fixed Savings";
+                } else if (lower.contains("family")) {
+                    expenseType = "Fixed Family Expense";
+                }
+                double curr = entry.getValue();
+                double prev = pastSubCatSpend.getOrDefault(sc, 0.0);
+                ExpenseTrackerItem newItem = new ExpenseTrackerItem(expenseType, sc, curr, prev, curr);
+                db.expenseTracker.add(newItem);
+                trackedSubCats.add(lower);
+            }
+        }
+
         // SubCategories breakdown
         if (!subCatSpend.isEmpty()) {
             List<CurrentCycle.SubCategorySpend> scList = new ArrayList<>();
@@ -251,5 +306,29 @@ public class CalculationEngine {
             scList.sort((a, b) -> Double.compare(b.amount, a.amount));
             db.currentCycle.subCategories = scList;
         }
+    }
+
+    private static List<ExpenseTrackerItem> createDefaultExpenseTrackerItems() {
+        List<ExpenseTrackerItem> list = new ArrayList<>();
+        list.add(new ExpenseTrackerItem("Fixed Savings", "Mutual Fund", 11250.0, 17920.0, 1000.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "Emergency Mutual Fund", 2000.0, 2250.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "US Stocks", 5000.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Expense", "House Rent", 6000.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "NPS", 500.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "PPF", 500.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "LIC Policies", 0.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "Tata AIA Policy", 0.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Family Savings", "Brother LIC Policies", 0.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Family Savings", "Sister LIC Policies", 0.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Family Savings", "Family Mutual Fund", 0.0, 4750.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Savings", "Ishita Loan Repayment", 30000.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Expense", "Savings Account", 1000.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Expense", "Credit Card", 855.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Fixed Expense", "Mobile Bill", 899.0, 0.0, 0.0));
+        list.add(new ExpenseTrackerItem("Variable Family Expense", "Family Mobile Bill", 0.0, 902.0, 0.0));
+        list.add(new ExpenseTrackerItem("Variable Expense", "Electricity", 4267.75, 4773.0, 4267.75));
+        list.add(new ExpenseTrackerItem("Variable Expense", "Food", 500.0, 2098.17, 0.0));
+        list.add(new ExpenseTrackerItem("Variable Expense", "Transit", 900.0, 825.0, 0.0));
+        return list;
     }
 }

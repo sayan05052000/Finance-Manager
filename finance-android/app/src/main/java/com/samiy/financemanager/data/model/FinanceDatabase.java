@@ -36,6 +36,9 @@ public class FinanceDatabase implements Serializable {
     @SerializedName("sips")
     public List<SipItem> sips = new ArrayList<>();
 
+    @SerializedName("expenseTracker")
+    public List<ExpenseTrackerItem> expenseTracker = new ArrayList<>();
+
     public FinanceDatabase() {}
 
     public double getTotalBankBalance() {
