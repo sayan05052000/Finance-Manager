@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#10B981</color>
+    <color name="colorPrimaryDark">#0B0F19</color>
+    <color name="colorAccent">#10B981</color>
+
+    <!-- Theme & Backgrounds -->
+    <color name="bg_dark">#0B0F19</color>
+    <color name="bg_card">#131B26</color>
+    <color name="bg_card_secondary">#182333</color>
+    <color name="border_dark">#223247</color>
+    <color name="nav_bottom_bg">#0E1420</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+
+    <!-- Emerald / Green -->
+    <color name="green_emerald">#10B981</color>
+    <color name="green_mint">#34D399</color>
+    <color name="green_bg">#132B22</color>
+    <color name="green_chip">#1B4332</color>
+
+    <!-- Rose / Red / Debit -->
+    <color name="red_rose">#F43F5E</color>
+    <color name="red_bg">#2C1217</color>
+
+    <!-- Amber / Gold / Loans -->
+    <color name="amber_gold">#F59E0B</color>
+    <color name="amber_bg">#2E2211</color>
+    <color name="amber_badge">#422006</color>
+
+    <!-- Blue / Sky -->
+    <color name="blue_sky">#38BDF8</color>
+    <color name="blue_royal">#2563EB</color>
+    <color name="blue_bg">#0E2638</color>
+
+    <!-- Purple / Royal -->
+    <color name="purple_royal">#A855F7</color>
+    <color name="purple_bg">#261536</color>
+</resources>

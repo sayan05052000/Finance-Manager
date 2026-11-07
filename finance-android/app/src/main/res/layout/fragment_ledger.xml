@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipeRefreshLedger"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Filters Row (Horizontal Scroll) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Spinner
+                    android:id="@+id/spCycleFilter"
+                    android:layout_width="175dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spTypeFilter"
+                    android:layout_width="145dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spAccountFilter"
+                    android:layout_width="155dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spLoanFilter"
+                    android:layout_width="165dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spCategoryFilter"
+                    android:layout_width="155dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spYearFilter"
+                    android:layout_width="125dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Summary Statistics Card (Screenshot 3) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="14dp">
+
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="2">
+
+                <!-- Matching Entries -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Matching Entries:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tvMatchingEntries"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="300"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Total Debit -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Debit:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tvTotalDebit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="-₹18,93,677.26"
+                        android:textColor="@color/red_rose"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Total Credit -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp"
+                    android:layout_marginTop="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Credit:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tvTotalCredit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+₹19,27,510.87"
+                        android:textColor="@color/green_mint"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Net Inflow/Outflow -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp"
+                    android:layout_marginTop="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Net Inflow/Outflow:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tvNetInflow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+₹33,833.61"
+                        android:textColor="@color/green_mint"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Cycle Budget Remainder -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_chip_green"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cycle Budget Remainder:"
+                        android:textColor="@color/green_mint"
+                        android:textSize="10sp" />
+
+                    <TextView
+                        android:id="@+id/tvCycleBudgetRemainder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="₹30,209.72"
+                        android:textColor="@color/green_mint"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Account/Loan Remainder -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_chip_blue"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Account/Loan Remainder:"
+                        android:textColor="@color/blue_sky"
+                        android:textSize="10sp" />
+
+                    <TextView
+                        android:id="@+id/tvAccountLoanRemainder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="₹30,209.72"
+                        android:textColor="@color/blue_sky"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+            </GridLayout>
+        </LinearLayout>
+
+        <!-- Transaction List RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvLedger"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="12dp" />
+
+    </LinearLayout>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

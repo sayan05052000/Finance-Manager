@@ -1,0 +1,527 @@
+package com.samiy.financemanager.ui.dialog;
+
+import android.content.Context;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.samiy.financemanager.R;
+import com.samiy.financemanager.data.FinanceRepository;
+import com.samiy.financemanager.data.model.Account;
+import com.samiy.financemanager.data.model.FinanceDatabase;
+import com.samiy.financemanager.data.model.Loan;
+import com.samiy.financemanager.data.model.Transaction;
+
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
+    public interface OnTransactionAddedListener {
+        void onTransactionAdded();
+    }
+
+    public static class SourceItem {
+        public final String name;
+        public final double balance;
+        public final boolean isLoan;
+        public double dueAmount = 0;
+        public double paymentBalance = 0;
+        public boolean isCreditCard = false;
+
+        public SourceItem(String name, double balance, boolean isLoan) {
+            this.name = name;
+            this.balance = balance;
+            this.isLoan = isLoan;
+        }
+
+        public SourceItem(String name, double balance, boolean isLoan, double dueAmount, double paymentBalance) {
+            this.name = name;
+            this.balance = balance;
+            this.isLoan = isLoan;
+            this.dueAmount = dueAmount;
+            this.paymentBalance = paymentBalance;
+            this.isCreditCard = true;
+        }
+
+        public String getFormattedBalance() {
+            NumberFormat nf = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
+            if (isCreditCard) {
+                String dueStr = nf.format(dueAmount).replace("INR", "₹").replace(".00", "");
+                String payStr = nf.format(paymentBalance).replace("INR", "₹").replace(".00", "");
+                return "Due: " + dueStr + " • Pay: " + payStr;
+            }
+            return nf.format(balance).replace("INR", "₹").replace(".00", "");
+        }
+
+        @Override
+        public String toString() {
+            return name + " (" + getFormattedBalance() + ")";
+        }
+    }
+
+    public static class SourceSpinnerAdapter extends ArrayAdapter<SourceItem> {
+        public SourceSpinnerAdapter(Context context, List<SourceItem> items) {
+            super(context, 0, items);
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.item_spinner_selected, parent, false);
+            }
+            TextView tv = convertView.findViewById(android.R.id.text1);
+            SourceItem item = getItem(position);
+            if (item != null && tv != null) {
+                tv.setText(item.name + "  •  " + item.getFormattedBalance());
+            }
+            return convertView;
+        }
+
+        @Override
+        public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.item_spinner_account_dropdown, parent, false);
+            }
+            TextView tvName = convertView.findViewById(R.id.tvSourceName);
+            TextView tvBalance = convertView.findViewById(R.id.tvSourceBalance);
+            SourceItem item = getItem(position);
+            if (item != null) {
+                if (tvName != null) tvName.setText(item.name);
+                if (tvBalance != null) {
+                    tvBalance.setText(item.getFormattedBalance());
+                    if (item.isCreditCard) {
+                        tvBalance.setTextColor(ContextCompat.getColor(getContext(), R.color.amber_gold));
+                    } else if (item.isLoan) {
+                        tvBalance.setTextColor(ContextCompat.getColor(getContext(), item.balance > 0 ? R.color.red_rose : R.color.text_secondary));
+                    } else {
+                        tvBalance.setTextColor(ContextCompat.getColor(getContext(), item.balance < 0 ? R.color.red_rose : (item.balance == 0 ? R.color.text_secondary : R.color.green_mint)));
+                    }
+                }
+            }
+            return convertView;
+        }
+    }
+
+    private OnTransactionAddedListener listener;
+
+    public void setListener(OnTransactionAddedListener listener) {
+        this.listener = listener;
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.dialog_add_transaction, container, false);
+
+        RadioGroup rgType = v.findViewById(R.id.rgType);
+        RadioButton rbExpense = v.findViewById(R.id.rbExpense);
+        RadioButton rbIncome = v.findViewById(R.id.rbIncome);
+        RadioButton rbDoNotConsider = v.findViewById(R.id.rbDoNotConsider);
+
+        LinearLayout layoutDebitField = v.findViewById(R.id.layoutDebitField);
+        LinearLayout layoutCreditField = v.findViewById(R.id.layoutCreditField);
+        EditText etDebit = v.findViewById(R.id.etDebit);
+        EditText etCredit = v.findViewById(R.id.etCredit);
+
+        AutoCompleteTextView actvSubCategory = v.findViewById(R.id.actvSubCategory);
+        View btnSearchSubCategory = v.findViewById(R.id.btnSearchSubCategory);
+        View btnSubCategoryDropdown = v.findViewById(R.id.btnSubCategoryDropdown);
+
+        RadioGroup rgTagType = v.findViewById(R.id.rgTagType);
+        RadioButton rbTagLoan = v.findViewById(R.id.rbTagLoan);
+        RadioButton rbTagAccount = v.findViewById(R.id.rbTagAccount);
+        Spinner spSourceSelector = v.findViewById(R.id.spSourceSelector);
+
+        EditText etDate = v.findViewById(R.id.etDate);
+        EditText etDescription = v.findViewById(R.id.etDescription);
+        Button btnSubmit = v.findViewById(R.id.btnSubmitTransaction);
+
+        InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+
+        // Helper to close keyboard
+        Runnable hideKeyboard = () -> {
+            View currentFocus = getDialog() != null ? getDialog().getCurrentFocus() : null;
+            if (currentFocus != null && imm != null) {
+                imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
+                currentFocus.clearFocus();
+            }
+        };
+
+        EditText[] allInputs = {etDebit, etCredit, etDate, etDescription, actvSubCategory};
+        for (EditText et : allInputs) {
+            et.setOnClickListener(view -> {
+                if (imm != null) {
+                    imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+                }
+            });
+            et.setOnFocusChangeListener((view, hasFocus) -> {
+                if (hasFocus && imm != null) {
+                    view.post(() -> imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT));
+                }
+            });
+        }
+
+        // Recursive keyboard auto-dismissal when touching anywhere outside inputs
+        setupTouchToDismissKeyboard(v, imm, allInputs);
+
+        // Pre-fill today's date
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+        etDate.setText(sdf.format(new Date()));
+
+        // Populate Sub-Categories Dropdown and Search
+        FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+        List<String> subCatList = db != null ? db.getAllSubCategories() : new ArrayList<>();
+        if (db != null && db.transactions != null) {
+            for (Transaction t : db.transactions) {
+                if (t.subCategory != null && !t.subCategory.trim().isEmpty() && !subCatList.contains(t.subCategory.trim())) {
+                    subCatList.add(t.subCategory.trim());
+                }
+            }
+        }
+        if (subCatList.isEmpty()) {
+            subCatList.add("Mutual Fund");
+            subCatList.add("Credit Mutual Fund");
+            subCatList.add("Food");
+            subCatList.add("Electricity");
+            subCatList.add("Shopping");
+        }
+        java.util.Collections.sort(subCatList);
+
+        ArrayAdapter<String> subCatAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_dropdown, subCatList);
+        actvSubCategory.setAdapter(subCatAdapter);
+        if (!subCatList.isEmpty()) {
+            actvSubCategory.setText(subCatList.get(0));
+        }
+
+        actvSubCategory.setOnClickListener(view -> actvSubCategory.showDropDown());
+        if (btnSubCategoryDropdown != null) {
+            btnSubCategoryDropdown.setOnClickListener(view -> actvSubCategory.showDropDown());
+        }
+
+        // Searchable Sub-Category Modal Picker
+        if (btnSearchSubCategory != null) {
+            btnSearchSubCategory.setOnClickListener(vSearch -> {
+                hideKeyboard.run();
+                View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_select_subcategory, null);
+                EditText etSearch = dialogView.findViewById(R.id.etSearchSubCategoryQuery);
+                LinearLayout layoutItems = dialogView.findViewById(R.id.layoutSubCategoryItems);
+
+                androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setView(dialogView)
+                        .create();
+
+                if (dialog.getWindow() != null) {
+                    dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+                }
+
+                Button btnCancel = dialogView.findViewById(R.id.btnSubCategoryDialogCancel);
+                if (btnCancel != null) btnCancel.setOnClickListener(vCancel -> dialog.dismiss());
+
+                java.util.function.Consumer<String> renderList = (query) -> {
+                    layoutItems.removeAllViews();
+                    String q = (query != null ? query.trim().toLowerCase(Locale.ROOT) : "");
+                    int matchedCount = 0;
+                    for (String cat : subCatList) {
+                        if (q.isEmpty() || cat.toLowerCase(Locale.ROOT).contains(q)) {
+                            matchedCount++;
+                            View itemView = LayoutInflater.from(requireContext()).inflate(R.layout.item_folio_suggestion, layoutItems, false);
+                            TextView tvVal = itemView.findViewById(R.id.tvFolioValue);
+                            if (tvVal != null) tvVal.setText(cat);
+                            itemView.setOnClickListener(vItem -> {
+                                actvSubCategory.setText(cat);
+                                dialog.dismiss();
+                            });
+                            layoutItems.addView(itemView);
+                        }
+                    }
+                    if (matchedCount == 0) {
+                        TextView tvEmpty = new TextView(getContext());
+                        tvEmpty.setText("No matching sub-categories found.");
+                        tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
+                        tvEmpty.setTextSize(12);
+                        tvEmpty.setPadding(0, 24, 0, 24);
+                        layoutItems.addView(tvEmpty);
+                    }
+                };
+
+                renderList.accept("");
+
+                etSearch.addTextChangedListener(new android.text.TextWatcher() {
+                    @Override
+                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        renderList.accept(s != null ? s.toString() : "");
+                    }
+                    @Override
+                    public void afterTextChanged(android.text.Editable s) {}
+                });
+
+                dialog.show();
+            });
+        }
+
+        // Sources lists for Loan vs Account with real balances
+        double ccDue = db != null ? db.getCreditCardDueAmount() : 13801.47;
+        double ccPay = db != null ? db.getCreditCardPaymentBalance() : 13801.47;
+
+        List<SourceItem> loanList = new ArrayList<>();
+        List<SourceItem> accountList = new ArrayList<>();
+        if (db != null) {
+            if (db.loans != null) {
+                for (Loan l : db.loans) {
+                    if (l != null && l.name != null && !l.name.isEmpty()) {
+                        if ("CREDIT CARD".equalsIgnoreCase(l.name.trim())) {
+                            loanList.add(new SourceItem(l.name, l.outstanding, true, ccDue, ccPay));
+                        } else {
+                            loanList.add(new SourceItem(l.name, l.outstanding, true));
+                        }
+                    }
+                }
+            }
+            if (db.accounts != null) {
+                for (Account a : db.accounts) {
+                    if (a != null && a.name != null && !a.name.isEmpty()) {
+                        accountList.add(new SourceItem(a.name, a.currentBalance, false));
+                    }
+                }
+            }
+        }
+        if (loanList.isEmpty()) {
+            loanList.add(new SourceItem("SLICE CREDIT", 0, true));
+            loanList.add(new SourceItem("SBI CREDIT", 0, true));
+            loanList.add(new SourceItem("CREDIT CARD", 0, true, 13801.47, 13801.47));
+        }
+        if (accountList.isEmpty()) {
+            accountList.add(new SourceItem("PNB", 0, false));
+            accountList.add(new SourceItem("HDFC SAVINGS", 0, false));
+            accountList.add(new SourceItem("Slice", 0, false));
+        }
+
+        // Toggle tag sources
+        Runnable updateSourceSpinner = () -> {
+            boolean isLoan = rbTagLoan.isChecked();
+            List<SourceItem> currentList = isLoan ? loanList : accountList;
+            SourceSpinnerAdapter sourceAdapter = new SourceSpinnerAdapter(requireContext(), currentList);
+            spSourceSelector.setAdapter(sourceAdapter);
+        };
+        updateSourceSpinner.run();
+
+        rgTagType.setOnCheckedChangeListener((group, checkedId) -> {
+            hideKeyboard.run();
+            updateSourceSpinner.run();
+        });
+
+        // Toggle visibility based on Type:
+        // Expense: show ONLY debit
+        // Income: show ONLY credit
+        // Do not Consider: show BOTH debit and credit
+        rgType.setOnCheckedChangeListener((group, checkedId) -> {
+            hideKeyboard.run();
+            if (checkedId == R.id.rbExpense) {
+                layoutDebitField.setVisibility(View.VISIBLE);
+                layoutCreditField.setVisibility(View.GONE);
+                etDebit.requestFocus();
+            } else if (checkedId == R.id.rbIncome) {
+                layoutDebitField.setVisibility(View.GONE);
+                layoutCreditField.setVisibility(View.VISIBLE);
+                etCredit.requestFocus();
+            } else if (checkedId == R.id.rbDoNotConsider) {
+                layoutDebitField.setVisibility(View.VISIBLE);
+                layoutCreditField.setVisibility(View.VISIBLE);
+            }
+        });
+
+        btnSubmit.setOnClickListener(view -> {
+            hideKeyboard.run();
+
+            String selectedType = "Expense";
+            if (rbIncome.isChecked()) selectedType = "Income";
+            else if (rbDoNotConsider.isChecked()) selectedType = "Do not Consider";
+
+            double debitVal = 0.0;
+            double creditVal = 0.0;
+
+            String debitStr = etDebit.getText().toString().trim();
+            String creditStr = etCredit.getText().toString().trim();
+
+            if ("Expense".equals(selectedType)) {
+                if (debitStr.isEmpty()) {
+                    Toast.makeText(getContext(), "Please enter debit amount", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    debitVal = Double.parseDouble(debitStr);
+                } catch (Exception e) {
+                    Toast.makeText(getContext(), "Invalid debit amount", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            } else if ("Income".equals(selectedType)) {
+                if (creditStr.isEmpty()) {
+                    Toast.makeText(getContext(), "Please enter credit amount", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    creditVal = Double.parseDouble(creditStr);
+                } catch (Exception e) {
+                    Toast.makeText(getContext(), "Invalid credit amount", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            } else { // Do not Consider
+                if (debitStr.isEmpty() && creditStr.isEmpty()) {
+                    Toast.makeText(getContext(), "Please enter at least debit or credit amount", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (!debitStr.isEmpty()) {
+                    try { debitVal = Double.parseDouble(debitStr); } catch (Exception ignored) {}
+                }
+                if (!creditStr.isEmpty()) {
+                    try { creditVal = Double.parseDouble(creditStr); } catch (Exception ignored) {}
+                }
+            }
+
+            String subCategory = actvSubCategory.getText().toString().trim();
+            if (subCategory.isEmpty()) {
+                subCategory = "General";
+            }
+
+            String date = etDate.getText().toString().trim();
+            String desc = etDescription.getText().toString().trim();
+
+            Object selectedObj = spSourceSelector.getSelectedItem();
+            String selectedSource = "";
+            if (selectedObj instanceof SourceItem) {
+                selectedSource = ((SourceItem) selectedObj).name;
+            } else if (selectedObj != null) {
+                selectedSource = selectedObj.toString();
+            }
+            boolean isLoan = rbTagLoan.isChecked();
+
+            Transaction tx = new Transaction();
+            tx.date = date;
+            tx.type = selectedType;
+            tx.subCategory = subCategory;
+            tx.category = ""; // Category will be automatically decided inside google sheet
+            tx.description = desc;
+
+            // User rule: debit value always goes into Debit with out Sign with exact value provided by user
+            tx.debitWithoutSign = debitVal;
+            tx.credit = creditVal;
+
+            // DEBIT WITH SIGN:
+            // Non-zero exact debit with sign (negative for expenses/debits, so Debit column is NEVER 0)
+            if (debitVal != 0) {
+                tx.debit = -Math.abs(debitVal);
+            } else {
+                tx.debit = 0;
+            }
+
+            tx.net = 0;        // Automatically calculated in sheet
+            tx.remainder = 0;  // Automatically calculated in sheet
+
+            if (isLoan) {
+                tx.loans = selectedSource;
+                tx.account = "";
+            } else {
+                tx.account = selectedSource;
+                tx.loans = "";
+            }
+
+            String[] parts = date.split("/");
+            if (parts.length == 3) {
+                try {
+                    int d = Integer.parseInt(parts[0].trim());
+                    int m = Integer.parseInt(parts[1].trim());
+                    int y = Integer.parseInt(parts[2].trim());
+                    if (d < 6) {
+                        if (m == 1) {
+                            m = 12;
+                            y = y - 1;
+                        } else {
+                            m = m - 1;
+                        }
+                    }
+                    tx.month = m;
+                    tx.year = y;
+                } catch (Exception ignored) {}
+            }
+
+            btnSubmit.setEnabled(false);
+            btnSubmit.setText("Syncing to Google Sheet...");
+
+            FinanceRepository.getInstance(requireContext()).addTransaction(tx, new FinanceRepository.DataCallback() {
+                @Override
+                public void onLoaded(FinanceDatabase updatedDb) {
+                    if (isAdded()) {
+                        Toast.makeText(getContext(), "Transaction added to Google Sheet!", Toast.LENGTH_LONG).show();
+                        if (listener != null) listener.onTransactionAdded();
+                        dismiss();
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    if (isAdded()) {
+                        Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                        if (listener != null) listener.onTransactionAdded();
+                        dismiss();
+                    }
+                }
+            });
+        });
+
+        return v;
+    }
+
+    private void setupTouchToDismissKeyboard(View view, InputMethodManager imm, EditText... inputs) {
+        if (view == null) return;
+        boolean isInput = false;
+        for (EditText in : inputs) {
+            if (view == in) {
+                isInput = true;
+                break;
+            }
+        }
+        if (!isInput && !(view instanceof EditText)) {
+            view.setOnTouchListener((v, event) -> {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    View currentFocus = getDialog() != null ? getDialog().getCurrentFocus() : null;
+                    if (currentFocus != null && imm != null) {
+                        imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
+                        currentFocus.clearFocus();
+                    }
+                }
+                return false;
+            });
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                setupTouchToDismissKeyboard(vg.getChildAt(i), imm, inputs);
+            }
+        }
+    }
+}
