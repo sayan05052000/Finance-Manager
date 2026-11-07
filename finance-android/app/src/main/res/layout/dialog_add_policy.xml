@@ -100,6 +100,35 @@
                 app:tint="@color/text_secondary" />
         </LinearLayout>
 
+        <!-- Birth Date with Calendar Picker -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Birth Date (Calendar Picker)"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etAddPolicyBirthDate"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_pill_dark"
+            android:hint="dd/MM/yyyy"
+            android:textColorHint="@color/text_muted"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:focusable="false"
+            android:clickable="true"
+            android:cursorVisible="false"
+            android:drawableEnd="@drawable/ic_calendar"
+            android:drawablePadding="8dp"
+            android:drawableTint="@color/green_mint"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp" />
+
         <!-- Premium Amount -->
         <TextView
             android:layout_width="wrap_content"
@@ -175,7 +204,7 @@
             android:cursorVisible="false"
             android:drawableEnd="@drawable/ic_calendar"
             android:drawablePadding="8dp"
-        android:drawableTint="@color/green_mint"
+            android:drawableTint="@color/green_mint"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 
@@ -204,11 +233,38 @@
             android:cursorVisible="false"
             android:drawableEnd="@drawable/ic_calendar"
             android:drawablePadding="8dp"
-        android:drawableTint="@color/green_mint"
+            android:drawableTint="@color/green_mint"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 
+        <!-- Maturity Date with Calendar Picker (Maps to Last Date in Sheet) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Maturity Date (Calendar Picker)"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
+        <EditText
+            android:id="@+id/etAddPolicyMaturityDate"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_pill_dark"
+            android:hint="dd/MM/yyyy"
+            android:textColorHint="@color/text_muted"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:focusable="false"
+            android:clickable="true"
+            android:cursorVisible="false"
+            android:drawableEnd="@drawable/ic_calendar"
+            android:drawablePadding="8dp"
+            android:drawableTint="@color/green_mint"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp" />
 
         <!-- Notes / Remarks -->
         <TextView

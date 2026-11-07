@@ -27,15 +27,8 @@ public class KeyboardHelper {
         if (editText == null) return;
         editText.setImeOptions(EditorInfo.IME_ACTION_DONE);
         editText.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE
-                    || actionId == EditorInfo.IME_ACTION_GO
-                    || actionId == EditorInfo.IME_ACTION_NEXT
-                    || actionId == EditorInfo.IME_ACTION_SEND
-                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN)) {
-                hideKeyboard(v);
-                return true;
-            }
-            return false;
+            hideKeyboard(v);
+            return true;
         });
     }
 

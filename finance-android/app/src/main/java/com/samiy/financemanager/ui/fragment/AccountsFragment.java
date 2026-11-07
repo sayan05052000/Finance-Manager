@@ -422,8 +422,15 @@ public class AccountsFragment extends Fragment {
                 tvSumAssured.setVisibility(View.GONE);
             }
 
-            // Installments
-            if (p.installmentsRemaining != null && !p.installmentsRemaining.trim().isEmpty()) {
+            // Installments & Maturity
+            if (p.lastDate != null && !p.lastDate.trim().isEmpty()) {
+                String extra = "Maturity: " + p.lastDate;
+                if (p.installmentsRemaining != null && !p.installmentsRemaining.trim().isEmpty()) {
+                    extra += " • Rem: " + p.installmentsRemaining;
+                }
+                tvInstallments.setText(extra);
+                tvInstallments.setVisibility(View.VISIBLE);
+            } else if (p.installmentsRemaining != null && !p.installmentsRemaining.trim().isEmpty()) {
                 tvInstallments.setText("Installments Remaining: " + p.installmentsRemaining);
                 tvInstallments.setVisibility(View.VISIBLE);
             } else {

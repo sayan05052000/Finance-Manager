@@ -186,7 +186,7 @@ function doPost(e) {
       const amount = Number(p.amount) || Number(p.premiumAmount) || 0;
       const lastPaid = p.lastPaid || '';
       const dueDate = p.dueDate || '';
-      const lastDate = p.lastDate || '';
+      const lastDate = p.lastDate || p.maturityDate || '';
       const installmentsRemaining = p.installmentsRemaining || '';
       const subCategory = p.subCategory || 'LIC Policies';
       const category = p.category || (subCategory.includes('Brother') ? 'Brother Savings' : (subCategory.includes('Sister') ? 'Sister Savings' : 'Savings'));
@@ -372,8 +372,14 @@ function doPost(e) {
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
-  }finally{
-    calculateRemainders();
+  } finally {
+    if (typeof calculateRemainders === 'function') {
+      try {
+        calculateRemainders();
+      } catch (err) {
+        console.warn('calculateRemainders error: ' + err);
+      }
+    }
   }
 }
 

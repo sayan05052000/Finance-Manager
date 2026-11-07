@@ -78,11 +78,13 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
         EditText etPolicyNumber = v.findViewById(R.id.etAddPolicyNumber);
         View btnSelectSubCategory = v.findViewById(R.id.btnSelectPolicySubCategory);
         TextView tvSubCategory = v.findViewById(R.id.tvAddPolicySubCategory);
+        EditText etBirthDate = v.findViewById(R.id.etAddPolicyBirthDate);
         EditText etAmount = v.findViewById(R.id.etAddPolicyAmount);
         EditText etSumAssured = v.findViewById(R.id.etAddPolicySumAssured);
         EditText etDueDate = v.findViewById(R.id.etAddPolicyDueDate);
         EditText etLastPaid = v.findViewById(R.id.etAddPolicyLastPaid);
-                EditText etNotes = v.findViewById(R.id.etAddPolicyNotes);
+        EditText etMaturityDate = v.findViewById(R.id.etAddPolicyMaturityDate);
+        EditText etNotes = v.findViewById(R.id.etAddPolicyNotes);
         Button btnSubmit = v.findViewById(R.id.btnAddPolicySubmit);
 
         // Pre-fill today's date for Last Paid
@@ -90,8 +92,10 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
         etLastPaid.setText(sdf.format(new Date()));
 
         // Wire calendar date pickers
+        DateTimeHelper.setupDatePicker(etBirthDate);
         DateTimeHelper.setupDatePicker(etDueDate);
         DateTimeHelper.setupDatePicker(etLastPaid);
+        DateTimeHelper.setupDatePicker(etMaturityDate);
         com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etPolicyNumber, etAmount, etSumAssured, etNotes);
 
         // Subcategory modal selector
@@ -114,9 +118,11 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
 
         btnSubmit.setOnClickListener(view -> {
             String policyNum = etPolicyNumber.getText().toString().trim();
+            String birthDate = etBirthDate.getText().toString().trim();
             String amountStr = etAmount.getText().toString().trim();
             String due = etDueDate.getText().toString().trim();
             String lastPaid = etLastPaid.getText().toString().trim();
+            String maturityDate = etMaturityDate.getText().toString().trim();
             String subCat = tvSubCategory.getText().toString().trim();
             String sumAssuredStr = etSumAssured.getText().toString().trim();
             String installments = ""; // Auto-calculated at sheet
@@ -157,9 +163,11 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
 
             InsurancePolicy p = new InsurancePolicy(
                     policyNum,
+                    birthDate,
                     premium,
                     lastPaid,
                     due,
+                    maturityDate, // maps to Last Date in sheet
                     installments,
                     subCat,
                     category,

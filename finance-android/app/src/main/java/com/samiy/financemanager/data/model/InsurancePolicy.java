@@ -46,10 +46,16 @@ public class InsurancePolicy implements Serializable {
     public InsurancePolicy() {}
 
     public InsurancePolicy(String policyNumber, double premiumAmount, String lastPaid, String dueDate, String installmentsRemaining, String subCategory, String category, double sumAssured, String notes) {
+        this(policyNumber, "", premiumAmount, lastPaid, dueDate, "", installmentsRemaining, subCategory, category, sumAssured, notes);
+    }
+
+    public InsurancePolicy(String policyNumber, String birthDate, double premiumAmount, String lastPaid, String dueDate, String lastDate, String installmentsRemaining, String subCategory, String category, double sumAssured, String notes) {
         this.policyNumber = policyNumber;
+        this.birthDate = birthDate;
         this.premiumAmount = premiumAmount;
         this.lastPaid = lastPaid;
         this.dueDate = dueDate;
+        this.lastDate = lastDate;
         this.installmentsRemaining = installmentsRemaining;
         this.subCategory = subCategory;
         this.category = category;
