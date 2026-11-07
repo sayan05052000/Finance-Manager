@@ -15,10 +15,14 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.samiy.financemanager.R;
 import com.samiy.financemanager.data.FinanceRepository;
+import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.FinanceDatabase;
+import com.samiy.financemanager.ui.view.CycleChartView;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class CycleFragment extends Fragment {
@@ -27,6 +31,19 @@ public class CycleFragment extends Fragment {
     private TextView tvAllocatedBudget, tvTotalCycleSpent, tvCycleRemainderVal;
     private TextView tvDailyLimitValueCycle;
     private LinearLayout layoutCycleSubCats, layoutCycleReceivables;
+
+    // Interactive Chart & Detail Inspector Views
+    private CycleChartView cycleChartView;
+    private TextView btnRange6M, btnRange1Y, btnRangeAll;
+    private View chipFilterBudget, chipFilterExpense, chipFilterInvestment;
+    private TextView tvChipBudget, tvChipExpense, tvChipInvestment;
+    private TextView tvChartSelectedTitle, tvChartSelectedStatus;
+    private TextView tvChartDetailBudget, tvChartDetailExpense, tvChartDetailInvestment, tvChartDetailSurplus;
+
+    private int currentRangeMode = 0; // 0=6M, 1=1Y, 2=All
+    private boolean isBudgetVisible = true;
+    private boolean isExpenseVisible = true;
+    private boolean isInvestmentVisible = true;
 
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
@@ -45,11 +62,107 @@ public class CycleFragment extends Fragment {
         layoutCycleSubCats = v.findViewById(R.id.layoutCycleSubCats);
         layoutCycleReceivables = v.findViewById(R.id.layoutCycleReceivables);
 
+        // Chart components
+        cycleChartView = v.findViewById(R.id.cycleChartView);
+        btnRange6M = v.findViewById(R.id.btnRange6M);
+        btnRange1Y = v.findViewById(R.id.btnRange1Y);
+        btnRangeAll = v.findViewById(R.id.btnRangeAll);
+
+        chipFilterBudget = v.findViewById(R.id.chipFilterBudget);
+        chipFilterExpense = v.findViewById(R.id.chipFilterExpense);
+        chipFilterInvestment = v.findViewById(R.id.chipFilterInvestment);
+        tvChipBudget = v.findViewById(R.id.tvChipBudget);
+        tvChipExpense = v.findViewById(R.id.tvChipExpense);
+        tvChipInvestment = v.findViewById(R.id.tvChipInvestment);
+
+        tvChartSelectedTitle = v.findViewById(R.id.tvChartSelectedTitle);
+        tvChartSelectedStatus = v.findViewById(R.id.tvChartSelectedStatus);
+        tvChartDetailBudget = v.findViewById(R.id.tvChartDetailBudget);
+        tvChartDetailExpense = v.findViewById(R.id.tvChartDetailExpense);
+        tvChartDetailInvestment = v.findViewById(R.id.tvChartDetailInvestment);
+        tvChartDetailSurplus = v.findViewById(R.id.tvChartDetailSurplus);
+
+        setupChartControls();
+
         swipeRefresh.setOnRefreshListener(this::refreshData);
 
         populateUI();
 
         return v;
+    }
+
+    private void setupChartControls() {
+        // Range Filters
+        btnRange6M.setOnClickListener(v -> {
+            currentRangeMode = 0;
+            updateRangeButtons();
+            populateChart();
+        });
+
+        btnRange1Y.setOnClickListener(v -> {
+            currentRangeMode = 1;
+            updateRangeButtons();
+            populateChart();
+        });
+
+        btnRangeAll.setOnClickListener(v -> {
+            currentRangeMode = 2;
+            updateRangeButtons();
+            populateChart();
+        });
+
+        // Metric Series Filters
+        chipFilterBudget.setOnClickListener(v -> {
+            isBudgetVisible = !isBudgetVisible;
+            chipFilterBudget.setAlpha(isBudgetVisible ? 1.0f : 0.35f);
+            cycleChartView.setSeriesVisibility(isBudgetVisible, isExpenseVisible, isInvestmentVisible);
+        });
+
+        chipFilterExpense.setOnClickListener(v -> {
+            isExpenseVisible = !isExpenseVisible;
+            chipFilterExpense.setAlpha(isExpenseVisible ? 1.0f : 0.35f);
+            cycleChartView.setSeriesVisibility(isBudgetVisible, isExpenseVisible, isInvestmentVisible);
+        });
+
+        chipFilterInvestment.setOnClickListener(v -> {
+            isInvestmentVisible = !isInvestmentVisible;
+            chipFilterInvestment.setAlpha(isInvestmentVisible ? 1.0f : 0.35f);
+            cycleChartView.setSeriesVisibility(isBudgetVisible, isExpenseVisible, isInvestmentVisible);
+        });
+
+        // Selection Listener for Detail Card
+        cycleChartView.setOnCycleSelectedListener(this::updateSelectedCycleCard);
+    }
+
+    private void updateRangeButtons() {
+        btnRange6M.setBackgroundResource(currentRangeMode == 0 ? R.drawable.bg_pill_emerald : 0);
+        btnRange6M.setTextColor(currentRangeMode == 0 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+
+        btnRange1Y.setBackgroundResource(currentRangeMode == 1 ? R.drawable.bg_pill_emerald : 0);
+        btnRange1Y.setTextColor(currentRangeMode == 1 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+
+        btnRangeAll.setBackgroundResource(currentRangeMode == 2 ? R.drawable.bg_pill_emerald : 0);
+        btnRangeAll.setTextColor(currentRangeMode == 2 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+    }
+
+    private void updateSelectedCycleCard(CycleChartView.CycleBarItem item) {
+        if (item == null) return;
+        tvChartSelectedTitle.setText(item.fullCycle);
+        tvChartSelectedStatus.setText(item.isActiveCycle ? "Active Cycle ★" : "Completed Cycle");
+        tvChartSelectedStatus.setTextColor(item.isActiveCycle ? getResources().getColor(R.color.green_mint) : getResources().getColor(R.color.text_secondary));
+
+        tvChartDetailBudget.setText(formatCurrency(item.budget));
+        tvChartDetailExpense.setText(formatCurrency(item.expense));
+        tvChartDetailInvestment.setText(formatCurrency(item.investment));
+
+        double surplus = item.budget - item.expense;
+        if (surplus >= 0) {
+            tvChartDetailSurplus.setText("+" + formatCurrency(surplus));
+            tvChartDetailSurplus.setTextColor(getResources().getColor(R.color.green_mint));
+        } else {
+            tvChartDetailSurplus.setText("-" + formatCurrency(Math.abs(surplus)));
+            tvChartDetailSurplus.setTextColor(getResources().getColor(R.color.red_rose));
+        }
     }
 
     @Override
@@ -70,6 +183,9 @@ public class CycleFragment extends Fragment {
         tvTotalCycleSpent.setText(formatCurrency(c.totalSpend));
         tvCycleRemainderVal.setText(formatCurrency(c.remainder));
         tvDailyLimitValueCycle.setText(formatCurrency(c.canSpendPerDay) + " / day");
+
+        // Populate Interactive Chart
+        populateChart();
 
         // Subcategories
         layoutCycleSubCats.removeAllViews();
@@ -148,6 +264,60 @@ public class CycleFragment extends Fragment {
                 layoutCycleReceivables.addView(item);
             }
         }
+    }
+
+    private void populateChart() {
+        if (!isAdded()) return;
+        FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+        if (db == null || db.budget == null || db.budget.isEmpty()) return;
+
+        List<CycleChartView.CycleBarItem> allBars = new ArrayList<>();
+        CurrentCycle activeCycle = db.currentCycle != null ? db.currentCycle : new CurrentCycle();
+
+        for (BudgetItem b : db.budget) {
+            String shortMonth = b.month != null && b.month.length() >= 3 ? b.month.substring(0, 3) : "Mo";
+            boolean isActive = (b.year == activeCycle.cycleYear && b.monthNumber == activeCycle.cycleMonthNumber);
+            String fullTitle = (b.month != null ? b.month : "") + " " + b.year;
+
+            double exp = b.spend;
+            double bud = b.budget;
+            double inv = b.investment;
+
+            if (isActive) {
+                if (activeCycle.totalSpend > 0) exp = activeCycle.totalSpend;
+                if (activeCycle.budget > 0) bud = activeCycle.budget;
+            }
+
+            allBars.add(new CycleChartView.CycleBarItem(
+                    shortMonth,
+                    fullTitle,
+                    bud,
+                    exp,
+                    inv,
+                    b.year,
+                    b.monthNumber,
+                    isActive
+            ));
+        }
+
+        // Apply Range Filter
+        List<CycleChartView.CycleBarItem> filtered = new ArrayList<>();
+        int count = allBars.size();
+        if (currentRangeMode == 0) {
+            // 6 Months
+            int start = Math.max(0, count - 6);
+            filtered.addAll(allBars.subList(start, count));
+        } else if (currentRangeMode == 1) {
+            // 1 Year (12 Months)
+            int start = Math.max(0, count - 12);
+            filtered.addAll(allBars.subList(start, count));
+        } else {
+            // All
+            filtered.addAll(allBars);
+        }
+
+        cycleChartView.setData(filtered);
+        cycleChartView.setSeriesVisibility(isBudgetVisible, isExpenseVisible, isInvestmentVisible);
     }
 
     private void refreshData() {

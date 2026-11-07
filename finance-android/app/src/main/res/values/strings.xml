@@ -1,7 +1,7 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Finance Manager</string>
-    <string name="title_activity_main">Finance Manager</string>
+    <string name="app_name">FinMngr</string>
+    <string name="title_activity_main">FinMngr</string>
     <string name="package_name">com.samiy.financemanager</string>
     <string name="custom_url_scheme">com.samiy.financemanager</string>
 </resources>
