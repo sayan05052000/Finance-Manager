@@ -1,103 +1,43 @@
-# 🚀 Finance Manager — Architecture, Design & Developer Guide
+# Finance Manager - Comprehensive Architecture, Design & Developer Guide
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), and loan liabilities.
 
 ---
 
-## 📑 Table of Contents
-1. [System Architecture](#-system-architecture)
-2. [Data Flow & Communication Protocol](#-data-flow--communication-protocol)
-3. [Core Business Concepts & Domain Logic](#-core-business-concepts--domain-logic)
-   - [1. Monthly Billing Cycles (The 6th-to-5th Rule)](#1-monthly-billing-cycles-the-6th-to-5th-rule)
-   - [2. Dual Sub-Category Concept (Category Tables vs Fund Class)](#2-dual-sub-category-concept-category-tables-vs-fund-class)
-   - [3. SIP Tracer & Deployment Architecture](#3-sip-tracer--deployment-architecture)
-   - [4. Mutual Fund Transactions (Buy vs. Redeem)](#4-mutual-fund-transactions-buy-vs-redeem)
-   - [5. Overview Dashboard & Net Worth Metrics](#5-overview-dashboard--net-worth-metrics)
-4. [Project Directory & File Structure](#-project-directory--file-structure)
-5. [Key Classes & Component Responsibilities](#-key-classes--component-responsibilities)
-6. [Google Sheets & Apps Script Backend (`Code.gs`)](#-google-sheets--apps-script-backend-codegs)
-7. [Debugging & Troubleshooting Guide](#-debugging--troubleshooting-guide)
-8. [Build & Deployment Instructions](#-build--deployment-instructions)
+## Table of Contents
+1. [Core Business Considerations & Domain Rules](#1-core-business-considerations--domain-rules)
+   - [Billing Cycle & The 6th-to-5th Rule](#billing-cycle--the-6th-to-5th-rule)
+   - [Dual Sub-Category System](#dual-sub-category-system)
+   - [SIP Tracer Architecture & Constraints](#sip-tracer-architecture--constraints)
+   - [Mutual Fund Transactions (Buy vs. Redeem)](#mutual-fund-transactions-buy-vs-redeem)
+   - [Sheet Formula Co-existence](#sheet-formula-co-existence)
+   - [Overview & Financial KPI Calculations](#overview--financial-kpi-calculations)
+   - [Keyboard & UX Design Considerations](#keyboard--ux-design-considerations)
+2. [System Architecture & Data Flow](#2-system-architecture--data-flow)
+   - [High-Level Architecture](#high-level-architecture)
+   - [End-to-End Data Flow](#end-to-end-data-flow)
+   - [Handling Google Apps Script HTTP 302 Redirects](#handling-google-apps-script-http-302-redirects)
+3. [Google Sheets Database Schema](#3-google-sheets-database-schema)
+4. [Project File Structure](#4-project-file-structure)
+5. [Key Components & Responsibilities](#5-key-components--responsibilities)
+6. [Debugging & Troubleshooting Guide](#6-debugging--troubleshooting-guide)
+   - [Building the Project](#building-the-project)
+   - [Testing Google Apps Script Endpoints](#testing-google-apps-script-endpoints)
+   - [Inspecting Logcat Logs](#inspecting-logcat-logs)
+   - [Common Pitfalls & Fixes](#common-pitfalls--fixes)
+7. [Google Apps Script Deployment Guide](#7-google-apps-script-deployment-guide)
 
 ---
 
-## 🏛 System Architecture
+## 1. Core Business Considerations & Domain Rules
 
-The application is structured around a decoupled **Client-Server-Spreadsheet** architecture:
-
-```mermaid
-flowchart TD
-    subgraph Android["Native Android Application"]
-        UI["UI Layer\n(Fragments & BottomSheetDialogs)"]
-        Repo["FinanceRepository\n(Singleton Repository & Network Manager)"]
-        Cache["Local Persistent Cache\n(SharedPreferences JSON Cache)"]
-        Calc["CalculationEngine\n(Cycle Remainder, Daily Spend & Inflows)"]
-        
-        UI -->|Fetch / Mutate| Repo
-        Repo -->|Offline Fallback & Cache Write| Cache
-        Repo -->|Derive Summaries| Calc
-    end
-
-    subgraph Cloud["Google Infrastructure"]
-        GAS["Google Apps Script Web App\n(Code.gs Endpoint)"]
-        Sheet[("Google Sheets Database\n(10+ Interconnected Worksheets)")]
-        
-        Repo <==>|"HTTPS GET / POST\n(JSON Payload with 302 Redirect Handling)"| GAS
-        GAS <==>|"SpreadsheetApp API\n(getRange, appendRow, setValue)"| Sheet
-    end
-```
-
-### Architectural Highlights
-- **Zero Cloud Hosting Costs**: Google Sheets acts as the database engine with formula execution, while Google Apps Script acts as the serverless REST API gateway.
-- **Offline-First Resilience**: All sheet data is cached in local app storage via Gson. If the network is unavailable, the user can inspect their finances without interruption.
-- **Formula Co-existence**: The backend leaves specific columns blank (`Scheme Name`, `Invested / Redeemed Amount`, `Processed`) so that Google Sheets formulas (such as `ROUND(Units * NAV, 2)`) automatically populate values without interference.
-
----
-
-## 🔄 Data Flow & Communication Protocol
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User
-    participant App as Android App (UI & Repository)
-    participant GAS as Apps Script Web App
-    participant GSheet as Google Sheets
-
-    User->>App: Opens App / Pulls to Refresh
-    App->>GAS: GET ?action=all
-    GAS->>GSheet: Reads sheets (Transactions, Holdings, SIP Tracer, Budget, etc.)
-    GSheet-->>GAS: 2D cell arrays with column headers
-    GAS-->>App: 302 Redirect -> 200 OK (Consolidated JSON Database)
-    App->>App: Cache to SharedPreferences & compute aggregations
-    App-->>User: Renders Overview, Ledger, Holdings & SIP Tracer
-
-    User->>App: Edit SIP / Record MF Tx / Add Expense
-    App->>GAS: POST { action: "updateSip", sip: { ... } }
-    GAS->>GSheet: Locates row by fundName & updates specific columns
-    GSheet-->>GAS: Cell values updated & formulas recalculated
-    GAS-->>App: 302 Redirect -> 200 OK { status: "success" }
-    App->>App: Update local in-memory DB & persist cache
-    App-->>User: Instant UI update with toast confirmation
-```
-
-### Handling Google Apps Script 302 Redirects
-When executing `POST` operations against a deployed Google Apps Script Web App:
-1. Google responds with `HTTP 302 Found` and provides a redirect URL pointing to `https://script.googleusercontent.com/macros/echo?...`.
-2. Standard Android `HttpURLConnection` disables automatic redirects for POST methods.
-3. The custom `executeHttpPost()` in `FinanceRepository` intercepts `302/303` redirects and forwards the JSON payload or checks execution status cleanly.
-
----
-
-## 💡 Core Business Concepts & Domain Logic
-
-### 1. Monthly Billing Cycles (The 6th-to-5th Rule)
-- Unlike calendar months (1st to 30th/31st), the personal finance budget runs on a **cycle from the 6th of the current month to the 5th of the next month**.
-- **Critical Boundary Rule**:
-  - Transactions dated **1st to 5th of Month $M$** belong to the **Month $M-1$ cycle**.
-  - Transactions dated **6th to 31st of Month $M$** belong to the **Month $M$ cycle**.
-  - *Example*: A transaction on `02/11/2026` belongs to the **October 2026 cycle**, whereas `07/11/2026` belongs to the **November 2026 cycle**.
-- **Implementation**: Enforced strictly in `Transaction.java` and `CalculationEngine.java`:
+### Billing Cycle & The 6th-to-5th Rule
+* **The Rule**: Monthly budget cycles run from the **6th of the current month to the 5th of the following month**.
+* **Date 1 to 5 Boundary**:
+  - Transactions dated between the **1st and 5th of Month M** belong to the **Month M-1 cycle**.
+  - Transactions dated between the **6th and 31st of Month M** belong to the **Month M cycle**.
+  - *Example*: A transaction on `02/11/2026` belongs to the **October 2026 cycle**, while a transaction on `07/11/2026` belongs to the **November 2026 cycle**.
+* **Code Enforcement**: In `Transaction.java` and `CalculationEngine.java`, cycle assignment strictly inspects the numeric day and shifts the effective month:
   ```java
   public boolean isInCycle(int cycleYear, int cycleMonth) {
       int txDay = getDay();
@@ -113,218 +53,278 @@ When executing `POST` operations against a deployed Google Apps Script Web App:
       return effectiveYear == cycleYear && effectiveMonth == cycleMonth;
   }
   ```
-  *(Never use substring checks like `date.contains("11/2026")` as they cause 1st–5th transactions to bleed into the wrong cycle).*
+  *(Never use string matching like `date.contains("11/2026")` because it erroneously assigns Nov 1-5 to the November cycle).*
 
 ---
 
-### 2. Dual Sub-Category Concept (Category Tables vs Fund Class)
-The project utilizes two distinct sub-category dimensions:
+### Dual Sub-Category System
+The application distinguishes between two different concepts of "sub-category":
 
-| Dimension | Scope | Examples | Used In |
+| Dimension | Scope | Examples | Used By |
 |---|---|---|---|
-| **Fund Asset Sub-Category** | Mutual Fund Asset Class | `Liquid`, `Flexi Cap`, `Small Cap`, `Mid Cap` | Portfolio classification |
-| **Category Table Sub-Category (Savings Type)** | Budgeting & Category Allocation | `Kuvera Surplus(Family)`, `Mutual Fund`, `Credit Mutual Fund` | Ledger transactions & Holding badges |
+| **Fund Asset Sub-Category** | Investment asset class | `Liquid`, `Flexi Cap`, `Small Cap`, `Mid Cap` | AMC classification |
+| **Category Tables Sub-Category (Savings Type)** | Budgeting & account allocation | `Kuvera Surplus(Family)`, `Mutual Fund`, `Credit Mutual Fund` | Ledger transactions & Holding badges |
 
-* **Holding Card Badge**: Renders `h.savingsType` (e.g. `Kuvera Surplus(Family)`).
-* **Clicking a Holding**: When tapping a holding (e.g. `DSP LIQUID FUND`), the transaction dialog filters by:
-  1. `schemeName` (matching scheme ID or scheme Code).
-  2. `subCategory` from Category Tables (`h.savingsType`), **not** the fund asset sub-category (`Liquid`).
+* **Holding Card Badge**: Displays `h.savingsType` (e.g. `Kuvera Surplus(Family)`).
+* **Holding Click Filtering**: Clicking on a holding card (e.g. `DSP LIQUID FUND`) opens transaction history filtered by:
+  1. Scheme Name / Scheme Code / Scheme ID.
+  2. The Category Tables subcategory (`h.savingsType`), **not** the fund asset class (`Liquid`).
 
 ---
 
-### 3. SIP Tracer & Deployment Architecture
-The SIP Tracer monitors monthly automated mutual fund investments across deployment platforms and linked bank accounts.
+### SIP Tracer Architecture & Constraints
+The SIP Tracer tracks systematic investment commitments across multiple platforms and bank accounts:
+* **Dual Month View**: Monitors "This Month's SIP" vs "Next Month's SIP (Final)".
+* **Controlled Creation**: New SIP entries **cannot** be added from the mobile app; they require direct Google Sheet entry.
+* **Full In-App Modification**: Existing SIPs can be fully modified from the app:
+  - This Month Amount & Next Month Amount (Numeric).
+  - This Month & Next Month selections (`Jan`, `Feb`, ... `Dec`).
+  - Payment Statuses (`Not Paid` / `Paid`).
+  - Platform (`amc/upiauto`, `indmoney`, `amc/enach`, `groww`, `NA`).
+  - Linked Bank Account (`Slice`, `sbi`, `Pnb`, `Hdfc`, etc.).
+* **1-Tap Quick Toggles**: Main list cards have direct `Not Paid` / `Paid` buttons for fast 1-tap toggling without opening the full edit sheet.
 
-#### Column Mapping in `SIP Tracer` Sheet:
-| Col # | Sheet Column Header | Description / Allowed Values |
+---
+
+### Mutual Fund Transactions (Buy vs. Redeem)
+* **Buy / SIP**:
+  - Positive units.
+  - User enters Amount, NAV, and Units.
+  - Amount is written to `Actual Invested` (Column 10).
+* **Redeem**:
+  - Negative units.
+  - Amount is left blank or computed via sheet formula.
+
+---
+
+### Sheet Formula Co-existence
+To prevent the mobile app from overwriting automated formulas in Google Sheets, specific columns are deliberately left blank in POST requests:
+* **Column 1 (`Scheme Name`)**: Left blank so Google Sheet's `=VLOOKUP(Scheme Id, ...)` dynamically resolves the name.
+* **Column 9 (`Invested / Redeemed Amount`)**: Left blank so sheet formulas (`=ROUND(Units * NAV, 2)`) calculate values.
+* **Column 17 (`Processed`)**: Left blank so automation scripts mark records as `Done`.
+* **Column 18 (`Scheme Code`)**: Sent for historical NAV sync lookups.
+
+---
+
+### Overview & Financial KPI Calculations
+* **Net Worth Formula**:
+  $$\text{Net Worth} = \sum \text{Bank Balances} + \sum \text{Mutual Fund Current Values} - \sum \text{Loan Outstanding}$$
+* **Interest Accrued Rule**:
+  Accrued interest aggregates bank account interest (`Category == "Interest"` and `Type == "Bank"`). It **strictly excludes** loan interest.
+* **Balanced 2x2 Grid**: Overview cards are arranged in an unscrollable 2x2 grid:
+  1. Net Worth (Total Valuation, 1D Gain, ROI)
+  2. Bank Balances (Liquid funds across Slice, SBI, PNB, HDFC)
+  3. Total Assets (Mutual funds, gold, equity)
+  4. Loan Debt (Total liabilities)
+
+---
+
+### Keyboard & UX Design Considerations
+* **Auto-Dismiss Keyboard**: Tapping anywhere outside of numeric input fields (card backgrounds, labels, containers, or scrolling) immediately closes the software keyboard.
+* **No Floating Dropdowns**: Standard Android dropdown spinners have been replaced with centered modal dialogs (`AlertDialog.Builder`) for Month, Platform, and Bank selection to prevent coordinate bugs or keyboard overlap.
+* **Full Sheet Expansion**: Bottom sheets use `BottomSheetBehavior.STATE_EXPANDED` and `SOFT_INPUT_ADJUST_RESIZE` so inputs and action buttons remain visible above the software keyboard.
+
+---
+
+## 2. System Architecture & Data Flow
+
+### High-Level Architecture
+
+```mermaid
+flowchart TD
+    subgraph MobileApp["Android Mobile Client (Java)"]
+        UI["UI Layer (Fragments, BottomSheets, Adapters)"]
+        Repo["FinanceRepository (Singleton Network & Cache Manager)"]
+        Cache[("Local SharedPreferences Cache")]
+        Engine["CalculationEngine (Budget, Cycle Remainder, Daily Limit)"]
+
+        UI -->|User Action / Refresh| Repo
+        Repo -->|Cache Hit & Save| Cache
+        Repo -->|Compute Totals| Engine
+        Engine -->|Updated State| UI
+    end
+
+    subgraph Backend["Google Cloud Infrastructure"]
+        GAS["Google Apps Script Web App (Code.gs)"]
+        Sheet[("Google Sheets Database")]
+
+        Repo <==>|"HTTPS (JSON payload, 302 Redirect Handling)"| GAS
+        GAS <==>|"SpreadsheetApp API"| Sheet
+    end
+```
+
+---
+
+### End-to-End Data Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User
+    participant App as Android UI
+    participant Repo as FinanceRepository
+    participant GAS as Google Apps Script
+    participant GSheet as Google Sheets
+
+    User->>App: Opens App / Pulls to Refresh
+    App->>Repo: syncWithGoogleSheets()
+    Repo->>GAS: GET ?action=all
+    GAS->>GSheet: Reads sheets (Transactions, Holdings, Sips, etc.)
+    GSheet-->>GAS: 2D row/column data
+    GAS-->>Repo: 302 Redirect -> 200 OK (Consolidated JSON)
+    Repo->>Repo: Save to local SharedPreferences cache
+    Repo-->>App: Populate Overview, Ledger, Holdings & SIPs
+
+    User->>App: Edits SIP (Amount, Month, Platform, Status)
+    App->>Repo: updateSip(updatedSip)
+    Repo->>GAS: POST { action: "updateSip", sip: { ... } }
+    GAS->>GSheet: Finds row by fundName & updates columns 3-10
+    GSheet-->>GAS: Updates cell values & runs formulas
+    GAS-->>Repo: 302 Redirect -> 200 OK { status: "success" }
+    Repo->>Repo: Update in-memory database & local cache
+    Repo-->>App: UI refreshes immediately with confirmation toast
+```
+
+---
+
+### Handling Google Apps Script HTTP 302 Redirects
+When calling Google Apps Script Web Apps with a `POST` method:
+1. Google responds with `HTTP 302 Found` pointing to `https://script.googleusercontent.com/macros/echo?...`.
+2. Standard Android `HttpURLConnection` does not automatically follow redirects for POST requests.
+3. `FinanceRepository.executeHttpPost()` explicitly handles `302/303` redirect codes, reading the `Location` header and completing the request.
+
+---
+
+## 3. Google Sheets Database Schema
+
+The Google Spreadsheet acts as the relational database across 10 specialized sheets:
+
+| Sheet Name | Key Columns | Purpose |
 |---|---|---|
-| 1 | `Fund Name` | Unique scheme name (used as key for lookups) |
-| 2 | `Role in Architecture` | Architectural role badge (`Aggressor`, `Emergency Corpus Build`, etc.) |
-| 3 | `This Month's SIP` | Numeric SIP amount for the current active cycle |
-| 4 | `This Month` | 3-letter month abbreviation (`Jan`, `Feb`, ... `Dec`) |
-| 5 | `Payment Status` | `Paid` or `Not Paid` |
-| 6 | `Next SIP (Final)` | Numeric SIP target amount for next cycle |
-| 7 | `Next Month` | 3-letter month abbreviation (`Jan`, `Feb`, ... `Dec`) |
-| 8 | `Next Month's Payment Status` | `Paid` or `Not Paid` |
-| 9 | `Linked Bank Account` | `Slice`, `sbi`, `Pnb`, `Hdfc`, etc. |
-| 10 | `Platform` | `amc/upiauto`, `indmoney`, `amc/enach`, `groww`, `NA` |
-
-#### User Constraints:
-- **No In-App Additions**: The user cannot add new SIP entries from the mobile app. New funds must be created directly in the Google Sheet.
-- **Full In-App Modifications**: All parameters (amounts, months, platform, bank, payment status) can be updated from the app via `EditSipBottomSheet`.
-- **1-Tap Quick Toggles**: On the main SIP Tracer card list, `Paid` / `Not Paid` buttons can be tapped directly for fast status flipping without opening the full edit sheet.
-- **Dismiss Keyboard on Touch**: Touching anywhere outside of an active numeric input immediately dismisses the software keyboard.
-- **Centered Modal Pickers**: Month, Platform, and Bank Account options open in centered dark modal dialogs to prevent awkward floating popups or keyboard displacement.
+| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month | General ledger of all income and expenses |
+| **Mutual Investment Holdings** | Scheme Name, Scheme Code, Scheme Id, Category, Sub-category, Savings Type, Units, Avg Buying NAV, Invested Value, NAV, Current Value, 1D Change | Current portfolio valuation and live NAV tracking |
+| **Mutual Fund Transactions** | Scheme Name, Scheme Id, Date, Fund Category, Fund Sub Category, Platform, Sub Category, Folio, Actual Invested, Units, NAV, Processed, Scheme Code | Detailed mutual fund transaction ledger (Buy/Redeem) |
+| **SIP Tracer** | Fund Name, Role in Architecture, This Month's SIP, This Month, Payment Status, Next SIP (Final), Next Month, Next Month's Payment Status, Linked Bank Account, Platform | Monthly SIP deployment roadmap and status |
+| **Current Account Balance** | Accounts, Current Balance | Liquid bank account balances |
+| **Current Loan OutStanding** | Loans, Current OutStanding, Interest Rate, IsDebt | Liabilities and debt tracking |
+| **Budget** | Year, Month, Month Number, BUDGET, Spend, Remainder, Can Spend Per Day, Investment | Budget limits and daily spending allowances |
+| **Category Tables** | Category Name, SubCategory | Category hierarchy definitions |
+| **Goals** | Goals Name, Goal Amount, Occured Till Date, Percentage Of saving To Put | Long-term savings goals tracking |
+| **LIC AND TATA AIA** | Policy Number, Amount, Due Date, Installment Remains, Sub Category | Insurance policy schedule |
 
 ---
 
-### 4. Mutual Fund Transactions (Buy vs. Redeem)
-- **Sheet**: `Mutual Fund Transactions`
-- **18-Column Schema**:
-  1. `Scheme Name` *(left empty; populated by sheet VLOOKUP formula)*
-  2. `Scheme Id`
-  3. `Date` (`dd/MM/yyyy`)
-  4. `Fund Category` (e.g. `Equity`, `Debt`)
-  5. `Fund Sub Category` (e.g. `Small Cap`, `Liquid`)
-  6. `Platform` (e.g. `Groww`, `Kuvera`, `Zerodha`)
-  7. `Sub Category` (Category Table subcategory, e.g. `Mutual Fund`, `Kuvera Surplus(Family)`)
-  8. `Folio Number`
-  9. `Invested / Redeemed Amount` *(kept empty or computed by formula)*
-  10. `Actual Invested` *(Buy amount; empty on redeem)*
-  11. `Cost` *(empty)*
-  12. `Units` *(positive on Buy, negative on Redeem)*
-  13. `Buy NAV/Reedem NAV`
-  14. `Current NAV`
-  15. `P&L` *(empty)*
-  16. `Days Invested` *(empty)*
-  17. `Processed` *(left empty; sheet marks this 'Done' via script)*
-  18. `Scheme Code`
-
----
-
-### 5. Overview Dashboard & Net Worth Metrics
-- **Net Worth Calculation**:
-  $$\text{Net Worth} = \sum \text{Bank Balances} + \sum \text{Investments (NAV Value)} - \sum \text{Debt (Loans)}$$
-- **Interest Accrued Consideration**:
-  Interest accrued counts interest received across bank accounts (`Category == "Interest"` and `Type == "Bank"`). It **excludes** interest from loans or liabilities.
-- **2x2 Balanced Overview Grid**:
-  - Card 1: **Net Worth** (Total Valuation, 1D Gain, ROI)
-  - Card 2: **Bank Balances** (Liquid cash across Slice, SBI, PNB, HDFC)
-  - Card 3: **Total Assets** (Mutual funds, gold, equity)
-  - Card 4: **Loan Debt** (Outstanding liabilities)
-
----
-
-## 📁 Project Directory & File Structure
+## 4. Project File Structure
 
 ```
 Finance-Manager/
-├── FinanceManager.apk                          # Current production debug build
+├── .gitignore                          # Root ignore rules (build, gradle, IDE, apk)
+├── FinanceManager.apk                  # Current ready-to-install debug build
+├── README.md                           # This architecture and developer guide
 ├── google-apps-script/
-│   └── Code.gs                                 # Google Apps Script Web App REST API
+│   └── Code.gs                         # Google Apps Script Web App REST API gateway
 └── finance-android/
-    ├── gradlew / gradlew.bat                   # Gradle wrapper
-    ├── build.gradle                            # Top-level Gradle script
+    ├── build.gradle                    # Top-level Gradle configuration
+    ├── gradlew / gradlew.bat           # Gradle wrapper scripts
     └── app/
-        ├── build.gradle                        # App dependencies, compile SDK, build config
+        ├── build.gradle                # App module build configuration
         └── src/main/
-            ├── AndroidManifest.xml             # Permissions (INTERNET), activities, launcher
+            ├── AndroidManifest.xml     # App manifest (INTERNET permission, MainActivity)
             ├── java/com/samiy/financemanager/
-            │   ├── MainActivity.java           # Bottom navigation controller & fragment container
+            │   ├── MainActivity.java   # Main navigation activity (BottomNavigationView)
             │   ├── data/
-            │   │   ├── FinanceRepository.java  # HTTP client, cache, Google Sheets synchronization
-            │   │   └── model/                  # Data Transfer Objects (Gson serialized)
-            │   │       ├── Account.java        # Bank account balance model
-            │   │       ├── BudgetItem.java     # Monthly budget & daily limit model
-            │   │       ├── CategoryItem.java   # Category & SubCategory mappings
-            │   │       ├── CurrentCycle.java   # Active billing cycle model
-            │   │       ├── FinanceDatabase.java# Consolidated in-memory database
-            │   │       ├── Holding.java        # Mutual fund portfolio holding
-            │   │       ├── Loan.java           # Liability & loan outstanding
-            │   │       ├── MutualFundTransaction.java # MF transaction model
-            │   │       ├── PortfolioSummary.java # Aggregated portfolio returns & 1D change
-            │   │       ├── SavingsTypeSummary.java # Savings category breakdown
-            │   │       ├── SipItem.java        # SIP Tracer model
-            │   │       └── Transaction.java    # General ledger entry model
+            │   │   ├── FinanceRepository.java  # Core network client, cache & Google API sync
+            │   │   └── model/                  # Data models (Gson serialized)
+            │   │       ├── Account.java        # Bank account balance DTO
+            │   │       ├── BudgetItem.java     # Budget & spend limits DTO
+            │   │       ├── CategoryItem.java   # Category & subcategories DTO
+            │   │       ├── CurrentCycle.java   # Billing cycle metadata DTO
+            │   │       ├── FinanceDatabase.java# Consolidated in-memory database DTO
+            │   │       ├── Holding.java        # Portfolio investment holding DTO
+            │   │       ├── Loan.java           # Liability DTO
+            │   │       ├── MutualFundTransaction.java # MF transaction DTO
+            │   │       ├── PortfolioSummary.java # Portfolio aggregated ROI DTO
+            │   │       ├── SavingsTypeSummary.java # Savings category breakdown DTO
+            │   │       ├── SipItem.java        # SIP Tracer item DTO
+            │   │       └── Transaction.java    # General ledger entry DTO
             │   ├── engine/
-            │   │   └── CalculationEngine.java  # Budget remainder, daily limits, cycle checks
+            │   │   └── CalculationEngine.java  # Remainder, spend limit & interest aggregations
             │   ├── ui/
             │   │   ├── adapter/
             │   │   │   ├── AccountsAdapter.java
             │   │   │   ├── HoldingsAdapter.java
             │   │   │   ├── MfTransactionsAdapter.java
-            │   │   │   ├── SipAdapter.java
+            │   │   │   ├── SipAdapter.java # SIP card adapter with 1-tap status buttons
             │   │   │   └── TransactionsAdapter.java
             │   │   ├── dialog/
             │   │   │   ├── AddMutualFundTransactionBottomSheet.java
             │   │   │   ├── AddTransactionBottomSheet.java
-            │   │   │   ├── EditSipBottomSheet.java # Full parameter SIP editor
+            │   │   │   ├── EditSipBottomSheet.java # Full SIP parameter editor
             │   │   │   ├── SipTracerBottomSheet.java # SIP list & quick status toggler
-            │   │   │   └── ViewMfTransactionsBottomSheet.java # MF transaction filtered ledger
+            │   │   │   └── ViewMfTransactionsBottomSheet.java # MF ledger filtered by holding
             │   │   └── fragment/
             │   │       ├── AccountsFragment.java
             │   │       ├── CycleFragment.java
-            │   │       ├── HoldingsFragment.java   # Portfolio overview & scheme list
-            │   │       ├── LedgerFragment.java     # Complete transaction history
+            │   │       ├── HoldingsFragment.java   # Portfolio summary & scheme cards
+            │   │       ├── LedgerFragment.java     # Transaction history with cycle filtering
             │   │       └── OverviewFragment.java   # 2x2 financial KPI dashboard
             │   └── util/
             │       └── DateTimeHelper.java     # Date parsing (dd/MM/yyyy) & cycle utilities
             └── res/
-                ├── drawable/                   # Custom dark-theme backgrounds, pills & shapes
-                ├── layout/                     # XML layout designs
-                │   ├── dialog_edit_sip.xml     # Clean dialog layout with auto-closing keyboard
-                │   ├── dialog_sip_tracer.xml   # SIP Tracer bottom sheet layout
+                ├── drawable/                   # Dark theme backgrounds, chips & pills
+                ├── layout/                     # XML layout resources
+                │   ├── dialog_edit_sip.xml     # Clean edit dialog with touch interceptor
+                │   ├── dialog_sip_tracer.xml   # SIP Tracer bottom sheet
                 │   ├── dialog_view_mf_transactions.xml
-                │   ├── fragment_holdings.xml   # Balanced 2x2 header button layout
+                │   ├── fragment_holdings.xml   # Balanced 2x2 action buttons
                 │   ├── fragment_overview.xml   # 2x2 KPI card grid
                 │   ├── item_holding.xml
                 │   ├── item_sip.xml
                 │   └── item_transaction.xml
                 └── values/
-                    ├── colors.xml              # Futuristic dark palette (#0B0F19, emerald, royal blue)
+                    ├── colors.xml              # Futuristic dark palette (#0B0F19, emerald, blue)
                     ├── strings.xml
                     └── styles.xml              # AppTheme & CustomDarkDialog definitions
 ```
 
 ---
 
-## 🧩 Key Classes & Component Responsibilities
+## 5. Key Components & Responsibilities
 
-| Class | Responsibility |
+| Component | Responsibility |
 |---|---|
-| `FinanceRepository` | Thread-pool executor for API calls (`executeHttpGetWithRedirect`, `executeHttpPost`), manages `GAS_URL`, persists JSON cache in `SharedPreferences`. |
-| `CalculationEngine` | Computes live cycle debit/credit totals, daily spend limits, remaining days in active cycle, and interest accrued. |
-| `HoldingsFragment` | Displays total invested, current valuation, 1-day gain, ROI, savings type breakdown, and the list of active holdings. |
-| `ViewMfTransactionsBottomSheet` | Multi-filter mutual fund ledger (filter by Scheme, Category, Category Table Sub-Category, and Buy vs. Redeem). |
-| `SipTracerBottomSheet` | Displays total monthly SIP outlay, active SIP cards, 1-tap `Paid`/`Not Paid` status buttons, and edit button. |
-| `EditSipBottomSheet` | Allows editing both monthly amounts, months, payment statuses, platforms, and linked bank accounts with auto-dismiss keyboard logic. |
-| `LedgerFragment` | Displays all general transactions with month-cycle filtering, account filtering, and debit/credit summaries. |
+| `FinanceRepository` | Singleton managing network requests via thread pools, parsing responses, saving local cache to `SharedPreferences`, and notifying callbacks on the Android main thread. |
+| `CalculationEngine` | Computes net inflow/outflow, total debit/credit, remaining budget, days remaining in cycle, daily spend allowance, and filters interest transactions. |
+| `HoldingsFragment` | Renders portfolio KPIs (total invested, current valuation, 1D gain, ROI), savings type breakdown, and the list of holdings. |
+| `ViewMfTransactionsBottomSheet` | Displays mutual fund transaction history. Filters by Scheme Name/Id/Code and Category Tables Sub-Category (`Kuvera Surplus(Family)`). |
+| `SipTracerBottomSheet` | Displays active SIP schemes, total monthly outlay, quick `Paid`/`Not Paid` toggle buttons, and opens the full editor. |
+| `EditSipBottomSheet` | Edits SIP amounts, months, payment statuses, platforms, and linked bank accounts with auto-dismiss keyboard touch listeners. |
+| `LedgerFragment` | Full transaction history with cycle dropdown selector, account filtering, and debit/credit summaries. |
 
 ---
 
-## ⚡ Google Sheets & Apps Script Backend (`Code.gs`)
+## 6. Debugging & Troubleshooting Guide
 
-The script deployed on Google Apps Script turns your Google Spreadsheet into a full REST API:
-
-### GET Request: `?action=all`
-Returns all sheets packed into a single JSON object:
-```json
-{
-  "status": "success",
-  "data": {
-    "accounts": [ ... ],
-    "loans": [ ... ],
-    "budget": [ ... ],
-    "goals": [ ... ],
-    "holdings": [ ... ],
-    "mutualFundTransactions": [ ... ],
-    "insurance": [ ... ],
-    "sips": [ ... ],
-    "categories": [ ... ],
-    "transactions": [ ... ]
-  }
-}
+### Building the Project
+From the `finance-android` directory:
+```powershell
+Set-Location "finance-android"
+./gradlew assembleDebug --no-daemon
 ```
-
-### POST Actions Supported in `Code.gs`:
-1. `addTransaction`: Appends a row to the `Transactions` sheet and triggers `calculateRemainders()`.
-2. `updateSipStatus`: Fast toggle for single-field status (`current` or `next`) in `SIP Tracer`.
-3. `updateSip`: Updates all parameters (`currentSip`, `currentMonth`, `currentStatus`, `nextSip`, `nextMonth`, `nextStatus`, `bankAccount`, `platform`) for a given fund name.
-4. `addMutualFundTransaction`: Appends an 18-column record to `Mutual Fund Transactions`.
-5. `addHolding`: Appends an investment scheme to `Mutual Investment Holdings`.
+The generated APK is located at:
+`finance-android/app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-## 🛠 Debugging & Troubleshooting Guide
+### Testing Google Apps Script Endpoints
+To verify the live Google Apps Script Web App without running the Android app:
 
-### 1. Verification of Backend API
-To test if the Google Apps Script Web App is reachable and returning data:
+#### 1. Test GET (Fetch Entire Database):
 ```bash
-node -e "fetch('YOUR_GAS_URL?action=all', {redirect: 'follow'}).then(r => r.json()).then(d => console.log('Keys:', Object.keys(d.data)))"
+node -e "fetch('YOUR_GAS_URL?action=all', {redirect: 'follow'}).then(r => r.json()).then(d => console.log('Keys:', Object.keys(d.data), 'SIPs count:', d.data.sips.length))"
 ```
 
-### 2. Testing POST Mutations
-To test if a POST action updates the Google Sheet directly:
+#### 2. Test POST (Update a SIP Parameter):
 ```javascript
 fetch('YOUR_GAS_URL', {
   method: 'POST',
@@ -333,54 +333,64 @@ fetch('YOUR_GAS_URL', {
     action: 'updateSip',
     sip: {
       fundName: 'Invesco India Mid Cap',
-      currentSip: 4500,
+      currentSip: 5250,
       currentMonth: 'Nov',
       currentStatus: 'Paid',
-      nextSip: 4500,
+      nextSip: 5250,
       nextMonth: 'Dec',
       nextStatus: 'Not Paid',
       bankAccount: 'Slice',
-      platform: 'amc/upiauto'
+      platform: 'groww'
     }
   }),
   redirect: 'follow'
 }).then(r => r.json()).then(console.log);
 ```
 
-### 3. Logcat Inspection
+---
+
+### Inspecting Logcat Logs
 Connect your device over ADB and filter by app tags:
 ```bash
 adb logcat -s FinanceRepository CalculationEngine
 ```
 
-### 4. Common Issues & Solutions
-| Issue | Root Cause | Solution |
-|---|---|---|
-| Transactions from 1st–5th showing under current month | Hardcoded string matching on date (`11/2026`) | Use `Transaction.isInCycle(year, month)` which subtracts 1 from month if `day < 6`. |
-| Changes in SIP not saving to sheet | Missing `updateSip` action in deployed Apps Script | Deploy new version of `Code.gs` via **Deploy > New deployment** in Google Apps Script. |
-| Keyboard obscures Save button | Missing `ADJUST_RESIZE` or collapsed bottom sheet | Set `behavior.setState(STATE_EXPANDED)` and `setSoftInputMode(SOFT_INPUT_ADJUST_RESIZE)`. |
-| Dropdown menus shooting off screen | Standard spinner coordinate bugs in nested scroll views | Use `AlertDialog.Builder` modal pickers (`showSingleChoiceDialog`). |
-| Holding transactions not appearing | Filter matched Fund Sub-Category instead of Category Tables Sub-Category | Pass `h.savingsType` into `ViewMfTransactionsBottomSheet.newInstance(...)`. |
+---
+
+### Common Pitfalls & Fixes
+
+1. **Transactions on Date 1-5 Appearing in Wrong Cycle**:
+   - *Cause*: String matching on date (e.g. `date.contains("11/2026")`).
+   - *Fix*: Always use `Transaction.isInCycle(cycleYear, cycleMonth)` which checks `day < 6 ? month - 1 : month`.
+
+2. **SIP Updates Not Reflected in Google Sheet**:
+   - *Cause*: Google Apps Script deployment was not updated after changes to `Code.gs`.
+   - *Fix*: In Google Sheets, go to **Extensions > Apps Script**, paste the updated `Code.gs`, and click **Deploy > New deployment**.
+
+3. **Software Keyboard Blocks Dialog Fields or Buttons**:
+   - *Cause*: Missing `SOFT_INPUT_ADJUST_RESIZE` or bottom sheet collapsing.
+   - *Fix*: Call `behavior.setState(STATE_EXPANDED)`, `behavior.setSkipCollapsed(true)`, and set `dialog.getWindow().setSoftInputMode(SOFT_INPUT_ADJUST_RESIZE)`.
+
+4. **Dropdown Menus Flying to the Top of the Screen**:
+   - *Cause*: Standard Android `Spinner` calculates popup coordinates incorrectly in scrollable bottom sheets.
+   - *Fix*: Use centered modal dialogs (`AlertDialog.Builder`) for picking months, platforms, and banks.
+
+5. **Mutual Fund Transactions Missing for a Holding**:
+   - *Cause*: Filtering by Fund Sub-Category (e.g. `Liquid`) instead of Category Tables Sub-Category (e.g. `Kuvera Surplus(Family)`).
+   - *Fix*: Pass `h.savingsType` to `ViewMfTransactionsBottomSheet.newInstance(...)`.
 
 ---
 
-## 📦 Build & Deployment Instructions
+## 7. Google Apps Script Deployment Guide
 
-### Building the Debug APK
-Navigate to the Android project folder and run Gradle:
-```powershell
-Set-Location "C:\Users\samiy\OneDrive\Documents\projects\android\Finance-Manager\finance-android"
-./gradlew assembleDebug --no-daemon
-```
-
-The compiled APK will be generated at:
-`finance-android\app\build\outputs\apk\debug\app-debug.apk`
-(and automatically copied to root `FinanceManager.apk`).
-
-### Updating the Google Apps Script
-1. Open your Google Sheet.
-2. Navigate to **Extensions** > **Apps Script**.
-3. Replace the entire code with the contents of [Code.gs](file:///C:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/google-apps-script/Code.gs).
+Whenever modifying `Code.gs`:
+1. Open the [Finance Report Google Sheet](https://docs.google.com/spreadsheets/d/1IUekkxG3Au1ZBO5wOkk8Tit6ZZAuLhjiJjlKpTaUg_A/edit).
+2. Click **Extensions** > **Apps Script**.
+3. Replace the entire code with the contents of `google-apps-script/Code.gs`.
 4. Click **Deploy** > **Manage deployments** (or **New deployment**).
-5. Ensure *Execute as* is set to **Me** and *Who has access* is set to **Anyone**.
-6. Copy the Web App URL (if changed) into `FinanceRepository.java` (`GAS_URL`).
+5. Configuration:
+   - **Type**: Web app
+   - **Execute as**: `Me` (your Google account)
+   - **Who has access**: `Anyone`
+6. Click **Deploy**.
+7. If the URL changes, update `GAS_URL` in `FinanceRepository.java`.
