@@ -112,6 +112,7 @@
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
                 android:inputType="numberDecimal|numberSigned"
+            android:imeOptions="actionDone"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp" />
         </LinearLayout>
@@ -143,6 +144,7 @@
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
                 android:inputType="numberDecimal|numberSigned"
+            android:imeOptions="actionDone"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp" />
         </LinearLayout>
@@ -306,6 +308,7 @@
             android:textColorHint="@color/text_muted"
             android:textColor="@color/text_primary"
             android:inputType="text"
+            android:imeOptions="actionDone"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 

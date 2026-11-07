@@ -92,6 +92,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
         // Wire calendar date pickers
         DateTimeHelper.setupDatePicker(etDueDate);
         DateTimeHelper.setupDatePicker(etLastPaid);
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etPolicyNumber, etAmount, etSumAssured, etNotes);
 
         // Subcategory modal selector
         String[] subCategoryOptions = {

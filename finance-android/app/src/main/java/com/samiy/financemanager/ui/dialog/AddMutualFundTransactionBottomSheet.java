@@ -141,6 +141,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
                     view.post(() -> imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT));
                 }
             });
+            com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(et);
         }
 
         // Recursive keyboard dismissal on touching any non-input element

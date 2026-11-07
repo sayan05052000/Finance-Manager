@@ -129,6 +129,7 @@
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
                 android:inputType="text"
+            android:imeOptions="actionDone"
                 android:completionThreshold="1"
                 android:textSize="14sp" />
 
@@ -179,6 +180,7 @@
                     android:textSize="14sp"
                     android:gravity="center_vertical"
                     android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp" />
             </LinearLayout>
@@ -210,6 +212,7 @@
                     android:textSize="14sp"
                     android:gravity="center_vertical"
                     android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp" />
             </LinearLayout>
@@ -250,6 +253,7 @@
                     android:textSize="14sp"
                     android:gravity="center_vertical"
                     android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp" />
             </LinearLayout>

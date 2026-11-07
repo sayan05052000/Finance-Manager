@@ -190,6 +190,7 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             });
         }
 
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(allInputs);
         // Recursive keyboard auto-dismissal when touching anywhere outside inputs
         setupTouchToDismissKeyboard(v, imm, allInputs);
 

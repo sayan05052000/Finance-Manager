@@ -124,6 +124,7 @@ public class EditSipBottomSheet extends BottomSheetDialogFragment {
 
         etCurrentAmount = v.findViewById(R.id.etSipCurrentAmount);
         etNextAmount = v.findViewById(R.id.etSipNextAmount);
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etCurrentAmount, etNextAmount);
 
         tvCurrentMonth = v.findViewById(R.id.tvCurrentMonth);
         tvNextMonth = v.findViewById(R.id.tvNextMonth);
