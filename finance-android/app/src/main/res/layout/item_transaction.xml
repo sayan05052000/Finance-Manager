@@ -5,6 +5,9 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/bg_card"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
     android:padding="12dp"
     android:layout_marginBottom="8dp">
 
@@ -79,6 +82,21 @@
             android:text="₹30,209.72"
             android:textColor="@color/text_muted"
             android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/btnEditTxItem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_pill_dark"
+            android:text="✏️ Edit"
+            android:textColor="@color/blue_sky"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp" />
     </LinearLayout>
 
 </LinearLayout>

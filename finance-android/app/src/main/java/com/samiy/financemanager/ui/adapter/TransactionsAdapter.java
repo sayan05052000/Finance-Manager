@@ -18,6 +18,16 @@ import java.util.List;
 import java.util.Locale;
 
 public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapter.ViewHolder> {
+    public interface OnTransactionClickListener {
+        void onTransactionClick(Transaction transaction);
+    }
+
+    private OnTransactionClickListener listener;
+
+    public void setOnTransactionClickListener(OnTransactionClickListener listener) {
+        this.listener = listener;
+    }
+
     private List<Transaction> items = new ArrayList<>();
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
@@ -75,6 +85,16 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         } else {
             holder.tvRemainder.setVisibility(View.GONE);
         }
+
+        View.OnClickListener clickListener = v -> {
+            if (listener != null) {
+                listener.onTransactionClick(tx);
+            }
+        };
+        holder.itemView.setOnClickListener(clickListener);
+        if (holder.btnEdit != null) {
+            holder.btnEdit.setOnClickListener(clickListener);
+        }
     }
 
     @Override
@@ -87,7 +107,7 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvSourceBadge, tvDate, tvAmount, tvCategoryDesc, tvRemainder;
+        TextView tvSourceBadge, tvDate, tvAmount, tvCategoryDesc, tvRemainder, btnEdit;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -96,6 +116,7 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
             tvAmount = itemView.findViewById(R.id.tvTxAmount);
             tvCategoryDesc = itemView.findViewById(R.id.tvTxCategoryDesc);
             tvRemainder = itemView.findViewById(R.id.tvTxRemainder);
+            btnEdit = itemView.findViewById(R.id.btnEditTxItem);
         }
     }
 }

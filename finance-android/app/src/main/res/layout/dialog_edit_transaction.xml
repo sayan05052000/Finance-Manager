@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrollEditTransaction"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/bg_card"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:id="@+id/layoutEditTxRoot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:focusable="true"
+        android:focusableInTouchMode="true">
+
+        <!-- Handle bar -->
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_pill_dark"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Update Transaction"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvEditTxSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Updates row directly in your Google Sheet Transactions tab"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+
+        <!-- 1. Type Selector (Expense, Income, Do not Consider) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Transaction Type"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/rgEditType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbEditExpense"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Expense"
+                android:checked="true"
+                android:textColor="@color/red_rose"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/rbEditIncome"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Income"
+                android:textColor="@color/green_mint"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/rbEditDoNotConsider"
+                android:layout_width="0dp"
+                android:layout_weight="1.3"
+                android:layout_height="wrap_content"
+                android:text="Do not Consider"
+                android:textColor="@color/blue_sky"
+                android:textSize="12sp" />
+        </RadioGroup>
+
+        <!-- 2. Debit Input Field (Visible for Expense & Do not Consider) -->
+        <LinearLayout
+            android:id="@+id/layoutEditDebitField"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvEditDebitLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Debit (₹)"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <EditText
+                android:id="@+id/etEditDebit"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_pill_dark"
+                android:hint="Exact value, e.g. 1000.00"
+                android:textColorHint="@color/text_muted"
+                android:textColor="@color/text_primary"
+                android:inputType="numberDecimal|numberSigned"
+                android:imeOptions="actionDone"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp" />
+        </LinearLayout>
+
+        <!-- 3. Credit Input Field (Visible for Income & Do not Consider) -->
+        <LinearLayout
+            android:id="@+id/layoutEditCreditField"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvEditCreditLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Credit (₹)"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <EditText
+                android:id="@+id/etEditCredit"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_pill_dark"
+                android:hint="Exact value, e.g. 500.00"
+                android:textColorHint="@color/text_muted"
+                android:textColor="@color/text_primary"
+                android:inputType="numberDecimal|numberSigned"
+                android:imeOptions="actionDone"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp" />
+        </LinearLayout>
+
+        <!-- 4. Sub-Category Field with Instant Search -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Sub-Category"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnEditSearchSubCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔍 Search"
+                android:textColor="@color/green_mint"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:background="@drawable/bg_pill_dark"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp">
+
+            <AutoCompleteTextView
+                android:id="@+id/actvEditSubCategory"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:background="@drawable/bg_spinner_dark"
+                android:hint="Type or tap to search..."
+                android:textColorHint="@color/text_muted"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                android:paddingStart="14dp"
+                android:paddingEnd="42dp"
+                android:completionThreshold="1"
+                android:dropDownVerticalOffset="4dp"
+                android:popupBackground="@color/bg_card_secondary" />
+
+            <ImageView
+                android:id="@+id/btnEditSubCategoryDropdown"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="6dp"
+                android:padding="8dp"
+                android:src="@drawable/ic_chevron_down"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </RelativeLayout>
+
+        <!-- 5. Tag: Choose Account OR Loan -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Tag Transaction to:"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <RadioGroup
+            android:id="@+id/rgEditTagType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbEditTagLoan"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Loan / Card"
+                android:checked="true"
+                android:textColor="@color/amber_gold"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/rbEditTagAccount"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Bank Account"
+                android:textColor="@color/green_mint"
+                android:textSize="12sp" />
+        </RadioGroup>
+
+        <Spinner
+            android:id="@+id/spEditSourceSelector"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_spinner_dark"
+            android:popupBackground="@color/bg_card_secondary"
+            android:dropDownVerticalOffset="4dp" />
+
+        <!-- 6. Date Field -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Date (Cannot be in the future)"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etEditDate"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_pill_dark"
+            android:hint="DD/MM/YYYY"
+            android:textColorHint="@color/text_muted"
+            android:textColor="@color/text_primary"
+            android:focusable="false"
+            android:clickable="true"
+            android:cursorVisible="false"
+            android:drawableEnd="@drawable/ic_calendar"
+            android:drawablePadding="8dp"
+            android:drawableTint="@color/green_mint"
+            android:textSize="14sp"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp" />
+
+        <!-- 7. Description Field -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Description / Notes (Optional)"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etEditDescription"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_pill_dark"
+            android:hint="e.g. Monthly SIP or bill payment"
+            android:textColorHint="@color/text_muted"
+            android:textColor="@color/text_primary"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp" />
+
+        <!-- Update Button -->
+        <Button
+            android:id="@+id/btnUpdateTransaction"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="20dp"
+            android:backgroundTint="@color/green_emerald"
+            android:text="Update Transaction"
+            android:textColor="#0B0F19"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

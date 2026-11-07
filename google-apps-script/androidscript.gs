@@ -109,6 +109,78 @@ function doPost(e) {
       return jsonResponse({ status: 'success', message: 'Transaction added successfully' });
     }
 
+    if (action === 'updateTransaction') {
+      const sheet = ss.getSheetByName('Transactions');
+      if (!sheet) throw new Error('Transactions sheet not found');
+
+      const tx = data.transaction || {};
+      const rowId = Number(tx.id);
+      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
+        throw new Error('Invalid transaction row ID: ' + rowId);
+      }
+
+      // Col 1: Date
+      if (tx.date !== undefined && tx.date !== null && String(tx.date).trim() !== '') {
+        const dStr = String(tx.date).trim();
+        sheet.getRange(rowId, 1).setValue(dStr);
+        const parts = dStr.split('/');
+        if (parts.length === 3) {
+          sheet.getRange(rowId, 11).setValue(parts[2]); // Col 11: Year
+          sheet.getRange(rowId, 12).setValue(parts[1]); // Col 12: Month
+        }
+      }
+
+      // Col 2: Credit
+      if (tx.credit !== undefined && tx.credit !== null) {
+        const creditVal = Number(tx.credit);
+        sheet.getRange(rowId, 2).setValue(creditVal > 0 ? creditVal : '');
+      }
+
+      // Col 3: Debit (with sign)
+      if (tx.debit !== undefined && tx.debit !== null) {
+        const debitVal = Number(tx.debit);
+        sheet.getRange(rowId, 3).setValue(debitVal !== 0 ? debitVal : '');
+      }
+
+      // Col 6: Sub Category
+      if (tx.subCategory !== undefined && tx.subCategory !== null) {
+        sheet.getRange(rowId, 6).setValue(String(tx.subCategory).trim());
+      }
+
+      // Col 7: Type
+      if (tx.type !== undefined && tx.type !== null) {
+        sheet.getRange(rowId, 7).setValue(String(tx.type).trim());
+      }
+
+      // Col 8: Loans
+      if (tx.loans !== undefined) {
+        sheet.getRange(rowId, 8).setValue(tx.loans ? String(tx.loans).trim() : '');
+      }
+
+      // Col 9: Account
+      if (tx.account !== undefined) {
+        sheet.getRange(rowId, 9).setValue(tx.account ? String(tx.account).trim() : '');
+      }
+
+      // Col 10: Category
+      if (tx.category !== undefined && tx.category !== null && String(tx.category).trim() !== '') {
+        sheet.getRange(rowId, 10).setValue(String(tx.category).trim());
+      }
+
+      // Col 13: Debit Without Sign
+      if (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null) {
+        const dwsVal = Number(tx.debitWithoutSign);
+        sheet.getRange(rowId, 13).setValue(dwsVal > 0 ? dwsVal : '');
+      }
+
+      // Col 14: Description
+      if (tx.description !== undefined && tx.description !== null) {
+        sheet.getRange(rowId, 14).setValue(String(tx.description).trim());
+      }
+
+      return jsonResponse({ status: 'success', message: 'Transaction updated successfully' });
+    }
+
     if (action === 'updateSipStatus') {
       const sheet = ss.getSheetByName('SIP Tracer');
       if (!sheet) throw new Error('SIP Tracer sheet not found');

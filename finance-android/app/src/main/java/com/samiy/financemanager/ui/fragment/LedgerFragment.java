@@ -80,6 +80,21 @@ public class LedgerFragment extends Fragment {
         rvLedger = v.findViewById(R.id.rvLedger);
         rvLedger.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new TransactionsAdapter();
+        adapter.setOnTransactionClickListener(tx -> {
+            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            com.samiy.financemanager.ui.dialog.EditTransactionBottomSheet dialog =
+                    com.samiy.financemanager.ui.dialog.EditTransactionBottomSheet.newInstance(tx);
+            dialog.setListener(() -> {
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).updateHeaderInfo();
+                }
+                refreshData();
+            });
+            dialog.show(getChildFragmentManager(), "EditTxDialog_" + tx.id);
+        });
         rvLedger.setAdapter(adapter);
 
         View btnAddTx = v.findViewById(R.id.btnAddTransactionLedger);

@@ -244,6 +244,66 @@ public class FinanceRepository {
         });
     }
 
+    public void updateTransaction(Transaction tx, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Update in local database immediately
+        if (database != null && database.transactions != null) {
+            for (int i = 0; i < database.transactions.size(); i++) {
+                if (database.transactions.get(i).id == tx.id) {
+                    database.transactions.set(i, tx);
+                    break;
+                }
+            }
+            CalculationEngine.recalculate(database);
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject payload = new JsonObject();
+                payload.addProperty("action", "updateTransaction");
+                JsonObject txObj = new JsonObject();
+                txObj.addProperty("id", tx.id);
+                txObj.addProperty("date", tx.date);
+                if (tx.credit != 0) txObj.addProperty("credit", tx.credit);
+                else txObj.addProperty("credit", "");
+
+                if (tx.debitWithoutSign != 0) txObj.addProperty("debitWithoutSign", tx.debitWithoutSign);
+                else txObj.addProperty("debitWithoutSign", "");
+
+                if (tx.debit != 0) txObj.addProperty("debit", tx.debit);
+                else if (tx.debitWithoutSign != 0) txObj.addProperty("debit", -Math.abs(tx.debitWithoutSign));
+                else txObj.addProperty("debit", "");
+
+                txObj.addProperty("type", tx.type);
+                txObj.addProperty("category", tx.category != null ? tx.category : "");
+                txObj.addProperty("subCategory", tx.subCategory != null ? tx.subCategory : "");
+                txObj.addProperty("account", tx.account != null ? tx.account : "");
+                txObj.addProperty("loans", tx.loans != null ? tx.loans : "");
+                txObj.addProperty("description", tx.description != null ? tx.description : "");
+                payload.add("transaction", txObj);
+
+                String postBody = gson.toJson(payload);
+                executeHttpPost(GAS_URL, postBody.toString());
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating transaction in Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to sync to sheet: " + e.getMessage());
+                });
+            }
+        });
+    }
+
     public void updateSipStatus(String fundName, String targetMonth, String status, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
