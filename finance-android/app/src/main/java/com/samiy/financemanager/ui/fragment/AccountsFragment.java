@@ -380,21 +380,37 @@ public class AccountsFragment extends Fragment {
             TextView tvNotes = itemView.findViewById(R.id.tvPolicyNotes);
             View btnEditDates = itemView.findViewById(R.id.btnEditPolicyDates);
 
-            // Provider SubCategory
-            String subCat = p.subCategory != null ? p.subCategory : "";
-            if (subCat.toUpperCase().contains("TATA")) {
-                tvSubCategory.setText("TATA AIA");
+            // SubCategory as Badge (e.g. Health Insurance, Brother LIC Policies, Tata AIA Policy, Term Insurance)
+            String subCat = p.subCategory != null ? p.subCategory.trim() : "";
+            if (subCat.isEmpty()) {
+                subCat = "Insurance";
+            }
+            tvSubCategory.setText(subCat);
+
+            String subCatUpper = subCat.toUpperCase();
+            if (subCatUpper.contains("HEALTH")) {
+                tvSubCategory.setBackgroundResource(R.drawable.bg_chip_green);
+                tvSubCategory.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+            } else if (subCatUpper.contains("TATA") || subCatUpper.contains("TERM")) {
                 tvSubCategory.setBackgroundResource(R.drawable.bg_chip_blue);
                 tvSubCategory.setTextColor(ContextCompat.getColor(requireContext(), R.color.blue_sky));
             } else {
-                tvSubCategory.setText("LIC");
+                // LIC Policies, Brother LIC Policies, Sister LIC Policies, etc.
                 tvSubCategory.setBackgroundResource(R.drawable.bg_badge_amber);
                 tvSubCategory.setTextColor(ContextCompat.getColor(requireContext(), R.color.amber_gold));
             }
 
-            // Policy Number & Category
+            // Policy Number
             tvPolicyNumber.setText(p.policyNumber != null ? p.policyNumber : "Unknown Policy");
-            tvCategory.setText(p.category != null ? p.category : "Insurance");
+
+            // Category tag (only show if not redundant with Sub-Category)
+            String cat = p.category != null ? p.category.trim() : "";
+            if (!cat.isEmpty() && !cat.equalsIgnoreCase("Insurance") && !cat.equalsIgnoreCase(subCat)) {
+                tvCategory.setText(cat);
+                tvCategory.setVisibility(View.VISIBLE);
+            } else {
+                tvCategory.setVisibility(View.GONE);
+            }
 
             // Premium Amount
             tvPremium.setText(formatCurrency(p.premiumAmount));

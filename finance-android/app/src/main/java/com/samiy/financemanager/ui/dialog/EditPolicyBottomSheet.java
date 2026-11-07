@@ -178,7 +178,16 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         Button btnUpdate = v.findViewById(R.id.btnUpdatePolicy);
 
         NumberFormat nf = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
-        tvSubCategory.setText(policy.subCategory);
+        String subCat = policy.subCategory != null ? policy.subCategory.trim() : "";
+        tvSubCategory.setText(subCat.isEmpty() ? "Insurance Policy" : subCat);
+        String subCatUpper = subCat.toUpperCase();
+        if (subCatUpper.contains("HEALTH")) {
+            tvSubCategory.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
+        } else if (subCatUpper.contains("TATA") || subCatUpper.contains("TERM")) {
+            tvSubCategory.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.blue_sky));
+        } else {
+            tvSubCategory.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.amber_gold));
+        }
         tvPolicyNumber.setText(policy.policyNumber);
         tvPremium.setText(nf.format(policy.premiumAmount).replace("INR", "₹").replace(".00", ""));
 
