@@ -13,6 +13,8 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Mutual Fund Transactions (Buy vs. Redeem)](#mutual-fund-transactions-buy-vs-redeem)
    - [Sheet Formula Co-existence](#sheet-formula-co-existence)
    - [Overview & Financial KPI Calculations](#overview--financial-kpi-calculations)
+   - [Interactive Cycle Analytics Charts (Budget vs Expense vs Investment)](#interactive-cycle-analytics-charts)
+   - [App Branding & Visual Identity (FinMngr)](#app-branding--visual-identity-finmngr)
    - [Keyboard & UX Design Considerations](#keyboard--ux-design-considerations)
 2. [System Architecture & Data Flow](#2-system-architecture--data-flow)
    - [High-Level Architecture](#high-level-architecture)
@@ -147,7 +149,31 @@ To prevent the mobile app from overwriting automated formulas in Google Sheets, 
 
 ---
 
-### Keyboard & UX Design Considerations
+### Interactive Cycle Analytics Charts
+The Cycles screen features an interactive multi-series comparison chart (`CycleChartView`) comparing historical and active cycle metrics:
+* **Metric Series**:
+  - **Budget** (Sky Blue `#38BDF8`)
+  - **Total Expense** (Rose Red `#F43F5E`)
+  - **Total Investment** (Amber Gold `#F59E0B`)
+* **Interactive Touch Scrubbing & Inspector**:
+  - Users can tap or drag across cycles with immediate haptic feedback (`HapticFeedbackConstants.CLOCK_TICK`).
+  - Active cycle indicator dot (Emerald `#10B981`) flags current billing cycle.
+  - Interactive Selected Cycle Detail Card updates in real time with Budget, Actual Spend, % Utilized, Total Invested, and Net Surplus/Deficit.
+* **Range & Series Filters**:
+  - Filter by **6M** (Last 6 cycles), **1Y** (Last 12 cycles), or **All** historical cycles.
+  - Interactive chip toggles allow isolating or hiding individual metric bars (Budget, Expense, Investment).
+* **Live Sync**: Active cycle's expense and budget values dynamically reflect live transaction additions from `activeCycle.totalSpend` and `activeCycle.budget`.
+
+---
+
+### App Branding & Visual Identity (FinMngr)
+* **Visual Identity**:
+  - **Icon**: Stylized teal/cyan piggy bank with gold coin (`$`), bar chart graphic on body, and upward trending orange arrow inside a deep navy squircle (`#071727`).
+  - **Logo Wordmark**: `FinMngr` typography with custom color split (**F** in `#FFFFFF`, **in** in `#1BB5A6`, **Mngr** in `#F59E0B`) with subtitle **SMART WEALTH TRACKING**.
+* **Android Launcher Icons**:
+  - Vector adaptive foreground icon (`ic_launcher_foreground.png`) with safe-zone margin.
+  - Square/squircle (`ic_launcher.png`) and circular (`ic_launcher_round.png`) mipmap assets generated across `mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, and `xxxhdpi`.
+  - Dark splash screen (`splash.png`) and branded app bar headers across the app.
 * **Auto-Dismiss Keyboard**: Tapping anywhere outside of numeric input fields (card backgrounds, labels, containers, or scrolling) immediately closes the software keyboard.
 * **No Floating Dropdowns**: Standard Android dropdown spinners have been replaced with centered modal dialogs (`AlertDialog.Builder`) for Month, Platform, and Bank selection to prevent coordinate bugs or keyboard overlap.
 * **Full Sheet Expansion**: Bottom sheets use `BottomSheetBehavior.STATE_EXPANDED` and `SOFT_INPUT_ADJUST_RESIZE` so inputs and action buttons remain visible above the software keyboard.
