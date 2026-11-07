@@ -445,6 +445,20 @@ public class AccountsFragment extends Fragment {
                 tvNotes.setVisibility(View.GONE);
             }
 
+            // Quick Mark as Paid Button Click: Opens with today's payment date and +1 year shifted due date
+            View btnMarkPaidQuick = itemView.findViewById(R.id.btnMarkPolicyPaidQuick);
+            if (btnMarkPaidQuick != null) {
+                btnMarkPaidQuick.setOnClickListener(view -> {
+                    if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                        Toast.makeText(getContext(), "You are not authorized to update policies.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    EditPolicyBottomSheet bottomSheet = EditPolicyBottomSheet.newInstance(p, true);
+                    bottomSheet.setOnPolicyUpdatedListener(this::refreshData);
+                    bottomSheet.show(getChildFragmentManager(), "mark_paid_" + p.policyNumber);
+                });
+            }
+
             // Update Dates Button Click: Only Last Paid and Due Date can be modified!
             btnEditDates.setOnClickListener(view -> {
                 if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {

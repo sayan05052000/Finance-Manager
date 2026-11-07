@@ -191,6 +191,23 @@
             android:textSize="11sp" />
 
         <TextView
+            android:id="@+id/btnMarkPolicyPaidQuick"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_chip_green"
+            android:text="⚡ Mark Paid"
+            android:textColor="@color/green_mint"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
             android:id="@+id/btnEditPolicyDates"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

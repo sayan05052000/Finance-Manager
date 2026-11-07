@@ -24,12 +24,17 @@ import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.InsurancePolicy;
 import com.samiy.financemanager.util.DateTimeHelper;
 
+import android.widget.CheckBox;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Locale;
 
 public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
 
     private static final String ARG_POLICY = "policy";
+    private static final String ARG_AUTO_MARK_PAID = "auto_mark_paid";
     private InsurancePolicy policy;
 
     public interface OnPolicyUpdatedListener {
@@ -39,9 +44,14 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
     private OnPolicyUpdatedListener listener;
 
     public static EditPolicyBottomSheet newInstance(InsurancePolicy policy) {
+        return newInstance(policy, false);
+    }
+
+    public static EditPolicyBottomSheet newInstance(InsurancePolicy policy, boolean autoMarkPaid) {
         EditPolicyBottomSheet fragment = new EditPolicyBottomSheet();
         Bundle args = new Bundle();
         args.putSerializable(ARG_POLICY, policy);
+        args.putBoolean(ARG_AUTO_MARK_PAID, autoMarkPaid);
         fragment.setArguments(args);
         return fragment;
     }
@@ -102,12 +112,54 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         tvPolicyNumber.setText(policy.policyNumber);
         tvPremium.setText(nf.format(policy.premiumAmount).replace("INR", "₹").replace(".00", ""));
 
-        etDueDate.setText(policy.dueDate != null ? policy.dueDate : "");
-        etLastPaid.setText(policy.lastPaid != null ? policy.lastPaid : "");
+        final String originalDue = policy.dueDate != null ? policy.dueDate : "";
+        final String originalLastPaid = policy.lastPaid != null ? policy.lastPaid : "";
+
+        etDueDate.setText(originalDue);
+        etLastPaid.setText(originalLastPaid);
 
         // Setup calendar date pickers for Due Date and Last Paid Date
         DateTimeHelper.setupDatePicker(etDueDate);
         DateTimeHelper.setupDatePicker(etLastPaid);
+
+        // Mark as Paid quick option
+        View cardMarkPaid = v.findViewById(R.id.cardMarkPolicyPaid);
+        CheckBox cbMarkPaid = v.findViewById(R.id.cbMarkPolicyPaid);
+        TextView tvMarkPaidSub = v.findViewById(R.id.tvMarkPaidSub);
+
+        SimpleDateFormat todaySdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+        String todayStr = todaySdf.format(new Date());
+
+        Runnable applyMarkAsPaid = () -> {
+            cbMarkPaid.setChecked(true);
+            etLastPaid.setText(todayStr);
+            String shiftedDue = shiftDateByOneYear(originalDue);
+            etDueDate.setText(shiftedDue);
+            tvMarkPaidSub.setText("Payment date set to Today (" + todayStr + ") • Next due shifted to " + shiftedDue);
+            btnUpdate.setText("Mark Paid & Update Dates");
+        };
+
+        Runnable revertMarkAsPaid = () -> {
+            cbMarkPaid.setChecked(false);
+            etDueDate.setText(originalDue);
+            etLastPaid.setText(originalLastPaid);
+            tvMarkPaidSub.setText("Sets payment date to Today and shifts Due Date by +1 year");
+            btnUpdate.setText("Update Policy Dates");
+        };
+
+        cardMarkPaid.setOnClickListener(view -> {
+            if (!cbMarkPaid.isChecked()) {
+                applyMarkAsPaid.run();
+                Toast.makeText(getContext(), "Payment date set to Today! Next due date shifted +1 year.", Toast.LENGTH_SHORT).show();
+            } else {
+                revertMarkAsPaid.run();
+            }
+        });
+
+        boolean autoMarkPaid = getArguments() != null && getArguments().getBoolean(ARG_AUTO_MARK_PAID, false);
+        if (autoMarkPaid) {
+            applyMarkAsPaid.run();
+        }
 
         btnUpdate.setOnClickListener(view -> {
             String newDue = etDueDate.getText().toString().trim();
@@ -146,5 +198,37 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         });
 
         return v;
+    }
+
+    private String shiftDateByOneYear(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            Calendar c = Calendar.getInstance();
+            c.add(Calendar.YEAR, 1);
+            return new SimpleDateFormat("dd/MM/yyyy", Locale.US).format(c.getTime());
+        }
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+            Date d = sdf.parse(dateStr.trim());
+            if (d != null) {
+                Calendar c = Calendar.getInstance();
+                c.setTime(d);
+                c.add(Calendar.YEAR, 1);
+                return sdf.format(c.getTime());
+            }
+        } catch (Exception ignored) {}
+
+        String[] parts = dateStr.trim().split("/");
+        if (parts.length == 3) {
+            try {
+                int day = Integer.parseInt(parts[0].trim());
+                int month = Integer.parseInt(parts[1].trim());
+                int year = Integer.parseInt(parts[2].trim()) + 1;
+                return String.format(Locale.US, "%02d/%02d/%04d", day, month, year);
+            } catch (Exception ignored) {}
+        }
+
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.YEAR, 1);
+        return new SimpleDateFormat("dd/MM/yyyy", Locale.US).format(c.getTime());
     }
 }
