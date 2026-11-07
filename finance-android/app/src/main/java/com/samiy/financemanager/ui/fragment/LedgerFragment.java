@@ -91,6 +91,7 @@ public class LedgerFragment extends Fragment {
                 if (getActivity() instanceof MainActivity) {
                     ((MainActivity) getActivity()).updateHeaderInfo();
                 }
+                populateUI();
                 refreshData();
             });
             dialog.show(getChildFragmentManager(), "EditTxDialog_" + tx.id);
@@ -113,6 +114,7 @@ public class LedgerFragment extends Fragment {
                                     if (getActivity() instanceof MainActivity) {
                                         ((MainActivity) getActivity()).updateHeaderInfo();
                                     }
+                                    populateUI();
                                     refreshData();
                                 }
                             }

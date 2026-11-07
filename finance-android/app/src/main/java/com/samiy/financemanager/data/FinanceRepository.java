@@ -286,6 +286,8 @@ public class FinanceRepository {
                 txObj.addProperty("subCategory", tx.subCategory != null ? tx.subCategory : "");
                 txObj.addProperty("account", tx.account != null ? tx.account : "");
                 txObj.addProperty("loans", tx.loans != null ? tx.loans : "");
+                txObj.addProperty("year", tx.year);
+                txObj.addProperty("month", tx.month);
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
@@ -626,6 +628,20 @@ public class FinanceRepository {
         });
     }
 
+    private void checkJsonResponseForError(String jsonStr) throws Exception {
+        if (jsonStr == null || jsonStr.trim().isEmpty()) return;
+        try {
+            com.google.gson.JsonElement el = com.google.gson.JsonParser.parseString(jsonStr);
+            if (el != null && el.isJsonObject()) {
+                JsonObject obj = el.getAsJsonObject();
+                if (obj.has("status") && "error".equalsIgnoreCase(obj.get("status").getAsString())) {
+                    String msg = obj.has("message") ? obj.get("message").getAsString() : "Error from Google Sheets";
+                    throw new Exception(msg);
+                }
+            }
+        } catch (com.google.gson.JsonSyntaxException ignored) {}
+    }
+
     private String executeHttpGetWithRedirect(String urlStr) throws Exception {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -670,7 +686,9 @@ public class FinanceRepository {
         if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
             String redirectUrl = conn.getHeaderField("Location");
             if (redirectUrl != null) {
-                return executeHttpPost(redirectUrl, jsonBody);
+                String resp = executeHttpGetWithRedirect(redirectUrl);
+                checkJsonResponseForError(resp);
+                return resp;
             }
         }
 
@@ -680,7 +698,9 @@ public class FinanceRepository {
             while ((inputLine = in.readLine()) != null) {
                 response.append(inputLine);
             }
-            return response.toString();
+            String resp = response.toString();
+            checkJsonResponseForError(resp);
+            return resp;
         }
     }
 }

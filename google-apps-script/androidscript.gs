@@ -114,9 +114,23 @@ function doPost(e) {
       if (!sheet) throw new Error('Transactions sheet not found');
 
       const tx = data.transaction || {};
-      const rowId = Number(tx.id);
+      let rowId = Number(tx.id);
+
+      // Fallback row matching if rowId is invalid or was temporary
       if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
-        throw new Error('Invalid transaction row ID: ' + rowId);
+        const vals = sheet.getDataRange().getValues();
+        for (let i = vals.length - 1; i >= 1; i--) {
+          const rDate = vals[i][0] instanceof Date ? Utilities.formatDate(vals[i][0], 'Asia/Kolkata', 'dd/MM/yyyy') : String(vals[i][0] || '').trim();
+          const rSub = String(vals[i][5] || '').trim();
+          if (tx.date && rDate === String(tx.date).trim() && (!tx.subCategory || rSub === String(tx.subCategory).trim())) {
+            rowId = i + 1;
+            break;
+          }
+        }
+      }
+
+      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
+        throw new Error('Invalid transaction row ID: ' + tx.id);
       }
 
       // Col 1: Date
@@ -173,7 +187,52 @@ function doPost(e) {
         sheet.getRange(rowId, 13).setValue(dwsVal > 0 ? dwsVal : '');
       }
 
+      if (typeof calculateRemainders === 'function') {
+        try {
+          calculateRemainders();
+        } catch (err) {
+          console.warn('calculateRemainders error: ' + err);
+        }
+      }
+
       return jsonResponse({ status: 'success', message: 'Transaction updated successfully' });
+    }
+
+    if (action === 'deleteTransaction') {
+      const sheet = ss.getSheetByName('Transactions');
+      if (!sheet) throw new Error('Transactions sheet not found');
+
+      const tx = data.transaction || {};
+      let rowId = Number(data.id || tx.id);
+
+      // Fallback row matching if rowId is invalid or was temporary
+      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
+        const vals = sheet.getDataRange().getValues();
+        for (let i = vals.length - 1; i >= 1; i--) {
+          const rDate = vals[i][0] instanceof Date ? Utilities.formatDate(vals[i][0], 'Asia/Kolkata', 'dd/MM/yyyy') : String(vals[i][0] || '').trim();
+          const rSub = String(vals[i][5] || '').trim();
+          if (tx.date && rDate === String(tx.date).trim() && (!tx.subCategory || rSub === String(tx.subCategory).trim())) {
+            rowId = i + 1;
+            break;
+          }
+        }
+      }
+
+      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
+        throw new Error('Invalid transaction row ID: ' + (data.id || tx.id));
+      }
+
+      sheet.deleteRow(rowId);
+
+      if (typeof calculateRemainders === 'function') {
+        try {
+          calculateRemainders();
+        } catch (err) {
+          console.warn('calculateRemainders error: ' + err);
+        }
+      }
+
+      return jsonResponse({ status: 'success', message: 'Transaction deleted successfully' });
     }
 
     if (action === 'updateSipStatus') {

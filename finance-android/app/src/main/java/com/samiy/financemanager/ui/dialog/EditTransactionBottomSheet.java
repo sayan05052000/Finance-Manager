@@ -468,6 +468,25 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
             transaction.debitWithoutSign = debitVal;
             transaction.credit = creditVal;
 
+            String[] parts = date.split("/");
+            if (parts.length == 3) {
+                try {
+                    int d = Integer.parseInt(parts[0].trim());
+                    int m = Integer.parseInt(parts[1].trim());
+                    int y = Integer.parseInt(parts[2].trim());
+                    if (d < 6) {
+                        if (m == 1) {
+                            m = 12;
+                            y = y - 1;
+                        } else {
+                            m = m - 1;
+                        }
+                    }
+                    transaction.month = m;
+                    transaction.year = y;
+                } catch (Exception ignored) {}
+            }
+
             if (debitVal != 0) {
                 transaction.debit = -Math.abs(debitVal);
             } else {
