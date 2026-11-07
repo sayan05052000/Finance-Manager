@@ -172,6 +172,7 @@
             android:cursorVisible="false"
             android:drawableEnd="@drawable/ic_calendar"
             android:drawablePadding="8dp"
+        android:drawableTint="@color/green_mint"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 
@@ -200,6 +201,7 @@
             android:cursorVisible="false"
             android:drawableEnd="@drawable/ic_calendar"
             android:drawablePadding="8dp"
+        android:drawableTint="@color/green_mint"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 

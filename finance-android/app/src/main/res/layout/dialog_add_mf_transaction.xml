@@ -97,7 +97,8 @@
                 android:layout_height="wrap_content"
                 android:text="Folio Number (Optional)"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvMfFolioHint"
@@ -115,8 +116,8 @@
             android:background="@drawable/bg_pill_dark"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="6dp">
+            android:paddingStart="14dp"
+            android:paddingEnd="10dp">
 
             <AutoCompleteTextView
                 android:id="@+id/etMfFolio"
@@ -136,7 +137,7 @@
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:padding="6dp"
-                android:src="@android:drawable/arrow_down_float"
+                android:src="@drawable/ic_chevron_down"
                 android:tint="@color/text_secondary"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Pick Folio" />
@@ -147,14 +148,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:baselineAligned="false">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginEnd="8dp">
+                android:layout_marginEnd="6dp">
 
                 <TextView
                     android:id="@+id/tvMfAmountLabel"
@@ -162,7 +164,8 @@
                     android:layout_height="wrap_content"
                     android:text="Invested Amount (₹)"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/etMfAmount"
@@ -173,9 +176,11 @@
                     android:hint="5000.00"
                     android:textColorHint="@color/text_muted"
                     android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"
                     android:inputType="numberDecimal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp" />
             </LinearLayout>
 
             <LinearLayout
@@ -183,14 +188,15 @@
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginStart="8dp">
+                android:layout_marginStart="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="NAV (₹)"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/etMfNav"
@@ -201,9 +207,11 @@
                     android:hint="55.80"
                     android:textColorHint="@color/text_muted"
                     android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"
                     android:inputType="numberDecimal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -212,21 +220,23 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:baselineAligned="false">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginEnd="8dp">
+                android:layout_marginEnd="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Units"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/etMfUnits"
@@ -237,9 +247,11 @@
                     android:hint="89.605"
                     android:textColorHint="@color/text_muted"
                     android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"
                     android:inputType="numberDecimal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp" />
             </LinearLayout>
 
             <LinearLayout
@@ -247,14 +259,15 @@
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginStart="8dp">
+                android:layout_marginStart="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Date (DD/MM/YYYY)"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/etMfDate"
@@ -265,17 +278,26 @@
                     android:hint="06/11/2026"
                     android:textColorHint="@color/text_muted"
                     android:textColor="@color/text_primary"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"
+                    android:focusable="false"
+                    android:clickable="true"
+                    android:cursorVisible="false"
+                    android:drawableEnd="@drawable/ic_calendar"
+                    android:drawablePadding="8dp"
+                    android:drawableTint="@color/green_mint"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Fund Category & Fund Sub Category -->
+        <!-- 6. Fund Category & Fund Sub Category Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:baselineAligned="false">
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -304,7 +326,7 @@
 
             <LinearLayout
                 android:layout_width="0dp"
-                android:layout_weight="1.2"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginStart="6dp">
@@ -328,14 +350,15 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 6. Savings Type / Sub-Category -->
+        <!-- 7. Savings Type / Sub-Category -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="Savings Type (Sub-Category)"
             android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
         <Spinner
             android:id="@+id/spMfSavingsType"
@@ -346,14 +369,15 @@
             android:popupBackground="@color/bg_card_secondary"
             android:dropDownVerticalOffset="4dp" />
 
-        <!-- 7. Platform (Groww, Kuvera) -->
+        <!-- 8. Platform (Groww, Kuvera) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="Platform"
             android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
         <Spinner
             android:id="@+id/spMfPlatform"

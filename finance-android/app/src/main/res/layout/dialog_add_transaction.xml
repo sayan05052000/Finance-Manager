@@ -281,6 +281,9 @@
             android:cursorVisible="false"
             android:drawableEnd="@drawable/ic_calendar"
             android:drawablePadding="8dp"
+            android:drawableTint="@color/green_mint"
+            android:textSize="14sp"
+            android:gravity="center_vertical"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 

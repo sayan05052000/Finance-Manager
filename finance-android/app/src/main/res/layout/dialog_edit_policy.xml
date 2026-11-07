@@ -120,7 +120,8 @@
         android:clickable="true"
         android:cursorVisible="false"
         android:drawableEnd="@drawable/ic_calendar"
-        android:drawablePadding="8dp" />
+        android:drawablePadding="8dp"
+        android:drawableTint="@color/green_mint" />
 
     <!-- Last Paid Date Field -->
     <TextView
@@ -146,7 +147,8 @@
         android:clickable="true"
         android:cursorVisible="false"
         android:drawableEnd="@drawable/ic_calendar"
-        android:drawablePadding="8dp" />
+        android:drawablePadding="8dp"
+        android:drawableTint="@color/green_mint" />
 
     <!-- Locked Warning Note -->
     <TextView
