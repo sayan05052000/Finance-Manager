@@ -11,6 +11,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.model.CategoryItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -81,6 +82,9 @@ public class FinanceRepository {
     }
 
     public FinanceDatabase getDatabase() {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            return null;
+        }
         return database;
     }
 
@@ -128,6 +132,13 @@ public class FinanceRepository {
     }
 
     public void syncWithGoogleSheets(DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
         executor.execute(() -> {
             try {
                 String resultJson = executeHttpGetWithRedirect(GAS_URL + "?action=all");
@@ -172,6 +183,13 @@ public class FinanceRepository {
     }
 
     public void addTransaction(Transaction tx, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
         // Pre-append to local database for immediate UI responsiveness
         if (database != null) {
             if (database.transactions == null) {
@@ -224,7 +242,14 @@ public class FinanceRepository {
         });
     }
 
-        public void updateSipStatus(String fundName, String targetMonth, String status, DataCallback callback) {
+    public void updateSipStatus(String fundName, String targetMonth, String status, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
         executor.execute(() -> {
             try {
                 JsonObject postBody = new JsonObject();
@@ -263,6 +288,13 @@ public class FinanceRepository {
     }
 
     public void updateSip(com.samiy.financemanager.data.model.SipItem updatedSip, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
         executor.execute(() -> {
             try {
                 JsonObject postBody = new JsonObject();
@@ -307,6 +339,13 @@ public class FinanceRepository {
     }
 
     public void addMutualFundTransaction(com.samiy.financemanager.data.model.MutualFundTransaction mfTx, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
         if (database != null) {
             if (database.mutualFundTransactions == null) {
                 database.mutualFundTransactions = new java.util.ArrayList<>();

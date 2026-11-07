@@ -147,6 +147,73 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
+        <!-- Unauthorized Overlay -->
+        <LinearLayout
+            android:id="@+id/layoutUnauthorized"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="28dp"
+            android:visibility="gone"
+            android:background="@color/bg_dark">
+
+            <!-- Lock Icon with pill background -->
+            <FrameLayout
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:background="@drawable/bg_pill_dark">
+
+                <ImageView
+                    android:id="@+id/ivUnauthorizedIcon"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_lock"
+                    app:tint="@color/red_rose" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tvUnauthorizedTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="You are not authorized"
+                android:textColor="@color/red_rose"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tvUnauthorizedReason"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Access is restricted to samiyasti@gmail.com.\nPlease sign in with the authorized Google account to view or edit your financial data."
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:gravity="center" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUnauthorizedAction"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:layout_marginTop="28dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Sign in with samiyasti@gmail.com"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/colorPrimary"
+                app:cornerRadius="26dp"
+                app:icon="@drawable/ic_google"
+                app:iconTint="@null"
+                app:iconGravity="textStart" />
+        </LinearLayout>
+
         <!-- Bottom Navigation Bar -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNavigation"

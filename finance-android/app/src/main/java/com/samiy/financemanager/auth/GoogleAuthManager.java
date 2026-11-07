@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.util.Log;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -17,6 +18,7 @@ import java.util.List;
 
 public class GoogleAuthManager {
     public static final int RC_SIGN_IN = 9001;
+    public static final String AUTHORIZED_EMAIL = "samiyasti@gmail.com";
 
     private static GoogleAuthManager instance;
     private final Context context;
@@ -68,9 +70,26 @@ public class GoogleAuthManager {
         return currentAccount != null;
     }
 
+    public boolean isAuthorized() {
+        return currentAccount != null && isAuthorizedEmail(currentAccount.getEmail());
+    }
+
+    public static boolean isAuthorizedEmail(String email) {
+        return email != null && AUTHORIZED_EMAIL.equalsIgnoreCase(email.trim());
+    }
+
     public void signIn(Activity activity) {
         Intent signInIntent = googleSignInClient.getSignInIntent();
         activity.startActivityForResult(signInIntent, RC_SIGN_IN);
+    }
+
+    public void switchAccount(Activity activity) {
+        googleSignInClient.signOut().addOnCompleteListener(task -> {
+            currentAccount = null;
+            notifyListeners();
+            Intent signInIntent = googleSignInClient.getSignInIntent();
+            activity.startActivityForResult(signInIntent, RC_SIGN_IN);
+        });
     }
 
     public void signOut(Runnable onComplete) {
@@ -89,7 +108,8 @@ public class GoogleAuthManager {
                 notifyListeners();
                 return true;
             } catch (ApiException e) {
-                // If Play Services OAuth failed or cancelled, try to keep previous or notify
+                Log.w("GoogleAuthManager", "signInResult:failed code=" + e.getStatusCode());
+                currentAccount = GoogleSignIn.getLastSignedInAccount(context);
                 notifyListeners();
             }
             return true;
@@ -101,9 +121,6 @@ public class GoogleAuthManager {
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
             if ("com.samiy.financemanager".equals(data.getScheme()) && "oauth2redirect".equals(data.getHost())) {
-                // OAuth 2.0 Web redirect received
-                String code = data.getQueryParameter("code");
-                String error = data.getQueryParameter("error");
                 notifyListeners();
                 return true;
             }
@@ -112,7 +129,7 @@ public class GoogleAuthManager {
     }
 
     private void notifyListeners() {
-        for (AuthListener l : listeners) {
+        for (AuthListener l : new ArrayList<>(listeners)) {
             l.onAuthStateChanged(currentAccount);
         }
     }

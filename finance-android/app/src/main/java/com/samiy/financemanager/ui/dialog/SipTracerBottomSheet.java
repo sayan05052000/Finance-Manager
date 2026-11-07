@@ -52,6 +52,12 @@ public class SipTracerBottomSheet extends BottomSheetDialogFragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        if (!com.samiy.financemanager.auth.GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+            android.widget.Toast.makeText(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT).show();
+            dismissAllowingStateLoss();
+            return null;
+        }
+
         View v = inflater.inflate(R.layout.dialog_sip_tracer, container, false);
 
         tvSipSubtitle = v.findViewById(R.id.tvSipSubtitle);
