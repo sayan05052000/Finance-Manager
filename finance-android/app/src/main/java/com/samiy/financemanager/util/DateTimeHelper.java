@@ -1,6 +1,6 @@
 package com.samiy.financemanager.util;
 
-import android.app.DatePickerDialog;
+import com.samiy.financemanager.ui.dialog.CustomCalendarDialog;
 import android.content.Context;
 import android.widget.EditText;
 import com.samiy.financemanager.R;
@@ -111,27 +111,11 @@ public class DateTimeHelper {
 
     public static void showDatePickerDialog(Context context, EditText targetEditText) {
         if (context == null || targetEditText == null) return;
-
-        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"));
         String currentText = targetEditText.getText().toString().trim();
-        if (!currentText.isEmpty() && currentText.contains("/")) {
-            String[] parts = currentText.split("/");
-            if (parts.length == 3) {
-                try {
-                    int d = Integer.parseInt(parts[0].trim());
-                    int m = Integer.parseInt(parts[1].trim()) - 1;
-                    int y = Integer.parseInt(parts[2].trim());
-                    cal.set(y, m, d);
-                } catch (Exception ignored) {}
-            }
-        }
-
-        DatePickerDialog picker = new DatePickerDialog(context, R.style.CustomDarkDialog, (view, year, month, dayOfMonth) -> {
-            String formatted = String.format(Locale.US, "%02d/%02d/%04d", dayOfMonth, month + 1, year);
-            targetEditText.setText(formatted);
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
-
-        picker.show();
+        CustomCalendarDialog dialog = new CustomCalendarDialog(context, currentText, (day, month, year, formattedDate) -> {
+            targetEditText.setText(formattedDate);
+        });
+        dialog.show();
     }
 
     public static void setupDatePicker(EditText editText) {

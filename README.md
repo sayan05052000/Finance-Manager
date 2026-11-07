@@ -165,13 +165,16 @@ The application tracks life and health insurance policies across LIC and Tata AI
 
 ---
 
-### Universal Calendar Date Pickers
-* **Cross-App Date Consistency**: Across every update and creation flow in the app where dates are entered, users are provided a native calendar date picker.
-* **Styling & Formatting**:
-  - Uses `DatePickerDialog` wrapped in `R.style.CustomDarkDialog` to seamlessly match the deep navy dark aesthetic (`#0B0F19`, `#131B26`).
-  - Automatically parses existing date strings (or defaults to current date) to initialize calendar view.
-  - Formats selected date strictly to `dd/MM/yyyy`.
-  - Makes `EditText` non-focusable and activates calendar dialog on tap.
+### Universal Custom Calendar Dialog (Full FinMngr Design Language)
+* **Design Consistency**: Replaces generic system DatePickerDialog with a purpose-built custom calendar dialog (`CustomCalendarDialog.java` & `dialog_custom_calendar.xml`) designed to strictly match FinMngr's futuristic dark aesthetic:
+  - **Container**: Rounded card (`#131B26`, 20dp corner radius, 1dp subtle border `#223247`).
+  - **Header**: Calendar icon, title ("Select Date" in `#F8FAFC`), and close button.
+  - **Quick Presets**: 1-tap shortcut pills for `[ Today ]`, `[ Yesterday ]`, `[ 6th (Cycle Start) ]`, and `[ 1st of Month ]`.
+  - **Navigation**: Month & Year navigation bar (`◀ November 2026 ▶`) with 1-tap Year Picker modal (2020-2035).
+  - **7-Column Day Grid**: Day cells with haptic touch feedback. Today's date features a subtle mint ring (`#34D399`), while the selected date is highlighted with a solid emerald green circle (`#10B981`) and bold white text.
+  - **Selected Date Preview**: Live preview pill (e.g. `Selected: Sat, 14 Nov 2026`).
+  - **Footer Buttons**: Styled `Cancel` (`bg_pill_dark`) and `Set Date` (`bg_pill_emerald`) action buttons.
+* **Formatting**: Automatically parses incoming dates and formats selected dates strictly to `dd/MM/yyyy`.
 * **Adopted Modals**:
   1. `AddTransactionBottomSheet` (Ledger income/expense date)
   2. `AddMutualFundTransactionBottomSheet` (Mutual fund transaction date)
@@ -481,7 +484,8 @@ Finance-Manager/
 | `AccountsFragment` | Renders bank balances, liabilities/debt, section filter pills (All, Banks & Debt, LIC & Tata AIA, Financial Goals), Insurance Financing visual representation card, insurance policy list with date updates and add policy action, and view-only financial goals. |
 | `EditPolicyBottomSheet` | Bottom sheet for updating insurance policies. Strictly enforces lockdown on policy terms; only Last Paid Date and Due Date can be modified via dark-themed calendar pickers. |
 | `AddPolicyBottomSheet` | Bottom sheet for adding new insurance policies to Google Sheets with calendar pickers for dates and provider modal selector. |
-| `DateTimeHelper` | Central utility managing calendar date picker dialogs (`DatePickerDialog` with `R.style.CustomDarkDialog`) and date string parsing/formatting in `dd/MM/yyyy`. |
+| `CustomCalendarDialog` | Custom dark-themed calendar dialog with 1-tap quick presets (Today, Yesterday, 6th Cycle Start, 1st of Month), month/year navigation, and day grid adhering to FinMngr design language. |
+| `DateTimeHelper` | Central utility delegating date selections to `CustomCalendarDialog` and managing date parsing/formatting in `dd/MM/yyyy`. |
 | `HoldingsFragment` | Renders portfolio KPIs (total invested, current valuation, 1D gain, ROI), savings type breakdown, and the list of holdings. |
 | `ViewMfTransactionsBottomSheet` | Displays mutual fund transaction history. Filters by Scheme Name/Id/Code and Category Tables Sub-Category (`Kuvera Surplus(Family)`). Protected by authorization checks. |
 | `SipTracerBottomSheet` | Displays active SIP schemes, total monthly outlay, quick `Paid`/`Not Paid` toggle buttons, and opens the full editor. Protected by authorization checks. |
