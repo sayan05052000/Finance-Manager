@@ -60,6 +60,13 @@ public class HoldingsFragment extends Fragment {
         Button btnAddMfTx = v.findViewById(R.id.btnAddMfTx);
         Button btnViewMfTransactions = v.findViewById(R.id.btnViewMfTransactions);
         Button btnRefreshHoldings = v.findViewById(R.id.btnRefreshHoldings);
+        Button btnSipTracer = v.findViewById(R.id.btnSipTracer);
+        if (btnSipTracer != null) {
+            btnSipTracer.setOnClickListener(view -> {
+                com.samiy.financemanager.ui.dialog.SipTracerBottomSheet dialog = new com.samiy.financemanager.ui.dialog.SipTracerBottomSheet();
+                dialog.show(getParentFragmentManager(), "SipTracerDialog");
+            });
+        }
 
         if (btnAddMfTx != null) {
             btnAddMfTx.setOnClickListener(view -> {
@@ -78,7 +85,9 @@ public class HoldingsFragment extends Fragment {
 
         adapter.setOnHoldingClickListener(h -> {
             if (h != null) {
-                com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet dialog = com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet.newInstance(h.schemeName, h.category);
+                com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet dialog =
+                        com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet.newInstance(
+                                h.schemeName, h.category, h.subCategory, h.schemeId, h.schemeCode);
                 dialog.show(getParentFragmentManager(), "ViewMfTxDialog");
             }
         });

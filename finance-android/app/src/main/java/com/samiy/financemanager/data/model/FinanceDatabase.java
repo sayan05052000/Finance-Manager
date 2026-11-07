@@ -33,6 +33,9 @@ public class FinanceDatabase implements Serializable {
     @SerializedName("budget")
     public List<BudgetItem> budget = new ArrayList<>();
 
+    @SerializedName("sips")
+    public List<SipItem> sips = new ArrayList<>();
+
     public FinanceDatabase() {}
 
     public double getTotalBankBalance() {

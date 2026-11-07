@@ -33,6 +33,9 @@ import java.util.Set;
 public class ViewMfTransactionsBottomSheet extends BottomSheetDialogFragment {
     public static final String ARG_INITIAL_SCHEME = "initial_scheme";
     public static final String ARG_INITIAL_CATEGORY = "initial_category";
+    public static final String ARG_INITIAL_SUBCATEGORY = "initial_subcategory";
+    public static final String ARG_INITIAL_SCHEME_ID = "initial_scheme_id";
+    public static final String ARG_INITIAL_SCHEME_CODE = "initial_scheme_code";
 
     private Spinner spFilterScheme, spFilterCategory, spFilterSubCategory, spFilterType;
     private TextView tvFilterCount, tvFilterTotalAmount, tvFilterTotalUnits, tvEmpty;
@@ -43,10 +46,22 @@ public class ViewMfTransactionsBottomSheet extends BottomSheetDialogFragment {
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
     public static ViewMfTransactionsBottomSheet newInstance(@Nullable String initialScheme, @Nullable String initialCategory) {
+        return newInstance(initialScheme, initialCategory, null, null, null);
+    }
+
+    public static ViewMfTransactionsBottomSheet newInstance(
+            @Nullable String initialScheme,
+            @Nullable String initialCategory,
+            @Nullable String initialSubCategory,
+            @Nullable String initialSchemeId,
+            @Nullable String initialSchemeCode) {
         ViewMfTransactionsBottomSheet fragment = new ViewMfTransactionsBottomSheet();
         Bundle args = new Bundle();
         if (initialScheme != null) args.putString(ARG_INITIAL_SCHEME, initialScheme);
         if (initialCategory != null) args.putString(ARG_INITIAL_CATEGORY, initialCategory);
+        if (initialSubCategory != null) args.putString(ARG_INITIAL_SUBCATEGORY, initialSubCategory);
+        if (initialSchemeId != null) args.putString(ARG_INITIAL_SCHEME_ID, initialSchemeId);
+        if (initialSchemeCode != null) args.putString(ARG_INITIAL_SCHEME_CODE, initialSchemeCode);
         fragment.setArguments(args);
         return fragment;
     }
@@ -173,6 +188,16 @@ public class ViewMfTransactionsBottomSheet extends BottomSheetDialogFragment {
             }
         }
 
+        String initSubCategory = getArguments() != null ? getArguments().getString(ARG_INITIAL_SUBCATEGORY) : null;
+        if (initSubCategory != null) {
+            for (int i = 0; i < subCategories.size(); i++) {
+                if (subCategories.get(i).equalsIgnoreCase(initSubCategory.trim())) {
+                    spFilterSubCategory.setSelection(i);
+                    break;
+                }
+            }
+        }
+
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -204,7 +229,12 @@ public class ViewMfTransactionsBottomSheet extends BottomSheetDialogFragment {
         for (MutualFundTransaction tx : allTransactions) {
             // 1. Scheme Filter
             if (!"All Schemes".equalsIgnoreCase(selectedScheme)) {
-                if (tx.schemeName == null || !tx.schemeName.trim().equalsIgnoreCase(selectedScheme)) {
+                String targetId = getArguments() != null ? getArguments().getString(ARG_INITIAL_SCHEME_ID) : null;
+                String targetCode = getArguments() != null ? getArguments().getString(ARG_INITIAL_SCHEME_CODE) : null;
+                boolean matchesScheme = (tx.schemeName != null && tx.schemeName.trim().equalsIgnoreCase(selectedScheme))
+                        || (targetId != null && !targetId.isEmpty() && targetId.equalsIgnoreCase(tx.schemeId))
+                        || (targetCode != null && !targetCode.isEmpty() && targetCode.equalsIgnoreCase(tx.schemeCode));
+                if (!matchesScheme) {
                     continue;
                 }
             }

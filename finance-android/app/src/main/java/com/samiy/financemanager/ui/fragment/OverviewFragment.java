@@ -44,9 +44,9 @@ public class OverviewFragment extends Fragment {
         tvAssetsValue = v.findViewById(R.id.tvAssetsValue);
         tvHoldingsCountText = v.findViewById(R.id.tvHoldingsCountText);
         tvLoanDebtValue = v.findViewById(R.id.tvLoanDebtValue);
-        tvBudgetRemainderValue = v.findViewById(R.id.tvBudgetRemainderValue);
+        // tvBudgetRemainderValue removed as duplicate
         tvBudgetSpentText = v.findViewById(R.id.tvBudgetSpentText);
-        tvDailyLimitValue = v.findViewById(R.id.tvDailyLimitValue);
+        // tvDailyLimitValue removed as duplicate
 
         tvCycleHeaderTitle = v.findViewById(R.id.tvCycleHeaderTitle);
         tvCycleDates = v.findViewById(R.id.tvCycleDates);
@@ -89,9 +89,9 @@ public class OverviewFragment extends Fragment {
         tvLoanDebtValue.setText(formatCurrency(loanDebt));
 
         CurrentCycle cycle = db.currentCycle != null ? db.currentCycle : new CurrentCycle();
-        tvBudgetRemainderValue.setText(formatCurrency(cycle.remainder));
+        // tvBudgetRemainderValue removed
         tvBudgetSpentText.setText("Budget: " + formatCurrency(cycle.budget) + " – Spent: " + formatCurrency(cycle.totalSpend));
-        tvDailyLimitValue.setText(formatCurrency(cycle.canSpendPerDay) + "/day");
+        // tvDailyLimitValue removed
 
         tvCycleHeaderTitle.setText("✨ Cycle Snapshot Metrics (" + cycle.cycleMonth + ")");
         tvCycleDates.setText("Active cycle: " + cycle.cycleStart + " – " + cycle.cycleEnd + " • " + cycle.daysLeft + " Days Remaining");

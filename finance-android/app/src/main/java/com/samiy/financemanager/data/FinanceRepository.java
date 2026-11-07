@@ -210,7 +210,7 @@ public class FinanceRepository {
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
-                executeHttpPost(GAS_URL, postBody);
+                executeHttpPost(GAS_URL, postBody.toString());
 
                 mainHandler.post(() -> {
                     if (callback != null) callback.onLoaded(database);
@@ -219,6 +219,44 @@ public class FinanceRepository {
                 Log.e(TAG, "Error posting transaction to Google Sheets", e);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError("Failed to sync to sheet: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+        public void updateSipStatus(String fundName, String targetMonth, String status, DataCallback callback) {
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updateSipStatus");
+                postBody.addProperty("fundName", fundName);
+                postBody.addProperty("targetMonth", targetMonth);
+                postBody.addProperty("status", status);
+
+                executeHttpPost(GAS_URL, postBody.toString());
+
+                // Update locally
+                if (database != null && database.sips != null) {
+                    for (com.samiy.financemanager.data.model.SipItem sip : database.sips) {
+                        if (sip.fundName != null && sip.fundName.trim().equalsIgnoreCase(fundName.trim())) {
+                            if ("next".equalsIgnoreCase(targetMonth)) {
+                                sip.nextStatus = status;
+                            } else {
+                                sip.currentStatus = status;
+                            }
+                            break;
+                        }
+                    }
+                    saveLocalCache();
+                }
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(this.database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating SIP status", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(e.getMessage());
                 });
             }
         });

@@ -138,6 +138,7 @@ function doPost(e) {
       }
 
       sheet.getRange(matchedRow, col).setValue(status);
+
       return jsonResponse({ status: 'success', message: 'SIP status updated to ' + status });
     }
 
@@ -235,11 +236,12 @@ function doPost(e) {
 
       return jsonResponse({ status: 'success', message: 'Mutual Fund holding added successfully' });
     }
-    calculateRemainders();
 
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
+  }finally{
+    calculateRemainders();
   }
 }
 

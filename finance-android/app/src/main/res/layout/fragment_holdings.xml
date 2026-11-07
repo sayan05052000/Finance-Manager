@@ -88,11 +88,26 @@
                     <Button
                         android:id="@+id/btnViewMfTransactions"
                         android:layout_width="0dp"
-                        android:layout_weight="1.1"
+                        android:layout_weight="1"
                         android:layout_height="42dp"
                         android:backgroundTint="@color/blue_royal"
                         android:text="View MF Tx"
                         android:textColor="@color/text_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="1dp" />
+
+                    <Button
+                        android:id="@+id/btnSipTracer"
+                        android:layout_width="0dp"
+                        android:layout_weight="1.1"
+                        android:layout_height="42dp"
+                        android:backgroundTint="@color/bg_card_secondary"
+                        android:text="📅 SIP Tracer"
+                        android:textColor="@color/amber_gold"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
