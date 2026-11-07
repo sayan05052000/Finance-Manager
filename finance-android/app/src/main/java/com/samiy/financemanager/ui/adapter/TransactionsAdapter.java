@@ -28,6 +28,16 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         this.listener = listener;
     }
 
+    public interface OnTransactionLongClickListener {
+        void onTransactionLongClick(Transaction transaction);
+    }
+
+    private OnTransactionLongClickListener longClickListener;
+
+    public void setOnTransactionLongClickListener(OnTransactionLongClickListener listener) {
+        this.longClickListener = listener;
+    }
+
     private List<Transaction> items = new ArrayList<>();
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
@@ -95,6 +105,14 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         if (holder.btnEdit != null) {
             holder.btnEdit.setOnClickListener(clickListener);
         }
+
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onTransactionLongClick(tx);
+                return true;
+            }
+            return false;
+        });
     }
 
     @Override

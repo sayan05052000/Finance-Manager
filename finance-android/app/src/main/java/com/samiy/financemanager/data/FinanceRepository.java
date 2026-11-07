@@ -286,7 +286,6 @@ public class FinanceRepository {
                 txObj.addProperty("subCategory", tx.subCategory != null ? tx.subCategory : "");
                 txObj.addProperty("account", tx.account != null ? tx.account : "");
                 txObj.addProperty("loans", tx.loans != null ? tx.loans : "");
-                txObj.addProperty("description", tx.description != null ? tx.description : "");
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
@@ -299,6 +298,47 @@ public class FinanceRepository {
                 Log.e(TAG, "Error updating transaction in Google Sheets", e);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError("Failed to sync to sheet: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void deleteTransaction(long transactionId, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Remove from local database immediately
+        if (database != null && database.transactions != null) {
+            for (int i = 0; i < database.transactions.size(); i++) {
+                if (database.transactions.get(i).id == transactionId) {
+                    database.transactions.remove(i);
+                    break;
+                }
+            }
+            CalculationEngine.recalculate(database);
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject payload = new JsonObject();
+                payload.addProperty("action", "deleteTransaction");
+                payload.addProperty("id", transactionId);
+
+                String postBody = gson.toJson(payload);
+                executeHttpPost(GAS_URL, postBody.toString());
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error deleting transaction from Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to delete from sheet: " + e.getMessage());
                 });
             }
         });

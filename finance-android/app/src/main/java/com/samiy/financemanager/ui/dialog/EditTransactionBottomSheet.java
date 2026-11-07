@@ -131,8 +131,8 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
         Spinner spSourceSelector = v.findViewById(R.id.spEditSourceSelector);
 
         EditText etDate = v.findViewById(R.id.etEditDate);
-        EditText etDescription = v.findViewById(R.id.etEditDescription);
         Button btnUpdate = v.findViewById(R.id.btnUpdateTransaction);
+        Button btnDelete = v.findViewById(R.id.btnDeleteTransaction);
 
         InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
 
@@ -144,15 +144,51 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
             }
         };
 
-        EditText[] allInputs = {etDebit, etCredit, etDate, etDescription, actvSubCategory};
+        if (btnDelete != null) {
+            btnDelete.setOnClickListener(view -> {
+                hideKeyboard.run();
+                new AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
+                        .setTitle("Delete Transaction")
+                        .setMessage("Are you sure you want to permanently delete this transaction from your Google Sheet?")
+                        .setPositiveButton("Delete", (dialog, which) -> {
+                            btnDelete.setEnabled(false);
+                            btnDelete.setText("Deleting...");
+                            btnUpdate.setEnabled(false);
+
+                            FinanceRepository.getInstance(requireContext()).deleteTransaction(transaction.id, new FinanceRepository.DataCallback() {
+                                @Override
+                                public void onLoaded(FinanceDatabase updatedDb) {
+                                    if (isAdded()) {
+                                        Toast.makeText(getContext(), "Transaction deleted successfully!", Toast.LENGTH_SHORT).show();
+                                        if (listener != null) listener.onTransactionUpdated();
+                                        dismiss();
+                                    }
+                                }
+
+                                @Override
+                                public void onError(String error) {
+                                    if (isAdded()) {
+                                        btnDelete.setEnabled(true);
+                                        btnDelete.setText("Delete");
+                                        btnUpdate.setEnabled(true);
+                                        Toast.makeText(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG).show();
+                                    }
+                                }
+                            });
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        }
+
+        EditText[] allInputs = {etDebit, etCredit, etDate, actvSubCategory};
         KeyboardHelper.setupDoneAction(allInputs);
 
         // Pre-fill Date (cannot select future dates)
         etDate.setText(DateTimeHelper.formatDisplayDate(transaction.date));
         DateTimeHelper.setupPastDatePicker(etDate);
 
-        // Pre-fill Description
-        etDescription.setText(transaction.description != null ? transaction.description : "");
+
 
         // Pre-fill Type
         String currentType = transaction.type != null ? transaction.type.trim() : "Expense";
@@ -416,8 +452,6 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
                 return;
             }
 
-            String desc = etDescription.getText().toString().trim();
-
             Object selectedObj = spSourceSelector.getSelectedItem();
             String selectedSource = "";
             if (selectedObj instanceof AddTransactionBottomSheet.SourceItem) {
@@ -431,7 +465,6 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
             transaction.date = date;
             transaction.type = selectedType;
             transaction.subCategory = subCategory;
-            transaction.description = desc;
             transaction.debitWithoutSign = debitVal;
             transaction.credit = creditVal;
 

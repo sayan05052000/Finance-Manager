@@ -48,6 +48,16 @@ public class Transaction implements Serializable {
     @SerializedName("debitWithoutSign")
     public double debitWithoutSign;
 
+    /**
+     * Column 14 in Transactions tab indicates if the transaction has been processed by the sheet
+     * (e.g. 'Done' or empty).
+     */
+    @SerializedName("scannedForBudgetAnalysis")
+    public String scannedForBudgetAnalysis = "";
+
+    @SerializedName("isProcessed")
+    public boolean isProcessed;
+
     @SerializedName("description")
     public String description = "";
 

@@ -162,7 +162,6 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
         Spinner spSourceSelector = v.findViewById(R.id.spSourceSelector);
 
         EditText etDate = v.findViewById(R.id.etDate);
-        EditText etDescription = v.findViewById(R.id.etDescription);
         Button btnSubmit = v.findViewById(R.id.btnSubmitTransaction);
 
         InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -176,7 +175,7 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             }
         };
 
-        EditText[] allInputs = {etDebit, etCredit, etDate, etDescription, actvSubCategory};
+        EditText[] allInputs = {etDebit, etCredit, etDate, actvSubCategory};
         for (EditText et : allInputs) {
             et.setOnClickListener(view -> {
                 if (imm != null) {
@@ -417,7 +416,6 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             }
 
             String date = etDate.getText().toString().trim();
-            String desc = etDescription.getText().toString().trim();
 
             Object selectedObj = spSourceSelector.getSelectedItem();
             String selectedSource = "";
@@ -433,7 +431,6 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             tx.type = selectedType;
             tx.subCategory = subCategory;
             tx.category = ""; // Category will be automatically decided inside google sheet
-            tx.description = desc;
 
             // User rule: debit value always goes into Debit with out Sign with exact value provided by user
             tx.debitWithoutSign = debitVal;

@@ -95,6 +95,40 @@ public class LedgerFragment extends Fragment {
             });
             dialog.show(getChildFragmentManager(), "EditTxDialog_" + tx.id);
         });
+
+        adapter.setOnTransactionLongClickListener(tx -> {
+            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
+                    .setTitle("Delete Transaction")
+                    .setMessage("Are you sure you want to permanently delete this transaction from your Google Sheet?")
+                    .setPositiveButton("Delete", (dialog, which) -> {
+                        FinanceRepository.getInstance(requireContext()).deleteTransaction(tx.id, new FinanceRepository.DataCallback() {
+                            @Override
+                            public void onLoaded(FinanceDatabase updatedDb) {
+                                if (isAdded()) {
+                                    Toast.makeText(getContext(), "Transaction deleted successfully!", Toast.LENGTH_SHORT).show();
+                                    if (getActivity() instanceof MainActivity) {
+                                        ((MainActivity) getActivity()).updateHeaderInfo();
+                                    }
+                                    refreshData();
+                                }
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                if (isAdded()) {
+                                    Toast.makeText(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        });
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+
         rvLedger.setAdapter(adapter);
 
         View btnAddTx = v.findViewById(R.id.btnAddTransactionLedger);

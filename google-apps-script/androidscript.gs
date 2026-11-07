@@ -23,12 +23,12 @@ function doGet(e) {
           budget: getBudget(ss),
           goals: getGoals(ss),
           holdings: getHoldings(ss),
-          mutualFundTransactions: getMutualFundTransactions(ss, 300),
+          mutualFundTransactions: getMutualFundTransactions(ss),
           insurance: getInsurance(ss),
           sips: getSips(ss),
           categories: getCategories(ss),
           expenseTracker: getExpenseTracker(ss),
-          transactions: getTransactions(ss, 300)
+          transactions: getTransactions(ss)
         }
       });
     }
@@ -171,11 +171,6 @@ function doPost(e) {
       if (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null) {
         const dwsVal = Number(tx.debitWithoutSign);
         sheet.getRange(rowId, 13).setValue(dwsVal > 0 ? dwsVal : '');
-      }
-
-      // Col 14: Description
-      if (tx.description !== undefined && tx.description !== null) {
-        sheet.getRange(rowId, 14).setValue(String(tx.description).trim());
       }
 
       return jsonResponse({ status: 'success', message: 'Transaction updated successfully' });
@@ -453,8 +448,12 @@ function getTransactions(ss, limit, page) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const startRow = Math.max(2, lastRow - (limit || 500) + 1);
-  const numRows = lastRow - startRow + 1;
+  let startRow = 2;
+  let numRows = lastRow - 1;
+  if (limit && Number(limit) > 0) {
+    startRow = Math.max(2, lastRow - Number(limit) + 1);
+    numRows = lastRow - startRow + 1;
+  }
   const values = sheet.getRange(startRow, 1, numRows, 14).getValues();
   const tz = 'Asia/Kolkata';
 
@@ -482,7 +481,9 @@ function getTransactions(ss, limit, page) {
       category: row[9],
       year: row[10],
       month: row[11],
-      debitWithoutSign: Number(row[12]) || 0
+      debitWithoutSign: Number(row[12]) || 0,
+      scannedForBudgetAnalysis: row[13] ? String(row[13]) : '',
+      isProcessed: row[13] === 'Done' || (row[13] !== '' && row[13] !== null && row[13] !== undefined)
     };
   }).reverse();
 }
@@ -589,7 +590,8 @@ function getHoldings(ss) {
 
 function getMutualFundTransactions(ss, limit) {
   const raw = getSheetValues(ss, 'Mutual Fund Transactions');
-  return raw.slice(-(limit || 300)).map((t, idx) => ({
+  const items = (limit && Number(limit) > 0) ? raw.slice(-Number(limit)) : raw;
+  return items.map((t, idx) => ({
     id: idx + 1,
     schemeName: t['Scheme Name'],
     schemeId: t['Scheme Id'],
