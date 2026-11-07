@@ -82,8 +82,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
         EditText etSumAssured = v.findViewById(R.id.etAddPolicySumAssured);
         EditText etDueDate = v.findViewById(R.id.etAddPolicyDueDate);
         EditText etLastPaid = v.findViewById(R.id.etAddPolicyLastPaid);
-        EditText etInstallments = v.findViewById(R.id.etAddPolicyInstallments);
-        EditText etNotes = v.findViewById(R.id.etAddPolicyNotes);
+                EditText etNotes = v.findViewById(R.id.etAddPolicyNotes);
         Button btnSubmit = v.findViewById(R.id.btnAddPolicySubmit);
 
         // Pre-fill today's date for Last Paid
@@ -119,7 +118,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
             String lastPaid = etLastPaid.getText().toString().trim();
             String subCat = tvSubCategory.getText().toString().trim();
             String sumAssuredStr = etSumAssured.getText().toString().trim();
-            String installments = etInstallments.getText().toString().trim();
+            String installments = ""; // Auto-calculated at sheet
             String notes = etNotes.getText().toString().trim();
 
             if (policyNum.isEmpty()) {

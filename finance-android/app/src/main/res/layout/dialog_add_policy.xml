@@ -205,29 +205,7 @@
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 
-        <!-- Installments Remaining -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="Installments Remaining"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            android:textStyle="bold" />
 
-        <EditText
-            android:id="@+id/etAddPolicyInstallments"
-            android:layout_width="match_parent"
-            android:layout_height="46dp"
-            android:layout_marginTop="6dp"
-            android:background="@drawable/bg_pill_dark"
-            android:hint="e.g. 23"
-            android:textColorHint="@color/text_muted"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            android:inputType="number"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp" />
 
         <!-- Notes / Remarks -->
         <TextView
