@@ -30,6 +30,25 @@ public class SipTracerBottomSheet extends BottomSheetDialogFragment {
     private SipAdapter adapter;
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
+    @NonNull
+    @Override
+    public android.app.Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                (com.google.android.material.bottomsheet.BottomSheetDialog) super.onCreateDialog(savedInstanceState);
+        dialog.setOnShowListener(d -> {
+            com.google.android.material.bottomsheet.BottomSheetDialog bsd =
+                    (com.google.android.material.bottomsheet.BottomSheetDialog) d;
+            android.widget.FrameLayout bottomSheet = bsd.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (bottomSheet != null) {
+                com.google.android.material.bottomsheet.BottomSheetBehavior<android.widget.FrameLayout> behavior =
+                        com.google.android.material.bottomsheet.BottomSheetBehavior.from(bottomSheet);
+                behavior.setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+            }
+        });
+        return dialog;
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {

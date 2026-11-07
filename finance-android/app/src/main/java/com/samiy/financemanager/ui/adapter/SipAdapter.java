@@ -63,7 +63,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         holder.tvAccountPlatform.setText(acct + " • " + plat);
 
         // Current Month
-        String cMonth = sip.currentMonth != null && !sip.currentMonth.isEmpty() ? sip.currentMonth : "Current";
+        String cMonth = (sip.currentMonth != null && !sip.currentMonth.trim().isEmpty()) ? sip.currentMonth.trim() : "Nov";
         holder.tvCurrentLabel.setText(cMonth + " SIP: " + formatCurrency(sip.currentSip));
 
         String cStatus = sip.currentStatus != null && !sip.currentStatus.isEmpty() ? sip.currentStatus : "Not Paid";
@@ -80,7 +80,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         });
 
         // Next Month
-        String nMonth = sip.nextMonth != null && !sip.nextMonth.isEmpty() ? sip.nextMonth : "Next";
+        String nMonth = (sip.nextMonth != null && !sip.nextMonth.trim().isEmpty()) ? sip.nextMonth.trim() : "Dec";
         holder.tvNextLabel.setText(nMonth + " SIP: " + formatCurrency(sip.nextSip));
 
         String nStatus = sip.nextStatus != null && !sip.nextStatus.isEmpty() ? sip.nextStatus : "Not Paid";

@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/scrollEditSipRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/bg_dark">
+    android:background="@color/bg_dark"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
 
     <LinearLayout
+        android:id="@+id/layoutEditSipContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="20dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <!-- Drag handle -->
         <View
@@ -65,25 +73,28 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_pill_dark"
+                android:clickable="true"
+                android:focusable="true"
                 android:paddingStart="12dp"
-                android:paddingEnd="12dp"
                 android:paddingTop="6dp"
+                android:paddingEnd="12dp"
                 android:paddingBottom="6dp"
                 android:text="✕ Close"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:clickable="true"
-                android:focusable="true" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- SECTION 1: This Month's SIP -->
         <LinearLayout
+            android:id="@+id/cardEditSipCurrent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:background="@drawable/bg_card"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -93,48 +104,41 @@
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
+            <!-- Amount Input -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="SIP Amount (₹)"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+
+            <EditText
+                android:id="@+id/etSipCurrentAmount"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_pill_dark"
+                android:hint="e.g. 3170"
+                android:inputType="numberDecimal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_muted"
+                android:textSize="14sp" />
+
+            <!-- Month & Status Row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:orientation="horizontal">
 
-                <!-- Amount -->
+                <!-- Month Selector -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
-                    android:layout_weight="1.2"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SIP Amount (₹)"
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
-
-                    <EditText
-                        android:id="@+id/etSipCurrentAmount"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_pill_dark"
-                        android:hint="3170"
-                        android:inputType="numberDecimal"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="@color/text_primary"
-                        android:textColorHint="@color/text_muted"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-                <!-- Month -->
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:orientation="vertical">
 
@@ -145,51 +149,102 @@
                         android:textColor="@color/text_muted"
                         android:textSize="11sp" />
 
-                    <Spinner
-                        android:id="@+id/spSipCurrentMonth"
+                    <LinearLayout
+                        android:id="@+id/btnSelectCurrentMonth"
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
                         android:layout_marginTop="4dp"
                         android:background="@drawable/bg_spinner_dark"
-                        android:popupBackground="@color/bg_card_secondary"
-                        android:dropDownVerticalOffset="4dp" />
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp">
+
+                        <TextView
+                            android:id="@+id/tvCurrentMonth"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Nov"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_chevron_down"
+                            app:tint="@color/text_muted" />
+                    </LinearLayout>
                 </LinearLayout>
 
-                <!-- Status -->
+                <!-- Status Selector (1-Tap Toggle) -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:layout_weight="1"
+                    android:layout_weight="1.2"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Status"
+                        android:text="Payment Status"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp" />
 
-                    <Spinner
-                        android:id="@+id/spSipCurrentStatus"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
                         android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_spinner_dark"
-                        android:popupBackground="@color/bg_card_secondary"
-                        android:dropDownVerticalOffset="4dp" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/btnToggleCurrentNotPaid"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="38dp"
+                            android:layout_marginEnd="3dp"
+                            android:gravity="center"
+                            android:text="Not Paid"
+                            android:textColor="@color/red_rose"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/bg_pill_dark"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <TextView
+                            android:id="@+id/btnToggleCurrentPaid"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="38dp"
+                            android:layout_marginStart="3dp"
+                            android:gravity="center"
+                            android:text="Paid"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/bg_pill_dark"
+                            android:clickable="true"
+                            android:focusable="true" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
         <!-- SECTION 2: Next Month's SIP -->
         <LinearLayout
+            android:id="@+id/cardEditSipNext"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:background="@drawable/bg_card"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -199,48 +254,41 @@
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
+            <!-- Amount Input -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="SIP Amount (₹)"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+
+            <EditText
+                android:id="@+id/etSipNextAmount"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_pill_dark"
+                android:hint="e.g. 3170"
+                android:inputType="numberDecimal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_muted"
+                android:textSize="14sp" />
+
+            <!-- Month & Status Row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:orientation="horizontal">
 
-                <!-- Amount -->
+                <!-- Month Selector -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
-                    android:layout_weight="1.2"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SIP Amount (₹)"
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
-
-                    <EditText
-                        android:id="@+id/etSipNextAmount"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_pill_dark"
-                        android:hint="3170"
-                        android:inputType="numberDecimal"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="@color/text_primary"
-                        android:textColorHint="@color/text_muted"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-                <!-- Month -->
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:orientation="vertical">
 
@@ -251,51 +299,102 @@
                         android:textColor="@color/text_muted"
                         android:textSize="11sp" />
 
-                    <Spinner
-                        android:id="@+id/spSipNextMonth"
+                    <LinearLayout
+                        android:id="@+id/btnSelectNextMonth"
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
                         android:layout_marginTop="4dp"
                         android:background="@drawable/bg_spinner_dark"
-                        android:popupBackground="@color/bg_card_secondary"
-                        android:dropDownVerticalOffset="4dp" />
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp">
+
+                        <TextView
+                            android:id="@+id/tvNextMonth"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Dec"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_chevron_down"
+                            app:tint="@color/text_muted" />
+                    </LinearLayout>
                 </LinearLayout>
 
-                <!-- Status -->
+                <!-- Status Selector (1-Tap Toggle) -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:layout_weight="1"
+                    android:layout_weight="1.2"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Status"
+                        android:text="Payment Status"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp" />
 
-                    <Spinner
-                        android:id="@+id/spSipNextStatus"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
                         android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_spinner_dark"
-                        android:popupBackground="@color/bg_card_secondary"
-                        android:dropDownVerticalOffset="4dp" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/btnToggleNextNotPaid"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="38dp"
+                            android:layout_marginEnd="3dp"
+                            android:gravity="center"
+                            android:text="Not Paid"
+                            android:textColor="@color/red_rose"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/bg_pill_dark"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <TextView
+                            android:id="@+id/btnToggleNextPaid"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="38dp"
+                            android:layout_marginStart="3dp"
+                            android:gravity="center"
+                            android:text="Paid"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/bg_pill_dark"
+                            android:clickable="true"
+                            android:focusable="true" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
         <!-- SECTION 3: Platform & Bank Account -->
         <LinearLayout
+            android:id="@+id/cardEditSipConfig"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:background="@drawable/bg_card"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -305,61 +404,78 @@
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <!-- Platform -->
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:orientation="horizontal">
+                android:text="Platform / Mode"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
 
-                <!-- Platform -->
-                <LinearLayout
+            <LinearLayout
+                android:id="@+id/btnSelectPlatform"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_spinner_dark"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <TextView
+                    android:id="@+id/tvSelectedPlatform"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:text="amc/upiauto"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Platform"
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_chevron_down"
+                    app:tint="@color/text_muted" />
+            </LinearLayout>
 
-                    <Spinner
-                        android:id="@+id/spSipPlatform"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_spinner_dark"
-                        android:popupBackground="@color/bg_card_secondary"
-                        android:dropDownVerticalOffset="4dp" />
-                </LinearLayout>
+            <!-- Linked Bank Account -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Linked Bank Account"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
 
-                <!-- Bank Account -->
-                <LinearLayout
+            <LinearLayout
+                android:id="@+id/btnSelectBankAccount"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_spinner_dark"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <TextView
+                    android:id="@+id/tvSelectedBankAccount"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:text="Slice"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Linked Bank Account"
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
-
-                    <Spinner
-                        android:id="@+id/spSipBankAccount"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_spinner_dark"
-                        android:popupBackground="@color/bg_card_secondary"
-                        android:dropDownVerticalOffset="4dp" />
-                </LinearLayout>
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_chevron_down"
+                    app:tint="@color/text_muted" />
             </LinearLayout>
         </LinearLayout>
 
@@ -368,7 +484,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:layout_marginBottom="10dp"
+            android:layout_marginBottom="16dp"
             android:orientation="horizontal">
 
             <Button

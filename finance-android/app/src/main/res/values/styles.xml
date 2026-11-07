@@ -19,4 +19,12 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="AppTheme">
     </style>
+
+    <style name="CustomDarkDialog" parent="Theme.MaterialComponents.Dialog.Alert">
+        <item name="android:background">@color/bg_card</item>
+        <item name="colorSurface">@color/bg_card</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="colorPrimary">@color/green_emerald</item>
+    </style>
 </resources>
