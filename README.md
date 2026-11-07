@@ -6,6 +6,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
 
 ## Table of Contents
 1. [Core Business Considerations & Domain Rules](#1-core-business-considerations--domain-rules)
+   - [Google Account Authentication & Strict Authorization](#google-account-authentication--strict-authorization)
    - [Billing Cycle & The 6th-to-5th Rule](#billing-cycle--the-6th-to-5th-rule)
    - [Dual Sub-Category System](#dual-sub-category-system)
    - [SIP Tracer Architecture & Constraints](#sip-tracer-architecture--constraints)
@@ -16,6 +17,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
 2. [System Architecture & Data Flow](#2-system-architecture--data-flow)
    - [High-Level Architecture](#high-level-architecture)
    - [End-to-End Data Flow](#end-to-end-data-flow)
+   - [Multi-Tier Authorization Flow](#multi-tier-authorization-flow)
    - [Handling Google Apps Script HTTP 302 Redirects](#handling-google-apps-script-http-302-redirects)
 3. [Google Sheets Database Schema](#3-google-sheets-database-schema)
 4. [Project File Structure](#4-project-file-structure)
@@ -30,6 +32,32 @@ A robust, offline-capable native Android application paired with a **Google Shee
 ---
 
 ## 1. Core Business Considerations & Domain Rules
+
+### Google Account Authentication & Strict Authorization
+The application manages sensitive personal financial data, investment balances, and live transaction sync. It strictly enforces a single-user security model:
+* **Authorized Identity**: Access to view or edit data is exclusively granted to:
+  $$\mathbf{samiyasti@gmail.com}$$
+* **Multi-Layer Enforcement Architecture**:
+  1. **UI Layer (`MainActivity`)**:
+     - When not signed in or signed in with any unauthorized Google account:
+       - Displays a full-screen blocking overlay (`layoutUnauthorized`) with a red shield/lock icon (`ic_lock.xml`), **"You are not authorized"** title, and context-aware messaging.
+       - The active fragment container is completely hidden (`View.GONE`).
+       - Bottom navigation tabs are disabled (`setEnabled(false)`).
+       - Quick-add Floating Action Button (FAB) is hidden (`View.GONE`).
+       - Header Net Worth displays `"Protected"` and Cycle info displays `"Access Restricted"`.
+       - Provides a prominent `"Switch to samiyasti@gmail.com"` / `"Sign in with samiyasti@gmail.com"` button to invoke Google Play Services account chooser.
+  2. **Dialog & Form Layer**:
+     - Every bottom sheet modal (`AddTransactionBottomSheet`, `AddMutualFundTransactionBottomSheet`, `EditSipBottomSheet`, `SipTracerBottomSheet`, `ViewMfTransactionsBottomSheet`) checks `GoogleAuthManager.isAuthorized()` in `onCreateView()`. If unauthorized, it immediately dismisses and displays a warning toast.
+  3. **Repository Layer (`FinanceRepository`)**:
+     - `getDatabase()` returns `null` when unauthorized, preventing cached financial numbers from leaking into memory or views.
+     - All mutation methods (`addTransaction`, `addMutualFundTransaction`, `updateSip`, `updateSipStatus`, `syncWithGoogleSheets`) reject calls immediately with an authorization error callback prior to initiating any network requests.
+  4. **Authentication Manager (`GoogleAuthManager`)**:
+     - Centralized singleton wrapping Google Play Services `GoogleSignInClient`.
+     - Caches `GoogleSignInAccount` and notifies registered listeners (`AuthListener`) on auth state changes.
+     - Implements `isAuthorized()` verifying `currentAccount != null && "samiyasti@gmail.com".equalsIgnoreCase(currentAccount.getEmail().trim())`.
+     - Implements `switchAccount(activity)` which first calls `signOut()` so Google's native account chooser pops up reliably.
+
+---
 
 ### Billing Cycle & The 6th-to-5th Rule
 * **The Rule**: Monthly budget cycles run from the **6th of the current month to the 5th of the following month**.
@@ -67,7 +95,7 @@ The application distinguishes between two different concepts of "sub-category":
 
 * **Holding Card Badge**: Displays `h.savingsType` (e.g. `Kuvera Surplus(Family)`).
 * **Holding Click Filtering**: Clicking on a holding card (e.g. `DSP LIQUID FUND`) opens transaction history filtered by:
-  1. Scheme Name / Scheme Code / Scheme ID.
+  1. Scheme Name / Scheme Code / Scheme Id.
   2. The Category Tables subcategory (`h.savingsType`), **not** the fund asset class (`Liquid`).
 
 ---
@@ -133,11 +161,14 @@ To prevent the mobile app from overwriting automated formulas in Google Sheets, 
 ```mermaid
 flowchart TD
     subgraph MobileApp["Android Mobile Client (Java)"]
-        UI["UI Layer (Fragments, BottomSheets, Adapters)"]
+        Auth["GoogleAuthManager (Google Play Services OAuth 2.0)"]
+        UI["UI Layer (MainActivity, Fragments, BottomSheets)"]
         Repo["FinanceRepository (Singleton Network & Cache Manager)"]
         Cache[("Local SharedPreferences Cache")]
         Engine["CalculationEngine (Budget, Cycle Remainder, Daily Limit)"]
 
+        Auth -->|isAuthorized == true| UI
+        Auth -->|isAuthorized == false| Lock["Unauthorized Lock Overlay"]
         UI -->|User Action / Refresh| Repo
         Repo -->|Cache Hit & Save| Cache
         Repo -->|Compute Totals| Engine
@@ -161,12 +192,23 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor User as User
-    participant App as Android UI
+    participant Auth as GoogleAuthManager
+    participant App as Android UI (MainActivity)
     participant Repo as FinanceRepository
     participant GAS as Google Apps Script
     participant GSheet as Google Sheets
 
-    User->>App: Opens App / Pulls to Refresh
+    User->>App: Opens App
+    App->>Auth: isAuthorized()?
+    alt Not Signed In or Email != samiyasti@gmail.com
+        Auth-->>App: false
+        App->>App: Show "You are not authorized", hide tabs, hide net worth
+        User->>App: Clicks "Switch to samiyasti@gmail.com"
+        App->>Auth: switchAccount() -> Google Account Picker
+        User->>Auth: Chooses samiyasti@gmail.com
+        Auth-->>App: onAuthStateChanged(authorizedAccount)
+    end
+
     App->>Repo: syncWithGoogleSheets()
     Repo->>GAS: GET ?action=all
     GAS->>GSheet: Reads sheets (Transactions, Holdings, Sips, etc.)
@@ -183,6 +225,30 @@ sequenceDiagram
     GAS-->>Repo: 302 Redirect -> 200 OK { status: "success" }
     Repo->>Repo: Update in-memory database & local cache
     Repo-->>App: UI refreshes immediately with confirmation toast
+```
+
+---
+
+### Multi-Tier Authorization Flow
+
+```mermaid
+flowchart TD
+    Start["User Interaction"] --> AuthCheck{"Google Account == samiyasti@gmail.com?"}
+    
+    AuthCheck -- NO --> Block["BLOCK ACCESS"]
+    Block --> ShowOverlay["Display 'You are not authorized'"]
+    Block --> MaskNetWorth["Mask Header Net Worth to 'Protected'"]
+    Block --> HideFragments["Hide Fragment Container & FAB"]
+    Block --> DisableNav["Disable Bottom Navigation Tabs"]
+    Block --> RepoNull["FinanceRepository.getDatabase() returns null"]
+    Block --> AbortMutations["Reject sync & addTransaction requests"]
+
+    AuthCheck -- YES --> Allow["GRANT FULL ACCESS"]
+    Allow --> HideOverlay["Hide Unauthorized Overlay"]
+    Allow --> ShowFragments["Display Fragments & Enable Nav"]
+    Allow --> ShowFAB["Show Transaction Action Button"]
+    Allow --> DisplayMetrics["Render Live Net Worth & Cycle Metrics"]
+    Allow --> EnableSync["Enable Live Google Sheet Syncing"]
 ```
 
 ---
@@ -231,7 +297,9 @@ Finance-Manager/
         └── src/main/
             ├── AndroidManifest.xml     # App manifest (INTERNET permission, MainActivity)
             ├── java/com/samiy/financemanager/
-            │   ├── MainActivity.java   # Main navigation activity (BottomNavigationView)
+            │   ├── MainActivity.java   # Main navigation activity (BottomNav & Auth Guard)
+            │   ├── auth/
+            │   │   └── GoogleAuthManager.java # Google Play Services OAuth & Authorization logic
             │   ├── data/
             │   │   ├── FinanceRepository.java  # Core network client, cache & Google API sync
             │   │   └── model/                  # Data models (Gson serialized)
@@ -257,11 +325,11 @@ Finance-Manager/
             │   │   │   ├── SipAdapter.java # SIP card adapter with 1-tap status buttons
             │   │   │   └── TransactionsAdapter.java
             │   │   ├── dialog/
-            │   │   │   ├── AddMutualFundTransactionBottomSheet.java
-            │   │   │   ├── AddTransactionBottomSheet.java
-            │   │   │   ├── EditSipBottomSheet.java # Full SIP parameter editor
-            │   │   │   ├── SipTracerBottomSheet.java # SIP list & quick status toggler
-            │   │   │   └── ViewMfTransactionsBottomSheet.java # MF ledger filtered by holding
+            │   │   │   ├── AddMutualFundTransactionBottomSheet.java # Auth-guarded MF creator
+            │   │   │   ├── AddTransactionBottomSheet.java           # Auth-guarded general tx
+            │   │   │   ├── EditSipBottomSheet.java                  # Full SIP parameter editor
+            │   │   │   ├── SipTracerBottomSheet.java                # SIP list & quick status toggler
+            │   │   │   └── ViewMfTransactionsBottomSheet.java       # MF ledger filtered by holding
             │   │   └── fragment/
             │   │       ├── AccountsFragment.java
             │   │       ├── CycleFragment.java
@@ -272,7 +340,11 @@ Finance-Manager/
             │       └── DateTimeHelper.java     # Date parsing (dd/MM/yyyy) & cycle utilities
             └── res/
                 ├── drawable/                   # Dark theme backgrounds, chips & pills
+                │   ├── ic_lock.xml             # Security padlock vector for auth screen
+                │   ├── ic_google.xml           # Multi-color official Google 'G' icon
+                │   └── ...
                 ├── layout/                     # XML layout resources
+                │   ├── activity_main.xml       # Main layout with Unauthorized blocking overlay
                 │   ├── dialog_edit_sip.xml     # Clean edit dialog with touch interceptor
                 │   ├── dialog_sip_tracer.xml   # SIP Tracer bottom sheet
                 │   ├── dialog_view_mf_transactions.xml
@@ -282,7 +354,7 @@ Finance-Manager/
                 │   ├── item_sip.xml
                 │   └── item_transaction.xml
                 └── values/
-                    ├── colors.xml              # Futuristic dark palette (#0B0F19, emerald, blue)
+                    ├── colors.xml              # Futuristic dark palette (#0B0F19, emerald, red)
                     ├── strings.xml
                     └── styles.xml              # AppTheme & CustomDarkDialog definitions
 ```
@@ -293,12 +365,14 @@ Finance-Manager/
 
 | Component | Responsibility |
 |---|---|
-| `FinanceRepository` | Singleton managing network requests via thread pools, parsing responses, saving local cache to `SharedPreferences`, and notifying callbacks on the Android main thread. |
+| `GoogleAuthManager` | Manages Google Sign-In with Google Play Services (`GoogleSignInClient`). Validates authorization against `samiyasti@gmail.com`, notifies listeners on login/logout, and provides safe account switching. |
+| `MainActivity` | Orchestrates the primary UI, bottom navigation tabs, Floating Action Button, and enforces the `layoutUnauthorized` blocking screen when unauthorized. |
+| `FinanceRepository` | Singleton managing network requests via thread pools, parsing responses, saving local cache to `SharedPreferences`, enforcing authorization checks, and notifying callbacks on the Android main thread. |
 | `CalculationEngine` | Computes net inflow/outflow, total debit/credit, remaining budget, days remaining in cycle, daily spend allowance, and filters interest transactions. |
 | `HoldingsFragment` | Renders portfolio KPIs (total invested, current valuation, 1D gain, ROI), savings type breakdown, and the list of holdings. |
-| `ViewMfTransactionsBottomSheet` | Displays mutual fund transaction history. Filters by Scheme Name/Id/Code and Category Tables Sub-Category (`Kuvera Surplus(Family)`). |
-| `SipTracerBottomSheet` | Displays active SIP schemes, total monthly outlay, quick `Paid`/`Not Paid` toggle buttons, and opens the full editor. |
-| `EditSipBottomSheet` | Edits SIP amounts, months, payment statuses, platforms, and linked bank accounts with auto-dismiss keyboard touch listeners. |
+| `ViewMfTransactionsBottomSheet` | Displays mutual fund transaction history. Filters by Scheme Name/Id/Code and Category Tables Sub-Category (`Kuvera Surplus(Family)`). Protected by authorization checks. |
+| `SipTracerBottomSheet` | Displays active SIP schemes, total monthly outlay, quick `Paid`/`Not Paid` toggle buttons, and opens the full editor. Protected by authorization checks. |
+| `EditSipBottomSheet` | Edits SIP amounts, months, payment statuses, platforms, and linked bank accounts with auto-dismiss keyboard touch listeners. Protected by authorization checks. |
 | `LedgerFragment` | Full transaction history with cycle dropdown selector, account filtering, and debit/credit summaries. |
 
 ---
@@ -312,7 +386,8 @@ Set-Location "finance-android"
 ./gradlew assembleDebug --no-daemon
 ```
 The generated APK is located at:
-`finance-android/app/build/outputs/apk/debug/app-debug.apk`
+`C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk`
+*(And automatically mirrored to `FinanceManager.apk` in the repository root).*
 
 ---
 
@@ -352,30 +427,35 @@ fetch('YOUR_GAS_URL', {
 ### Inspecting Logcat Logs
 Connect your device over ADB and filter by app tags:
 ```bash
-adb logcat -s FinanceRepository CalculationEngine
+adb logcat -s FinanceRepository CalculationEngine GoogleAuthManager MainActivity
 ```
 
 ---
 
 ### Common Pitfalls & Fixes
 
-1. **Transactions on Date 1-5 Appearing in Wrong Cycle**:
+1. **"You are not authorized" Shown When Opening the App**:
+   - *Cause*: User is not logged into Google, or logged into another email account instead of `samiyasti@gmail.com`.
+   - *Fix*: Tap the **"Switch to samiyasti@gmail.com"** or **"Sign in with samiyasti@gmail.com"** button and select the authorized account.
+   - *Google Play Services API Error*: Ensure your debug SHA-1 signing fingerprint is registered in Google Cloud Console OAuth 2.0 Client IDs for package `com.samiy.financemanager`.
+
+2. **Transactions on Date 1-5 Appearing in Wrong Cycle**:
    - *Cause*: String matching on date (e.g. `date.contains("11/2026")`).
    - *Fix*: Always use `Transaction.isInCycle(cycleYear, cycleMonth)` which checks `day < 6 ? month - 1 : month`.
 
-2. **SIP Updates Not Reflected in Google Sheet**:
+3. **SIP Updates Not Reflected in Google Sheet**:
    - *Cause*: Google Apps Script deployment was not updated after changes to `Code.gs`.
    - *Fix*: In Google Sheets, go to **Extensions > Apps Script**, paste the updated `Code.gs`, and click **Deploy > New deployment**.
 
-3. **Software Keyboard Blocks Dialog Fields or Buttons**:
+4. **Software Keyboard Blocks Dialog Fields or Buttons**:
    - *Cause*: Missing `SOFT_INPUT_ADJUST_RESIZE` or bottom sheet collapsing.
    - *Fix*: Call `behavior.setState(STATE_EXPANDED)`, `behavior.setSkipCollapsed(true)`, and set `dialog.getWindow().setSoftInputMode(SOFT_INPUT_ADJUST_RESIZE)`.
 
-4. **Dropdown Menus Flying to the Top of the Screen**:
+5. **Dropdown Menus Flying to the Top of the Screen**:
    - *Cause*: Standard Android `Spinner` calculates popup coordinates incorrectly in scrollable bottom sheets.
    - *Fix*: Use centered modal dialogs (`AlertDialog.Builder`) for picking months, platforms, and banks.
 
-5. **Mutual Fund Transactions Missing for a Holding**:
+6. **Mutual Fund Transactions Missing for a Holding**:
    - *Cause*: Filtering by Fund Sub-Category (e.g. `Liquid`) instead of Category Tables Sub-Category (e.g. `Kuvera Surplus(Family)`).
    - *Fix*: Pass `h.savingsType` to `ViewMfTransactionsBottomSheet.newInstance(...)`.
 
