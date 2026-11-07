@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.data.CalculationEngine;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
@@ -204,6 +205,9 @@ public class CycleFragment extends Fragment {
         // Populate Interactive Chart
         populateChart();
 
+        // Populate Expense Tracker initially and on every data change
+        populateExpenseTracker();
+
         // Subcategories
         layoutCycleSubCats.removeAllViews();
         if (c.subCategories != null) {
@@ -285,6 +289,7 @@ public class CycleFragment extends Fragment {
 
 
     private void setupTrackerFilterControls() {
+        updateTrackerFilterButtons();
         btnTrackerFilterAll.setOnClickListener(v -> {
             currentTrackerFilter = 0;
             updateTrackerFilterButtons();
@@ -316,7 +321,11 @@ public class CycleFragment extends Fragment {
     private void populateExpenseTracker() {
         if (!isAdded()) return;
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
-        if (db == null || db.expenseTracker == null) return;
+        if (db == null) return;
+        if (db.expenseTracker == null || db.expenseTracker.isEmpty()) {
+            CalculationEngine.recalculate(db);
+        }
+        if (db.expenseTracker == null || db.expenseTracker.isEmpty()) return;
 
         List<ExpenseTrackerItem> allItems = db.expenseTracker;
         int goodCount = 0;
