@@ -48,23 +48,35 @@ public class SipTracerBottomSheet extends BottomSheetDialogFragment {
             btnClose.setOnClickListener(view -> dismiss());
         }
 
-        adapter.setListener((item, targetMonth, newStatus) -> {
-            FinanceRepository.getInstance(requireContext()).updateSipStatus(
-                    item.fundName, targetMonth, newStatus, new FinanceRepository.DataCallback() {
-                        @Override
-                        public void onLoaded(FinanceDatabase db) {
-                            if (isAdded()) {
-                                Toast.makeText(getContext(), item.fundName + " updated to " + newStatus, Toast.LENGTH_SHORT).show();
+        adapter.setListener(new SipAdapter.OnSipActionListener() {
+            @Override
+            public void onStatusChange(SipItem item, String targetMonth, String newStatus) {
+                FinanceRepository.getInstance(requireContext()).updateSipStatus(
+                        item.fundName, targetMonth, newStatus, new FinanceRepository.DataCallback() {
+                            @Override
+                            public void onLoaded(FinanceDatabase db) {
+                                if (isAdded()) {
+                                    Toast.makeText(getContext(), item.fundName + " updated to " + newStatus, Toast.LENGTH_SHORT).show();
+                                }
                             }
-                        }
 
-                        @Override
-                        public void onError(String error) {
-                            if (isAdded()) {
-                                Toast.makeText(getContext(), "Failed to update: " + error, Toast.LENGTH_SHORT).show();
+                            @Override
+                            public void onError(String error) {
+                                if (isAdded()) {
+                                    Toast.makeText(getContext(), "Failed to update: " + error, Toast.LENGTH_SHORT).show();
+                                }
                             }
-                        }
-                    });
+                        });
+            }
+
+            @Override
+            public void onEditSip(SipItem item) {
+                EditSipBottomSheet dialog = EditSipBottomSheet.newInstance(item);
+                dialog.setListener(updatedSip -> {
+                    loadData();
+                });
+                dialog.show(getParentFragmentManager(), "EditSipDialog");
+            }
         });
 
         loadData();

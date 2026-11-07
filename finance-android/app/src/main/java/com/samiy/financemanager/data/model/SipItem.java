@@ -35,4 +35,19 @@ public class SipItem implements Serializable {
     public String platform = "";
 
     public SipItem() {}
+
+    public SipItem copy() {
+        SipItem copy = new SipItem();
+        copy.fundName = this.fundName;
+        copy.role = this.role;
+        copy.currentSip = this.currentSip;
+        copy.currentMonth = this.currentMonth;
+        copy.currentStatus = this.currentStatus;
+        copy.nextSip = this.nextSip;
+        copy.nextMonth = this.nextMonth;
+        copy.nextStatus = this.nextStatus;
+        copy.bankAccount = this.bankAccount;
+        copy.platform = this.platform;
+        return copy;
+    }
 }

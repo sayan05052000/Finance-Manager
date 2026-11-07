@@ -141,6 +141,65 @@ function doPost(e) {
 
       return jsonResponse({ status: 'success', message: 'SIP status updated to ' + status });
     }
+    if (action === 'updateSip') {
+      const sheet = ss.getSheetByName('SIP Tracer');
+      if (!sheet) throw new Error('SIP Tracer sheet not found');
+
+      const sip = data.sip || {};
+      const fundName = (sip.fundName || '').toLowerCase().trim();
+
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][0]).toLowerCase().trim() === fundName) {
+          matchedRow = i + 1; // 1-based row index
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Fund not found in SIP Tracer: ' + fundName);
+      }
+
+      // Column mapping in SIP Tracer:
+      // 1: Fund Name
+      // 2: Role in Architecture
+      // 3: This Month's SIP
+      // 4: This Month
+      // 5: Payment Status
+      // 6: Next SIP (Final)
+      // 7: Next Month
+      // 8: Next Month's Payment Status
+      // 9: Linked Bank Account
+      // 10: Platform
+
+      if (sip.currentSip !== undefined && sip.currentSip !== null) {
+        sheet.getRange(matchedRow, 3).setValue(Number(sip.currentSip) || 0);
+      }
+      if (sip.currentMonth !== undefined && sip.currentMonth !== null) {
+        sheet.getRange(matchedRow, 4).setValue(String(sip.currentMonth).trim());
+      }
+      if (sip.currentStatus !== undefined && sip.currentStatus !== null) {
+        sheet.getRange(matchedRow, 5).setValue(String(sip.currentStatus).trim());
+      }
+      if (sip.nextSip !== undefined && sip.nextSip !== null) {
+        sheet.getRange(matchedRow, 6).setValue(Number(sip.nextSip) || 0);
+      }
+      if (sip.nextMonth !== undefined && sip.nextMonth !== null) {
+        sheet.getRange(matchedRow, 7).setValue(String(sip.nextMonth).trim());
+      }
+      if (sip.nextStatus !== undefined && sip.nextStatus !== null) {
+        sheet.getRange(matchedRow, 8).setValue(String(sip.nextStatus).trim());
+      }
+      if (sip.bankAccount !== undefined && sip.bankAccount !== null) {
+        sheet.getRange(matchedRow, 9).setValue(String(sip.bankAccount).trim());
+      }
+      if (sip.platform !== undefined && sip.platform !== null) {
+        sheet.getRange(matchedRow, 10).setValue(String(sip.platform).trim());
+      }
+
+      return jsonResponse({ status: 'success', message: 'SIP updated successfully' });
+    }
 
     if (action === 'addMutualFundTransaction') {
       const sheet = ss.getSheetByName('Mutual Fund Transactions');
@@ -443,10 +502,13 @@ function getSips(ss) {
     fundName: s['Fund Name'],
     role: s['Role in Architecture'],
     currentSip: Number(s["This Month's SIP"]) || 0,
-    currentStatus: s['Payment Status'],
+    currentMonth: s['This Month'] || '',
+    currentStatus: s['Payment Status'] || 'Not Paid',
     nextSip: Number(s['Next SIP (Final)']) || 0,
-    bankAccount: s['Linked Bank Account'],
-    platform: s['Platform']
+    nextMonth: s['Next Month'] || '',
+    nextStatus: s["Next Month's Payment Status"] || 'Not Paid',
+    bankAccount: s['Linked Bank Account'] || '',
+    platform: s['Platform'] || ''
   }));
 }
 

@@ -135,6 +135,21 @@ public class ViewMfTransactionsBottomSheet extends BottomSheetDialogFragment {
                 if (h.subCategory != null && !h.subCategory.trim().isEmpty()) {
                     subCategorySet.add(h.subCategory.trim());
                 }
+                if (h.savingsType != null && !h.savingsType.trim().isEmpty()) {
+                    subCategorySet.add(h.savingsType.trim());
+                }
+            }
+        }
+
+        if (db != null && db.categories != null) {
+            for (com.samiy.financemanager.data.model.CategoryItem c : db.categories) {
+                if (c.subCategories != null) {
+                    for (String sc : c.subCategories) {
+                        if (sc != null && !sc.trim().isEmpty()) {
+                            subCategorySet.add(sc.trim());
+                        }
+                    }
+                }
             }
         }
 

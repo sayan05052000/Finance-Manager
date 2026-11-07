@@ -85,9 +85,11 @@ public class HoldingsFragment extends Fragment {
 
         adapter.setOnHoldingClickListener(h -> {
             if (h != null) {
+                String subCat = (h.savingsType != null && !h.savingsType.trim().isEmpty())
+                        ? h.savingsType.trim() : h.subCategory;
                 com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet dialog =
                         com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet.newInstance(
-                                h.schemeName, h.category, h.subCategory, h.schemeId, h.schemeCode);
+                                h.schemeName, null, subCat, h.schemeId, h.schemeCode);
                 dialog.show(getParentFragmentManager(), "ViewMfTxDialog");
             }
         });

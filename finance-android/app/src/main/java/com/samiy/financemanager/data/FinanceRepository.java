@@ -262,6 +262,50 @@ public class FinanceRepository {
         });
     }
 
+    public void updateSip(com.samiy.financemanager.data.model.SipItem updatedSip, DataCallback callback) {
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updateSip");
+
+                JsonObject sipObj = new JsonObject();
+                sipObj.addProperty("fundName", updatedSip.fundName);
+                sipObj.addProperty("currentSip", updatedSip.currentSip);
+                sipObj.addProperty("currentMonth", updatedSip.currentMonth);
+                sipObj.addProperty("currentStatus", updatedSip.currentStatus);
+                sipObj.addProperty("nextSip", updatedSip.nextSip);
+                sipObj.addProperty("nextMonth", updatedSip.nextMonth);
+                sipObj.addProperty("nextStatus", updatedSip.nextStatus);
+                sipObj.addProperty("bankAccount", updatedSip.bankAccount);
+                sipObj.addProperty("platform", updatedSip.platform);
+                postBody.add("sip", sipObj);
+
+                executeHttpPost(GAS_URL, postBody.toString());
+
+                // Update locally
+                if (database != null && database.sips != null) {
+                    for (int i = 0; i < database.sips.size(); i++) {
+                        com.samiy.financemanager.data.model.SipItem s = database.sips.get(i);
+                        if (s.fundName != null && s.fundName.trim().equalsIgnoreCase(updatedSip.fundName.trim())) {
+                            database.sips.set(i, updatedSip);
+                            break;
+                        }
+                    }
+                    saveLocalCache();
+                }
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(this.database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating SIP", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(e.getMessage());
+                });
+            }
+        });
+    }
+
     public void addMutualFundTransaction(com.samiy.financemanager.data.model.MutualFundTransaction mfTx, DataCallback callback) {
         if (database != null) {
             if (database.mutualFundTransactions == null) {

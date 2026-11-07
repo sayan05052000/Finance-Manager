@@ -18,12 +18,13 @@ import java.util.List;
 import java.util.Locale;
 
 public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
-    public interface OnSipStatusChangeListener {
+    public interface OnSipActionListener {
         void onStatusChange(SipItem item, String targetMonth, String newStatus);
+        void onEditSip(SipItem item);
     }
 
     private List<SipItem> items = new ArrayList<>();
-    private OnSipStatusChangeListener listener;
+    private OnSipActionListener listener;
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
     public void setItems(List<SipItem> items) {
@@ -31,7 +32,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         notifyDataSetChanged();
     }
 
-    public void setListener(OnSipStatusChangeListener listener) {
+    public void setListener(OnSipActionListener listener) {
         this.listener = listener;
     }
 
@@ -94,6 +95,21 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
                 listener.onStatusChange(sip, "next", newStatus);
             }
         });
+
+        // Edit button & Item Click
+        if (holder.btnEditSip != null) {
+            holder.btnEditSip.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onEditSip(sip);
+                }
+            });
+        }
+
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onEditSip(sip);
+            }
+        });
     }
 
     private void bindStatusStyle(TextView btn, String status) {
@@ -116,7 +132,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvFundName, tvRoleBadge, tvAccountPlatform;
+        TextView tvFundName, tvRoleBadge, tvAccountPlatform, btnEditSip;
         TextView tvCurrentLabel, btnCurrentStatus;
         TextView tvNextLabel, btnNextStatus;
 
@@ -124,6 +140,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
             super(itemView);
             tvFundName = itemView.findViewById(R.id.tvSipFundName);
             tvRoleBadge = itemView.findViewById(R.id.tvSipRoleBadge);
+            btnEditSip = itemView.findViewById(R.id.btnEditSip);
             tvAccountPlatform = itemView.findViewById(R.id.tvSipAccountPlatform);
             tvCurrentLabel = itemView.findViewById(R.id.tvSipCurrentLabel);
             btnCurrentStatus = itemView.findViewById(R.id.btnSipCurrentStatus);
