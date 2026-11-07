@@ -136,8 +136,8 @@
 
         <TextView
             android:id="@+id/btnPrevMonth"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="@drawable/bg_calendar_nav_btn"
             android:gravity="center"
             android:text="◀"
@@ -146,23 +146,41 @@
             android:clickable="true"
             android:focusable="true" />
 
-        <TextView
-            android:id="@+id/tvMonthYear"
+        <LinearLayout
+            android:id="@+id/btnMonthYearContainer"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_pill_dark"
+            android:orientation="horizontal"
             android:gravity="center"
-            android:text="November 2026"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
-            android:textStyle="bold"
             android:clickable="true"
-            android:focusable="true" />
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/tvMonthYear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="November 2026"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="6dp"
+                android:src="@drawable/ic_chevron_down"
+                android:tint="@color/green_mint"
+                android:contentDescription="Select Month and Year" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/btnNextMonth"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="@drawable/bg_calendar_nav_btn"
             android:gravity="center"
             android:text="▶"

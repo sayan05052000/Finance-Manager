@@ -12,6 +12,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -92,7 +94,7 @@ public class CustomCalendarDialog extends Dialog {
                     int d = Integer.parseInt(parts[0].trim());
                     int m = Integer.parseInt(parts[1].trim()) - 1;
                     int y = Integer.parseInt(parts[2].trim());
-                    if (d >= 1 && d <= 31 && m >= 0 && m <= 11 && y >= 2000) {
+                    if (d >= 1 && d <= 31 && m >= 0 && m <= 11 && y >= 1900 && y <= 2100) {
                         selectedDay = d;
                         selectedMonth = m;
                         selectedYear = y;
@@ -128,8 +130,12 @@ public class CustomCalendarDialog extends Dialog {
         if (btnPrev != null) btnPrev.setOnClickListener(v -> navigateMonth(-1));
         if (btnNext != null) btnNext.setOnClickListener(v -> navigateMonth(1));
 
+        View btnMonthYearContainer = findViewById(R.id.btnMonthYearContainer);
+        if (btnMonthYearContainer != null) {
+            btnMonthYearContainer.setOnClickListener(v -> showMonthYearPickerDialog());
+        }
         if (tvMonthYear != null) {
-            tvMonthYear.setOnClickListener(v -> showYearPickerDialog());
+            tvMonthYear.setOnClickListener(v -> showMonthYearPickerDialog());
         }
 
         if (btnToday != null) {
@@ -202,26 +208,183 @@ public class CustomCalendarDialog extends Dialog {
         updateCalendarGrid();
     }
 
-    private void showYearPickerDialog() {
-        String[] years = new String[16];
-        int startYear = 2020;
-        int defaultIndex = 0;
-        for (int i = 0; i < years.length; i++) {
-            years[i] = String.valueOf(startYear + i);
-            if (startYear + i == displayYear) {
-                defaultIndex = i;
+    private void showMonthYearPickerDialog() {
+        Dialog pickerDialog = new Dialog(getContext());
+        pickerDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        pickerDialog.setContentView(R.layout.dialog_select_month_year);
+
+        Window window = pickerDialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            int dialogWidth = (int) (getContext().getResources().getDisplayMetrics().widthPixels * 0.92);
+            window.setLayout(dialogWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        final int[] tempMonth = {displayMonth};
+        final int[] tempYear = {displayYear};
+
+        // Month buttons
+        TextView[] monthViews = new TextView[12];
+        int[] monthIds = {
+                R.id.btnMonth0, R.id.btnMonth1, R.id.btnMonth2, R.id.btnMonth3,
+                R.id.btnMonth4, R.id.btnMonth5, R.id.btnMonth6, R.id.btnMonth7,
+                R.id.btnMonth8, R.id.btnMonth9, R.id.btnMonth10, R.id.btnMonth11
+        };
+
+        Runnable updateMonthUI = () -> {
+            for (int i = 0; i < 12; i++) {
+                if (monthViews[i] != null) {
+                    if (i == tempMonth[0]) {
+                        monthViews[i].setBackgroundResource(R.drawable.bg_pill_emerald);
+                        monthViews[i].setTextColor(Color.parseColor("#0B0F19"));
+                    } else {
+                        monthViews[i].setBackgroundResource(R.drawable.bg_pill_dark);
+                        monthViews[i].setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+                    }
+                }
+            }
+        };
+
+        for (int i = 0; i < 12; i++) {
+            final int mIndex = i;
+            monthViews[i] = pickerDialog.findViewById(monthIds[i]);
+            if (monthViews[i] != null) {
+                monthViews[i].setOnClickListener(v -> {
+                    tempMonth[0] = mIndex;
+                    updateMonthUI.run();
+                });
+            }
+        }
+        updateMonthUI.run();
+
+        // Year Grid & Badge
+        TextView tvBadge = pickerDialog.findViewById(R.id.tvCurrentYearSelectedBadge);
+        if (tvBadge != null) tvBadge.setText(String.valueOf(tempYear[0]));
+
+        RecyclerView rvYearGrid = pickerDialog.findViewById(R.id.rvYearGrid);
+        GridLayoutManager gridLayoutManager = new GridLayoutManager(getContext(), 4);
+        rvYearGrid.setLayoutManager(gridLayoutManager);
+
+        final int START_YEAR = 1940;
+        final int END_YEAR = 2070;
+        final int YEAR_COUNT = END_YEAR - START_YEAR + 1; // 131 years
+
+        final YearAdapter[] yearAdapterRef = new YearAdapter[1];
+
+        // Decade Quick Jump
+        LinearLayout layoutDecadeChips = pickerDialog.findViewById(R.id.layoutDecadeChips);
+        int[] decades = {1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030, 2040, 2050, 2060};
+        if (layoutDecadeChips != null) {
+            layoutDecadeChips.removeAllViews();
+            for (int dec : decades) {
+                TextView chip = new TextView(getContext());
+                chip.setText(dec + "s");
+                chip.setTextSize(11f);
+                chip.setTypeface(null, android.graphics.Typeface.BOLD);
+                chip.setTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+                chip.setBackgroundResource(R.drawable.bg_pill_dark);
+                chip.setPadding(26, 12, 26, 12);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.setMargins(0, 0, 12, 0);
+                chip.setLayoutParams(lp);
+
+                chip.setOnClickListener(v -> {
+                    int targetPos = Math.max(0, dec - START_YEAR);
+                    gridLayoutManager.scrollToPositionWithOffset(targetPos, 0);
+                });
+                layoutDecadeChips.addView(chip);
             }
         }
 
-        new AlertDialog.Builder(getContext(), R.style.CustomDarkDialog)
-                .setTitle("Select Year")
-                .setSingleChoiceItems(years, defaultIndex, (dialog, which) -> {
-                    displayYear = startYear + which;
-                    updateCalendarGrid();
-                    dialog.dismiss();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        yearAdapterRef[0] = new YearAdapter(START_YEAR, YEAR_COUNT, tempYear, (selectedY) -> {
+            tempYear[0] = selectedY;
+            if (tvBadge != null) tvBadge.setText(String.valueOf(selectedY));
+            if (yearAdapterRef[0] != null) yearAdapterRef[0].notifyDataSetChanged();
+        });
+        rvYearGrid.setAdapter(yearAdapterRef[0]);
+
+        // Auto-scroll to currently selected year
+        int initialPos = Math.max(0, tempYear[0] - START_YEAR - 4);
+        rvYearGrid.post(() -> gridLayoutManager.scrollToPositionWithOffset(initialPos, 0));
+
+        // Buttons
+        View tvClose = pickerDialog.findViewById(R.id.tvCloseMonthYear);
+        View btnCancel = pickerDialog.findViewById(R.id.btnCancelMonthYear);
+        View btnApply = pickerDialog.findViewById(R.id.btnApplyMonthYear);
+
+        if (tvClose != null) tvClose.setOnClickListener(v -> pickerDialog.dismiss());
+        if (btnCancel != null) btnCancel.setOnClickListener(v -> pickerDialog.dismiss());
+
+        if (btnApply != null) {
+            btnApply.setOnClickListener(v -> {
+                displayMonth = tempMonth[0];
+                displayYear = tempYear[0];
+                updateCalendarGrid();
+                pickerDialog.dismiss();
+            });
+        }
+
+        pickerDialog.show();
+    }
+
+    private class YearAdapter extends RecyclerView.Adapter<YearAdapter.YearViewHolder> {
+        private final int startYear;
+        private final int count;
+        private final int[] selectedYearRef;
+        private final OnYearClickListener onYearClickListener;
+
+        interface OnYearClickListener {
+            void onYearClick(int year);
+        }
+
+        YearAdapter(int startYear, int count, int[] selectedYearRef, OnYearClickListener listener) {
+            this.startYear = startYear;
+            this.count = count;
+            this.selectedYearRef = selectedYearRef;
+            this.onYearClickListener = listener;
+        }
+
+        @NonNull
+        @Override
+        public YearViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_calendar_year, parent, false);
+            return new YearViewHolder(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull YearViewHolder holder, int position) {
+            int year = startYear + position;
+            holder.tvYear.setText(String.valueOf(year));
+
+            if (year == selectedYearRef[0]) {
+                holder.tvYear.setBackgroundResource(R.drawable.bg_pill_emerald);
+                holder.tvYear.setTextColor(Color.parseColor("#0B0F19"));
+            } else {
+                holder.tvYear.setBackgroundResource(R.drawable.bg_pill_dark);
+                holder.tvYear.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.text_primary));
+            }
+
+            holder.itemView.setOnClickListener(v -> {
+                if (onYearClickListener != null) {
+                    onYearClickListener.onYearClick(year);
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return count;
+        }
+
+        class YearViewHolder extends RecyclerView.ViewHolder {
+            TextView tvYear;
+
+            YearViewHolder(@NonNull View itemView) {
+                super(itemView);
+                tvYear = itemView.findViewById(R.id.tvYearItem);
+            }
+        }
     }
 
     private void updateCalendarGrid() {

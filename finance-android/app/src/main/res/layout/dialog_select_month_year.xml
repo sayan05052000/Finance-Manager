@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_dialog_calendar"
+    android:padding="18dp">
+
+    <!-- Header: Icon, Title & Close -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_calendar"
+            android:tint="@color/green_mint"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Calendar" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Select Month &amp; Year"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvCloseMonthYear"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="✕"
+            android:textColor="@color/text_muted"
+            android:textSize="16sp"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Month Selection Section -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="6dp"
+        android:text="SELECT MONTH"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <!-- 12 Months: 2 Rows of 6 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnMonth0"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Jan"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth1"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Feb"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth2"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Mar"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth3"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Apr"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth4"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="May"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth5"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Jun"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnMonth6"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Jul"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth7"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Aug"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth8"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Sep"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth9"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Oct"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth10"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Nov"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btnMonth11"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Dec"
+            android:textColor="@color/text_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Year Selection Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="SELECT YEAR (1940 – 2070)"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvCurrentYearSelectedBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip_green"
+            android:text="2026"
+            android:textColor="@color/green_mint"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp" />
+    </LinearLayout>
+
+    <!-- Decade Quick Jump Bar -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:layout_marginTop="8dp">
+
+        <LinearLayout
+            android:id="@+id/layoutDecadeChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- Dynamically populated or static decade buttons -->
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Scrollable 4-Column Year Grid -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvYearGrid"
+        android:layout_width="match_parent"
+        android:layout_height="170dp"
+        android:layout_marginTop="8dp"
+        android:scrollbars="vertical" />
+
+    <!-- Action Buttons Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnCancelMonthYear"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:text="Cancel"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnApplyMonthYear"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1.4"
+            android:text="Set Month &amp; Year"
+            android:textColor="#0B0F19"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/green_emerald"
+            app:cornerRadius="22dp" />
+    </LinearLayout>
+
+</LinearLayout>
