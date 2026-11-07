@@ -1,18 +1,12 @@
 /**
- * Google Apps Script Web App for Finance Manager
- * Deploy this script as a Web App to turn this Google Sheet into a full REST API for your Angular application.
+ * Google Apps Script Web App for Finance Manager (Android & Web)
+ * File: androidscript.gs
  *
- * Setup Instructions:
- * 1. In your Google Sheet, click Extensions > Apps Script.
- * 2. Replace the contents of Code.gs with this code.
- * 3. Click "Deploy" > "New deployment".
- * 4. Select type "Web app".
- * 5. Configuration:
- *    - Description: Finance Manager API
- *    - Execute as: "Me" (your email)
- *    - Who has access: "Anyone" (or "Anyone with Google Account")
- * 6. Click "Deploy" and copy the Web App URL.
- * 7. Paste that URL into the Settings screen of your Angular Finance Manager app!
+ * Deploy as Web App:
+ * 1. Open Google Sheet > Extensions > Apps Script.
+ * 2. Paste this code into androidscript.gs (delete Code.gs if present).
+ * 3. Click Deploy > New deployment (or Manage deployments > edit > New version).
+ * 4. Execute as: "Me" | Who has access: "Anyone".
  */
 
 function doGet(e) {
@@ -34,7 +28,7 @@ function doGet(e) {
           sips: getSips(ss),
           categories: getCategories(ss),
           expenseTracker: getExpenseTracker(ss),
-          transactions: getTransactions(ss, 300) // latest 300 or pagination
+          transactions: getTransactions(ss, 300)
         }
       });
     }
@@ -81,17 +75,16 @@ function doPost(e) {
       const credit = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) !== 0) ? Number(tx.credit) : '';
       const debitVal = tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' ? tx.debitWithoutSign : tx.debit;
       const debitWithoutSign = (debitVal !== undefined && debitVal !== null && debitVal !== '' && Number(debitVal) !== 0) ? Number(debitVal) : '';
-      // Debit (with sign): exact signed value (negative for expenses), so it is never 0 when a debit value is provided
       const debit = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0)
           ? Number(tx.debit)
           : (debitWithoutSign !== '' ? -debitWithoutSign : '');
-      const net = ''; // net remains empty per user rule
-      const remainder = ''; // remainder remains empty per user rule
+      const net = '';
+      const remainder = '';
       const subCategory = tx.subCategory || '';
       const type = tx.type || 'Expense';
       const loans = tx.loans || '';
       const account = tx.account || '';
-      const category = ''; // Category automatically decided inside Google sheet
+      const category = '';
       const parts = String(date).split('/');
       const year = tx.year || (parts.length === 3 ? parts[2] : new Date().getFullYear());
       const month = tx.month || (parts.length >= 2 ? parts[1] : (new Date().getMonth() + 1));
@@ -129,7 +122,7 @@ function doPost(e) {
       let matchedRow = -1;
       for (let i = 1; i < values.length; i++) {
         if (String(values[i][0]).toLowerCase().trim() === fundName) {
-          matchedRow = i + 1; // 1-based row index
+          matchedRow = i + 1;
           break;
         }
       }
@@ -139,9 +132,9 @@ function doPost(e) {
       }
 
       sheet.getRange(matchedRow, col).setValue(status);
-
       return jsonResponse({ status: 'success', message: 'SIP status updated to ' + status });
     }
+
     if (action === 'updatePolicy') {
       const sheet = ss.getSheetByName('LIC AND TATA AIA');
       if (!sheet) throw new Error('LIC AND TATA AIA sheet not found');
@@ -163,7 +156,7 @@ function doPost(e) {
         throw new Error('Policy not found: ' + policyNumber);
       }
 
-      // Only update Last Paid and Due Date per user rule
+      // Only Last Paid and Due Date can be modified
       if (p.lastPaid !== undefined && p.lastPaid !== null) {
         sheet.getRange(matchedRow, 4).setValue(String(p.lastPaid).trim());
       }
@@ -186,29 +179,27 @@ function doPost(e) {
       const amount = Number(p.amount) || Number(p.premiumAmount) || 0;
       const lastPaid = p.lastPaid || '';
       const dueDate = p.dueDate || '';
-      const lastDate = p.lastDate || p.maturityDate || '';
-      const installmentsRemaining = p.installmentsRemaining || '';
+      const lastDate = p.lastDate || p.maturityDate || ''; // Maturity Date in Last Date column
       const subCategory = p.subCategory || 'LIC Policies';
-      const category = p.category || (subCategory.includes('Brother') ? 'Brother Savings' : (subCategory.includes('Sister') ? 'Sister Savings' : 'Savings'));
       const id = p.id || '';
       const password = p.password || '';
       const sumAssured = Number(p.sumAssured) || 0;
       const notes = p.notes || '';
 
       sheet.appendRow([
-        policyNumber,
-        birthDate,
-        amount,
-        lastPaid,
-        dueDate,
-        lastDate,
-        '',
-        subCategory,
-        '',
-        id,
-        password,
-        sumAssured,
-        notes
+        policyNumber,    // Col 1: Policy Number
+        birthDate,       // Col 2: Birth Date
+        amount,          // Col 3: Amount
+        lastPaid,        // Col 4: Last Paid
+        dueDate,         // Col 5: Due Date
+        lastDate,        // Col 6: Last Date (Maturity Date)
+        '',              // Col 7: Installment Remains (auto-calculated by sheet formula)
+        subCategory,     // Col 8: Sub Category
+        '',        // Col 9: Category
+        id,              // Col 10: Id
+        password,        // Col 11: Password
+        sumAssured,      // Col 12: Sum Assured
+        notes            // Col 13: Notes / Remarks
       ]);
 
       return jsonResponse({ status: 'success', message: 'Policy added successfully' });
@@ -225,7 +216,7 @@ function doPost(e) {
       let matchedRow = -1;
       for (let i = 1; i < values.length; i++) {
         if (String(values[i][0]).toLowerCase().trim() === fundName) {
-          matchedRow = i + 1; // 1-based row index
+          matchedRow = i + 1;
           break;
         }
       }
@@ -233,18 +224,6 @@ function doPost(e) {
       if (matchedRow === -1) {
         throw new Error('Fund not found in SIP Tracer: ' + fundName);
       }
-
-      // Column mapping in SIP Tracer:
-      // 1: Fund Name
-      // 2: Role in Architecture
-      // 3: This Month's SIP
-      // 4: This Month
-      // 5: Payment Status
-      // 6: Next SIP (Final)
-      // 7: Next Month
-      // 8: Next Month's Payment Status
-      // 9: Linked Bank Account
-      // 10: Platform
 
       if (sip.currentSip !== undefined && sip.currentSip !== null) {
         sheet.getRange(matchedRow, 3).setValue(Number(sip.currentSip) || 0);
@@ -290,35 +269,27 @@ function doPost(e) {
       const isRedeem = tx.isRedeem === true || (tx.units && Number(tx.units) < 0);
       const units = isRedeem ? -Math.abs(Number(tx.units) || 0) : Math.abs(Number(tx.units) || 0);
       const nav = Number(tx.nav) || 0;
-      
-      // Buy: User gives amount, nav, units. amount goes to Actual Invested.
-      // Redeem: amount is not required.
       const actualInvested = isRedeem ? '' : (tx.actualInvested !== undefined && tx.actualInvested !== null && tx.actualInvested !== '' ? Number(tx.actualInvested) : (Number(tx.amount) || ''));
-      console.log(actualInvested)
-      // User rule: Invested / Redeemed Amount it will be kept empty or send "=ROUND(Mutual_Fund_Transactions[Units]*Mutual_Fund_Transactions[Buy NAV/Reedem NAV],2)"
-      const investedRedeemedAmount = '';
-      const cost = '';
-      const currentNav = nav;
 
       sheet.appendRow([
         '',              // 1: Scheme Name
-        schemeId,                // 2: Scheme Id
-        date,                    // 3: Date
-        fundCategory,            // 4: Fund Category
-        fundSubCategory,         // 5: Fund Sub Category
-        platform,                // 6: Platform
-        subCategory,             // 7: Sub Category
-        folioNumber,             // 8: Folio Number
-        investedRedeemedAmount,  // 9: Invested / Redeemed Amount
-        actualInvested,          // 10: Actual Invested
-        '',                    // 11: Cost
-        units,                   // 12: Units
-        nav,                     // 13: Buy NAV/Reedem NAV
-        currentNav,              // 14: Current NAV
-        '',                       // 15: P&L
-        '',                       // 16: Days Invested
-        '',                  // 17: WIll be Processed at sheet
-        schemeCode               // 18: Scheme Code
+        schemeId,        // 2: Scheme Id
+        date,            // 3: Date
+        fundCategory,    // 4: Fund Category
+        fundSubCategory, // 5: Fund Sub Category
+        platform,        // 6: Platform
+        subCategory,     // 7: Sub Category
+        folioNumber,     // 8: Folio Number
+        '',              // 9: Invested / Redeemed Amount
+        actualInvested,  // 10: Actual Invested
+        '',              // 11: Cost
+        units,           // 12: Units
+        nav,             // 13: Buy NAV/Redeem NAV
+        nav,             // 14: Current NAV
+        '',              // 15: P&L
+        '',              // 16: Days Invested
+        '',              // 17: Processed at sheet
+        schemeCode       // 18: Scheme Code
       ]);
 
       return jsonResponse({ status: 'success', message: 'Mutual Fund transaction recorded successfully' });
@@ -345,25 +316,9 @@ function doPost(e) {
       const currentValue = Number(h.currentValue) || (units * nav);
 
       sheet.appendRow([
-        schemeName,
-        schemeCode,
-        schemeId,
-        category,
-        subCategory,
-        savingsType,
-        savingsCategory,
-        source,
-        units,
-        avgBuyingNav,
-        investedValue,
-        nav,
-        navDate,
-        currentValue,
-        0,
-        0,
-        0,
-        investedValue,
-        0
+        schemeName, schemeCode, schemeId, category, subCategory, savingsType,
+        savingsCategory, source, units, avgBuyingNav, investedValue, nav,
+        navDate, currentValue, 0, 0, 0, investedValue, 0
       ]);
 
       return jsonResponse({ status: 'success', message: 'Mutual Fund holding added successfully' });
@@ -595,7 +550,7 @@ function getInsurance(ss) {
     id: String(p['Id'] || ''),
     password: String(p['Password'] || ''),
     sumAssured: Number(p['Sum Assured']) || 0,
-    notes: p['Status / Notes'] || ''
+    notes: p['Status / Notes'] || p['Notes'] || ''
   }));
 }
 
@@ -626,4 +581,94 @@ function getCategories(ss) {
     catMap[cat].push(sub);
   });
   return Object.keys(catMap).map(k => ({ name: k, subCategories: catMap[k] }));
+}
+
+
+/**
+ * Standalone function to calculate running balance (Remainder) in Column E.
+ * Fetches opening balances from both 'Account Opening Balance' and 'Loans Opening Balance',
+ * calculates chronological running balances per account/loan, and batch-updates Column E.
+ */
+function calculateRemainders() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var transSheet = ss.getSheetByName('Transactions');
+  if (!transSheet) {
+    Logger.log("Error: 'Transactions' sheet not found.");
+    return;
+  }
+
+  // 1. Load Opening Balances for Accounts
+  var accBalances = {};
+  var accSheet = ss.getSheetByName('Account Opening Balance');
+  if (accSheet) {
+    var accData = accSheet.getDataRange().getValues();
+    for (var i = 1; i < accData.length; i++) {
+      var accName = accData[i][0] ? String(accData[i][0]).trim() : "";
+      if (accName !== "") {
+        accBalances[accName] = Number(accData[i][1]) || 0;
+      }
+    }
+  }
+
+  // 2. Load Opening Balances for Loans
+  var loanBalances = {};
+  var loanSheet = ss.getSheetByName('Loans Opening Balance');
+  if (loanSheet) {
+    var loanData = loanSheet.getDataRange().getValues();
+    for (var i = 1; i < loanData.length; i++) {
+      var loanName = loanData[i][0] ? String(loanData[i][0]).trim() : "";
+      if (loanName !== "") {
+        loanBalances[loanName] = Number(loanData[i][1]) || 0;
+      }
+    }
+  }
+
+  // 3. Read only the necessary columns from Transactions to maximize speed:
+  // Col B (2): Credit
+  // Col C (3): Debit
+  // Col H (8): Loans
+  // Col I (9): Account
+  var lastRow = transSheet.getLastRow();
+  if (lastRow < 2) return; // No transaction rows
+
+  var numRows = lastRow - 1; // Exclude header row
+
+  // Read data ranges
+  var creditDebitValues = transSheet.getRange(2, 2, numRows, 2).getValues(); // Cols B & C
+  var loanAccountValues = transSheet.getRange(2, 8, numRows, 2).getValues(); // Cols H & I
+
+  var runningBalances = {};
+  var remainderOutput = [];
+
+  // 4. Calculate running balances in-memory
+  for (var i = 0; i < numRows; i++) {
+    var credit = Number(creditDebitValues[i][0]) || 0;
+    var debit = Number(creditDebitValues[i][1]) || 0;
+    var loan = loanAccountValues[i][0] ? String(loanAccountValues[i][0]).trim() : "";
+    var account = loanAccountValues[i][1] ? String(loanAccountValues[i][1]).trim() : "";
+
+    // Determine the entity key: Account takes precedence; if empty, use Loans
+    var entityKey = account !== "" ? account : loan;
+    var currentBalance = 0;
+
+    if (entityKey !== "") {
+      if (!(entityKey in runningBalances)) {
+        // Initialize opening balance
+        if (account !== "") {
+          runningBalances[entityKey] = (account in accBalances) ? accBalances[account] : 0;
+        } else {
+          runningBalances[entityKey] = (loan in loanBalances) ? loanBalances[loan] : 0;
+        }
+      }
+
+      // Cumulative running balance = previous balance + Credit + Debit (Debit is already negative)
+      runningBalances[entityKey] += (credit + debit);
+      currentBalance = Math.round(runningBalances[entityKey] * 100) / 100;
+    }
+
+    remainderOutput.push([currentBalance]);
+  }
+
+  // 5. Batch-write directly into Column E (starting at row 2)
+  transSheet.getRange(2, 5, remainderOutput.length, 1).setValues(remainderOutput);
 }
