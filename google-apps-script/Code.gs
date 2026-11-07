@@ -142,6 +142,78 @@ function doPost(e) {
 
       return jsonResponse({ status: 'success', message: 'SIP status updated to ' + status });
     }
+    if (action === 'updatePolicy') {
+      const sheet = ss.getSheetByName('LIC AND TATA AIA');
+      if (!sheet) throw new Error('LIC AND TATA AIA sheet not found');
+
+      const p = data.policy || {};
+      const policyNumber = String(p.policyNumber || '').trim();
+      if (!policyNumber) throw new Error('Policy number is required');
+
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][0]).trim() === policyNumber) {
+          matchedRow = i + 1;
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Policy not found: ' + policyNumber);
+      }
+
+      // Only update Last Paid and Due Date per user rule
+      if (p.lastPaid !== undefined && p.lastPaid !== null) {
+        sheet.getRange(matchedRow, 4).setValue(String(p.lastPaid).trim());
+      }
+      if (p.dueDate !== undefined && p.dueDate !== null) {
+        sheet.getRange(matchedRow, 5).setValue(String(p.dueDate).trim());
+      }
+
+      return jsonResponse({ status: 'success', message: 'Policy dates updated successfully' });
+    }
+
+    if (action === 'addPolicy') {
+      const sheet = ss.getSheetByName('LIC AND TATA AIA');
+      if (!sheet) throw new Error('LIC AND TATA AIA sheet not found');
+
+      const p = data.policy || {};
+      const policyNumber = String(p.policyNumber || '').trim();
+      if (!policyNumber) throw new Error('Policy number is required');
+
+      const birthDate = p.birthDate || '05/05/2000';
+      const amount = Number(p.amount) || Number(p.premiumAmount) || 0;
+      const lastPaid = p.lastPaid || '';
+      const dueDate = p.dueDate || '';
+      const lastDate = p.lastDate || '';
+      const installmentsRemaining = p.installmentsRemaining || '';
+      const subCategory = p.subCategory || 'LIC Policies';
+      const category = p.category || (subCategory.includes('Brother') ? 'Brother Savings' : (subCategory.includes('Sister') ? 'Sister Savings' : 'Savings'));
+      const id = p.id || '';
+      const password = p.password || '';
+      const sumAssured = Number(p.sumAssured) || 0;
+      const notes = p.notes || '';
+
+      sheet.appendRow([
+        policyNumber,
+        birthDate,
+        amount,
+        lastPaid,
+        dueDate,
+        lastDate,
+        installmentsRemaining,
+        subCategory,
+        category,
+        id,
+        password,
+        sumAssured,
+        notes
+      ]);
+
+      return jsonResponse({ status: 'success', message: 'Policy added successfully' });
+    }
+
     if (action === 'updateSip') {
       const sheet = ss.getSheetByName('SIP Tracer');
       if (!sheet) throw new Error('SIP Tracer sheet not found');
@@ -505,11 +577,19 @@ function getMutualFundTransactions(ss, limit) {
 function getInsurance(ss) {
   const raw = getSheetValues(ss, 'LIC AND TATA AIA');
   return raw.map(p => ({
-    policyNumber: p['Policy Number'],
+    policyNumber: String(p['Policy Number'] || '').trim(),
+    birthDate: p['Birth Date'] || '',
     premiumAmount: Number(p['Amount '] || p['Amount']) || 0,
-    dueDate: p['Due Date'],
-    installmentsRemaining: p['Installment Remains'],
-    subCategory: p['Sub Category']
+    lastPaid: p['Last Paid'] || '',
+    dueDate: p['Due Date'] || '',
+    lastDate: p['Last Date'] || '',
+    installmentsRemaining: String(p['Installment Remains'] || ''),
+    subCategory: p['Sub Category'] || '',
+    category: p['Category'] || '',
+    id: String(p['Id'] || ''),
+    password: String(p['Password'] || ''),
+    sumAssured: Number(p['Sum Assured']) || 0,
+    notes: p['Status / Notes'] || ''
   }));
 }
 

@@ -463,24 +463,24 @@
   "goals": [
     {
       "name": "Health And Life Insurance",
-      "targetAmount": 60000,
-      "currentAmount": 15184.39,
+      "targetAmount": 60000.0,
+      "currentAmount": 15190.28,
       "achievedPercent": 25.3,
-      "savingAllocationPercent": 0
+      "savingAllocationPercent": 0.0
     },
     {
       "name": "Emergency Fund",
-      "targetAmount": 200000,
-      "currentAmount": 28995.68,
-      "achievedPercent": 14.5,
-      "savingAllocationPercent": 100
+      "targetAmount": 200000.0,
+      "currentAmount": 28237.31,
+      "achievedPercent": 14.1,
+      "savingAllocationPercent": 100.0
     },
     {
       "name": "Bike",
-      "targetAmount": 200000,
-      "currentAmount": 41275.326,
-      "achievedPercent": 20.6,
-      "savingAllocationPercent": 30
+      "targetAmount": 200000.0,
+      "currentAmount": 41407.97,
+      "achievedPercent": 20.7,
+      "savingAllocationPercent": 30.0
     }
   ],
   "holdings": [
@@ -5229,92 +5229,128 @@
     {
       "policyNumber": "438739536",
       "birthDate": "07/07/2007",
-      "premiumAmount": 5230,
+      "premiumAmount": 5230.0,
       "lastPaid": "15/03/2026",
       "dueDate": "26/03/2027",
       "lastDate": "26/03/2027",
-      "installmentsRemaining": 1,
-      "subCategory": "Brother LIC Policies"
+      "installmentsRemaining": "1",
+      "subCategory": "Brother LIC Policies",
+      "category": "Brother Savings",
+      "id": "6296039808",
+      "sumAssured": 100000.0,
+      "notes": ""
     },
     {
       "policyNumber": "403779399",
       "birthDate": "07/07/2007",
-      "premiumAmount": 4594,
+      "premiumAmount": 4594.0,
       "lastPaid": "14/12/2025",
       "dueDate": "14/12/2026",
       "lastDate": "14/12/2048",
-      "installmentsRemaining": 23,
-      "subCategory": "Brother LIC Policies"
+      "installmentsRemaining": "23",
+      "subCategory": "Brother LIC Policies",
+      "category": "Brother Savings",
+      "id": "6296039808",
+      "sumAssured": 150000.0,
+      "notes": ""
     },
     {
       "policyNumber": "2856101499307900",
       "birthDate": "05/05/2000",
-      "premiumAmount": 9168,
+      "premiumAmount": 9168.0,
       "lastPaid": "17/10/2026",
       "dueDate": "17/10/2026",
       "lastDate": "17/10/2048",
-      "installmentsRemaining": 22,
-      "subCategory": "Health Insurance"
+      "installmentsRemaining": "22",
+      "subCategory": "Health Insurance",
+      "category": "Insurance",
+      "id": "6296161830",
+      "sumAssured": 500000.0,
+      "notes": ""
     },
     {
       "policyNumber": "438739535",
       "birthDate": "05/05/2000",
-      "premiumAmount": 5047,
+      "premiumAmount": 5047.0,
       "lastPaid": "15/03/2026",
       "dueDate": "26/03/2027",
       "lastDate": "26/03/2027",
-      "installmentsRemaining": 1,
-      "subCategory": "LIC Policies"
+      "installmentsRemaining": "1",
+      "subCategory": "LIC Policies",
+      "category": "Savings",
+      "id": "6296161830",
+      "sumAssured": 100000.0,
+      "notes": ""
     },
     {
       "policyNumber": "499966351",
       "birthDate": "07/10/2008",
-      "premiumAmount": 5423,
+      "premiumAmount": 5423.0,
       "lastPaid": "17/03/2026",
       "dueDate": "17/03/2027",
       "lastDate": "17/03/2028",
-      "installmentsRemaining": 2,
-      "subCategory": "Sister LIC Policies"
+      "installmentsRemaining": "2",
+      "subCategory": "Sister LIC Policies",
+      "category": "Sister Savings",
+      "id": "9933000503",
+      "sumAssured": 100000.0,
+      "notes": ""
     },
     {
       "policyNumber": "403779400",
       "birthDate": "07/10/2008",
-      "premiumAmount": 4586,
+      "premiumAmount": 4586.0,
       "lastPaid": "14/12/2025",
       "dueDate": "14/12/2026",
       "lastDate": "14/12/2048",
-      "installmentsRemaining": 23,
-      "subCategory": "Sister LIC Policies"
+      "installmentsRemaining": "23",
+      "subCategory": "Sister LIC Policies",
+      "category": "Sister Savings",
+      "id": "9933000503",
+      "sumAssured": 150000.0,
+      "notes": ""
     },
     {
       "policyNumber": "403779398",
       "birthDate": "05/05/2000",
-      "premiumAmount": 4803,
+      "premiumAmount": 4803.0,
       "lastPaid": "14/12/2025",
       "dueDate": "14/12/2026",
       "lastDate": "14/12/2048",
-      "installmentsRemaining": 23,
-      "subCategory": "LIC Policies"
+      "installmentsRemaining": "23",
+      "subCategory": "LIC Policies",
+      "category": "Savings",
+      "id": "6296161830",
+      "sumAssured": 150000.0,
+      "notes": "Stopped. No further premiums from 14/12/2026. Surrender pending, value about 30000."
     },
     {
       "policyNumber": "C202635066",
       "birthDate": "05/05/2000",
-      "premiumAmount": 6545,
+      "premiumAmount": 6545.0,
       "lastPaid": "15/03/2026",
       "dueDate": "31/03/2027",
       "lastDate": "31/03/2027",
-      "installmentsRemaining": 1,
-      "subCategory": "Tata AIA Policy"
+      "installmentsRemaining": "1",
+      "subCategory": "Tata AIA Policy",
+      "category": "Savings",
+      "id": "Policy Number",
+      "sumAssured": 100000.0,
+      "notes": ""
     },
     {
       "policyNumber": "C321850816",
       "birthDate": "05/05/2000",
-      "premiumAmount": 8298,
+      "premiumAmount": 8298.0,
       "lastPaid": "04/05/2026",
       "dueDate": "04/05/2027",
       "lastDate": "04/05/2061",
-      "installmentsRemaining": 35,
-      "subCategory": "Term Insurance"
+      "installmentsRemaining": "35",
+      "subCategory": "Term Insurance",
+      "category": "Insurance",
+      "id": "Policy Number",
+      "sumAssured": 10000000.0,
+      "notes": ""
     }
   ],
   "sips": [

@@ -146,9 +146,10 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
         // Recursive keyboard dismissal on touching any non-input element
         setupTouchToDismissKeyboard(v, imm, allInputs);
 
-        // Pre-fill today's date
+        // Pre-fill today's date & wire calendar picker
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
         etMfDate.setText(sdf.format(new Date()));
+        com.samiy.financemanager.util.DateTimeHelper.setupDatePicker(etMfDate);
 
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         

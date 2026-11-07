@@ -39,6 +39,12 @@ public class FinanceDatabase implements Serializable {
     @SerializedName("expenseTracker")
     public List<ExpenseTrackerItem> expenseTracker = new ArrayList<>();
 
+    @SerializedName("goals")
+    public List<GoalItem> goals = new ArrayList<>();
+
+    @SerializedName("insurance")
+    public List<InsurancePolicy> insurance = new ArrayList<>();
+
     public FinanceDatabase() {}
 
     public double getTotalBankBalance() {
@@ -135,5 +141,28 @@ public class FinanceDatabase implements Serializable {
             for (String s : defaults) list.add(s);
         }
         return list;
+    }
+
+    public double getTotalAnnualInsurancePremiums() {
+        double sum = 0.0;
+        if (insurance != null) {
+            for (InsurancePolicy p : insurance) {
+                if (p != null) {
+                    sum += p.premiumAmount;
+                }
+            }
+        }
+        return sum;
+    }
+
+    public GoalItem getHealthAndLifeInsuranceGoal() {
+        if (goals != null) {
+            for (GoalItem g : goals) {
+                if (g != null && g.name != null && g.name.toLowerCase().contains("health and life insurance")) {
+                    return g;
+                }
+            }
+        }
+        return null;
     }
 }

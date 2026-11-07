@@ -193,9 +193,10 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
         // Recursive keyboard auto-dismissal when touching anywhere outside inputs
         setupTouchToDismissKeyboard(v, imm, allInputs);
 
-        // Pre-fill today's date
+        // Pre-fill today's date & wire calendar picker
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
         etDate.setText(sdf.format(new Date()));
+        com.samiy.financemanager.util.DateTimeHelper.setupDatePicker(etDate);
 
         // Populate Sub-Categories Dropdown and Search
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();

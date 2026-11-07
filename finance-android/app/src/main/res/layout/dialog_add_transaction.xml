@@ -276,7 +276,11 @@
             android:hint="06/11/2026"
             android:textColorHint="@color/text_muted"
             android:textColor="@color/text_primary"
-            android:inputType="text"
+            android:focusable="false"
+            android:clickable="true"
+            android:cursorVisible="false"
+            android:drawableEnd="@drawable/ic_calendar"
+            android:drawablePadding="8dp"
             android:paddingStart="14dp"
             android:paddingEnd="14dp" />
 

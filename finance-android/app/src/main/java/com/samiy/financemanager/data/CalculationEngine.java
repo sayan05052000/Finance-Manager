@@ -3,6 +3,8 @@ package com.samiy.financemanager.data;
 import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.ExpenseTrackerItem;
+import com.samiy.financemanager.data.model.GoalItem;
+import com.samiy.financemanager.data.model.InsurancePolicy;
 import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.Holding;
 import com.samiy.financemanager.data.model.PortfolioSummary;
@@ -296,6 +298,13 @@ public class CalculationEngine {
             }
         }
 
+        if (db.goals == null || db.goals.isEmpty()) {
+            db.goals = createDefaultGoals();
+        }
+        if (db.insurance == null || db.insurance.isEmpty()) {
+            db.insurance = createDefaultInsurance();
+        }
+
         // SubCategories breakdown
         if (!subCatSpend.isEmpty()) {
             List<CurrentCycle.SubCategorySpend> scList = new ArrayList<>();
@@ -329,6 +338,28 @@ public class CalculationEngine {
         list.add(new ExpenseTrackerItem("Variable Expense", "Electricity", 4267.75, 4773.0, 4267.75));
         list.add(new ExpenseTrackerItem("Variable Expense", "Food", 500.0, 2098.17, 0.0));
         list.add(new ExpenseTrackerItem("Variable Expense", "Transit", 900.0, 825.0, 0.0));
+        return list;
+    }
+
+    private static List<GoalItem> createDefaultGoals() {
+        List<GoalItem> list = new ArrayList<>();
+        list.add(new GoalItem("Health And Life Insurance", 60000.0, 15190.28, 25.3, 0.0));
+        list.add(new GoalItem("Emergency Fund", 200000.0, 28237.31, 14.1, 100.0));
+        list.add(new GoalItem("Bike", 200000.0, 41407.97, 20.7, 30.0));
+        return list;
+    }
+
+    private static List<InsurancePolicy> createDefaultInsurance() {
+        List<InsurancePolicy> list = new ArrayList<>();
+        list.add(new InsurancePolicy("438739536", 5230.0, "15/03/2026", "26/03/2027", "1", "Brother LIC Policies", "Brother Savings", 100000.0, ""));
+        list.add(new InsurancePolicy("403779399", 4594.0, "14/12/2025", "14/12/2026", "23", "Brother LIC Policies", "Brother Savings", 150000.0, ""));
+        list.add(new InsurancePolicy("2856101499307900", 9168.0, "17/10/2026", "17/10/2026", "22", "Health Insurance", "Insurance", 500000.0, ""));
+        list.add(new InsurancePolicy("438739535", 5047.0, "15/03/2026", "26/03/2027", "1", "LIC Policies", "Savings", 100000.0, ""));
+        list.add(new InsurancePolicy("499966351", 5423.0, "17/03/2026", "17/03/2027", "2", "Sister LIC Policies", "Sister Savings", 100000.0, ""));
+        list.add(new InsurancePolicy("403779400", 4586.0, "14/12/2025", "14/12/2026", "23", "Sister LIC Policies", "Sister Savings", 150000.0, ""));
+        list.add(new InsurancePolicy("403779398", 4803.0, "14/12/2025", "14/12/2026", "23", "LIC Policies", "Savings", 150000.0, "Stopped. No further premiums from 14/12/2026."));
+        list.add(new InsurancePolicy("C202635066", 6545.0, "15/03/2026", "31/03/2027", "1", "Tata AIA Policy", "Savings", 100000.0, ""));
+        list.add(new InsurancePolicy("C321850816", 8298.0, "04/05/2026", "04/05/2027", "35", "Term Insurance", "Insurance", 10000000.0, ""));
         return list;
     }
 }

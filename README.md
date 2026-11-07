@@ -10,6 +10,10 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Billing Cycle & The 6th-to-5th Rule](#billing-cycle--the-6th-to-5th-rule)
    - [Dual Sub-Category System](#dual-sub-category-system)
    - [SIP Tracer Architecture & Constraints](#sip-tracer-architecture--constraints)
+   - [Financial Goals (View Only)](#financial-goals-view-only)
+   - [LIC & Tata AIA Policies (Controlled Updates & Add Flow)](#lic--tata-aia-policies)
+   - [Insurance Financing Visual Representation (Health & Life Goal vs Policies)](#insurance-financing-visual-representation)
+   - [Universal Calendar Date Pickers (dd/MM/yyyy)](#universal-calendar-date-pickers)
    - [Mutual Fund Transactions (Buy vs. Redeem)](#mutual-fund-transactions-buy-vs-redeem)
    - [Sheet Formula Co-existence](#sheet-formula-co-existence)
    - [Overview & Financial KPI Calculations](#overview--financial-kpi-calculations)
@@ -113,6 +117,66 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
   - Platform (`amc/upiauto`, `indmoney`, `amc/enach`, `groww`, `NA`).
   - Linked Bank Account (`Slice`, `sbi`, `Pnb`, `Hdfc`, etc.).
 * **1-Tap Quick Toggles**: Main list cards have direct `Not Paid` / `Paid` buttons for fast 1-tap toggling without opening the full edit sheet.
+
+---
+
+### Financial Goals (View Only)
+* **Design & Security Requirement**: Financial goals represent long-term wealth milestones and savings buckets (e.g. `Health And Life Insurance`, `Emergency Fund`, `Bike`).
+* **Strict View-Only Rule**: Financial goals are strictly **view-only**. The mobile UI does not render edit, update, or delete buttons for goals.
+* **Tracked Metrics**:
+  - **Goal Target Amount**: Total planned fund accumulation (e.g. ₹60,000.00).
+  - **Accumulated Balance**: Current sum saved towards the target (e.g. ₹15,190.28).
+  - **Achieved Percentage**: Dynamic progress calculation ($$\text{Achieved} = \frac{\text{Current Amount}}{\text{Target Amount}} \times 100$$).
+  - **Savings Allocation Percentage**: Planned monthly savings share (e.g. 30% of monthly savings).
+  - **Visual Progress Bar**: Horizontal emerald progress bar showing completion toward goal target.
+
+---
+
+### LIC & Tata AIA Policies
+The application tracks life and health insurance policies across LIC and Tata AIA Life Insurance:
+* **Strict Lockdown Rule**: Per security constraints, existing insurance policies **lock all core financial terms**.
+  - **Immutable Fields**: Policy Number, Premium Amount, Sub-Category (LIC / Tata AIA), Category (Life / Health / Motor), Sum Assured, Installments Remaining, Notes.
+  - **Mutable Fields**: ONLY **Last Paid Date** and **Due Date** can be edited/updated by the user.
+* **Controlled Date Editor (`EditPolicyBottomSheet`)**:
+  - Displays a locked policy information header and notice: *"Policy Number, Premium, and Sum Assured are locked per security rules. Only Due Date and Last Paid Date can be updated."*
+  - Provides calendar pickers with the dark theme for both dates, auto-formatting to `dd/MM/yyyy`.
+  - Sends a secure `POST` action (`action: 'updatePolicy'`) to Google Apps Script which matches by policy number and strictly modifies columns 4 (`Last Paid`) and 5 (`Due Date`).
+* **Add Policy Option (`AddPolicyBottomSheet`)**:
+  - Allows adding new policies directly to the `LIC AND TATA AIA` Google Sheet.
+  - Form fields include: Policy Number, Sub-Category (LIC / Tata AIA modal selector), Premium Amount, Sum Assured, Due Date (Calendar Picker), Last Paid Date (Calendar Picker), Installments Remaining, and Notes.
+  - Sends `action: 'addPolicy'` to Google Apps Script, instantly appending to the sheet.
+
+---
+
+### Insurance Financing Visual Representation
+* **Business Logic**: The total annual insurance premiums across all active policies are financed by the `Health And Life Insurance` goal fund.
+* **Visual Representation Card (Accounts Screen)**:
+  - **3-Column KPI Metric Row**:
+    1. **Annual Premiums** (Sky Blue `#38BDF8`): Sum of all active policy premiums ($$\sum \text{Policy Premiums} = \text{₹53,694.00}$$).
+    2. **Funded in Goal** (Emerald `#34D399`): Accumulated balance in `Health And Life Insurance` goal ($$\text{₹15,190.28}$$).
+    3. **Goal Target** (Amber `#F59E0B`): Full target capacity ($$\text{₹60,000.00}$$).
+  - **Funding Percentage Badge**:
+    $$\text{Funding \%} = \frac{\text{Goal Accumulated}}{\text{Total Annual Premiums}} \times 100 = 28.3\%$$
+    - Styled with emerald badge (`bg_badge_good`) if $$\ge 100\%$$, or amber badge (`bg_badge_amber`) if underfunded.
+  - **Progress Bar**: Horizontal visual progress bar comparing funded balance against total annual obligations.
+  - **Dynamic Remaining Deficit Note**:
+    - When underfunded: Displays exact shortage, e.g. *"₹38,503.72 remaining in goal to fully fund annual premiums"*.
+    - When fully funded ($$\ge 100\%$$): Displays confirmation *"Annual insurance premiums are 100% funded by your Health & Life Goal!"*.
+
+---
+
+### Universal Calendar Date Pickers
+* **Cross-App Date Consistency**: Across every update and creation flow in the app where dates are entered, users are provided a native calendar date picker.
+* **Styling & Formatting**:
+  - Uses `DatePickerDialog` wrapped in `R.style.CustomDarkDialog` to seamlessly match the deep navy dark aesthetic (`#0B0F19`, `#131B26`).
+  - Automatically parses existing date strings (or defaults to current date) to initialize calendar view.
+  - Formats selected date strictly to `dd/MM/yyyy`.
+  - Makes `EditText` non-focusable and activates calendar dialog on tap.
+* **Adopted Modals**:
+  1. `AddTransactionBottomSheet` (Ledger income/expense date)
+  2. `AddMutualFundTransactionBottomSheet` (Mutual fund transaction date)
+  3. `EditPolicyBottomSheet` (Policy Last Paid and Due Date)
+  4. `AddPolicyBottomSheet` (New Policy Last Paid and Due Date)
 
 ---
 
@@ -320,8 +384,8 @@ The Google Spreadsheet acts as the relational database across 10 specialized she
 | **Current Loan OutStanding** | Loans, Current OutStanding, Interest Rate, IsDebt | Liabilities and debt tracking |
 | **Budget** | Year, Month, Month Number, BUDGET, Spend, Remainder, Can Spend Per Day, Investment | Budget limits and daily spending allowances |
 | **Category Tables** | Category Name, SubCategory | Category hierarchy definitions |
-| **Goals** | Goals Name, Goal Amount, Occured Till Date, Percentage Of saving To Put | Long-term savings goals tracking |
-| **LIC AND TATA AIA** | Policy Number, Amount, Due Date, Installment Remains, Sub Category | Insurance policy schedule |
+| **Goals** | Goals Name, Goal Amount, Occured Till Date, Percentage Of saving To Put | Long-term savings goals (View Only in app) |
+| **LIC AND TATA AIA** | Policy Number, Birth Date, Amount, Last Paid, Due Date, Last Date, Installment Remains, Sub Category, Category, Id, Password, Sum Assured, Notes | Insurance policy master ledger (13 columns). Only Last Paid and Due Date mutable in-app |
 
 ---
 
@@ -414,6 +478,10 @@ Finance-Manager/
 | `MainActivity` | Orchestrates the primary UI, bottom navigation tabs, Floating Action Button, and enforces the `layoutUnauthorized` blocking screen when unauthorized. |
 | `FinanceRepository` | Singleton managing network requests via thread pools, parsing responses, saving local cache to `SharedPreferences`, enforcing authorization checks, and notifying callbacks on the Android main thread. |
 | `CalculationEngine` | Computes net inflow/outflow, total debit/credit, remaining budget, days remaining in cycle, daily spend allowance, and filters interest transactions. |
+| `AccountsFragment` | Renders bank balances, liabilities/debt, section filter pills (All, Banks & Debt, LIC & Tata AIA, Financial Goals), Insurance Financing visual representation card, insurance policy list with date updates and add policy action, and view-only financial goals. |
+| `EditPolicyBottomSheet` | Bottom sheet for updating insurance policies. Strictly enforces lockdown on policy terms; only Last Paid Date and Due Date can be modified via dark-themed calendar pickers. |
+| `AddPolicyBottomSheet` | Bottom sheet for adding new insurance policies to Google Sheets with calendar pickers for dates and provider modal selector. |
+| `DateTimeHelper` | Central utility managing calendar date picker dialogs (`DatePickerDialog` with `R.style.CustomDarkDialog`) and date string parsing/formatting in `dd/MM/yyyy`. |
 | `HoldingsFragment` | Renders portfolio KPIs (total invested, current valuation, 1D gain, ROI), savings type breakdown, and the list of holdings. |
 | `ViewMfTransactionsBottomSheet` | Displays mutual fund transaction history. Filters by Scheme Name/Id/Code and Category Tables Sub-Category (`Kuvera Surplus(Family)`). Protected by authorization checks. |
 | `SipTracerBottomSheet` | Displays active SIP schemes, total monthly outlay, quick `Paid`/`Not Paid` toggle buttons, and opens the full editor. Protected by authorization checks. |

@@ -16,6 +16,8 @@ import com.samiy.financemanager.data.model.CategoryItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.Transaction;
+import com.samiy.financemanager.data.model.InsurancePolicy;
+import com.samiy.financemanager.data.model.GoalItem;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -419,6 +421,106 @@ public class FinanceRepository {
                 Log.e(TAG, "Error posting mutual fund transaction to Google Sheets", e);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError("Failed to sync MF transaction: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+
+    public void updatePolicy(InsurancePolicy updatedPolicy, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Update in-memory database immediately
+        if (database != null && database.insurance != null) {
+            for (InsurancePolicy p : database.insurance) {
+                if (p.policyNumber != null && p.policyNumber.equalsIgnoreCase(updatedPolicy.policyNumber)) {
+                    p.lastPaid = updatedPolicy.lastPaid;
+                    p.dueDate = updatedPolicy.dueDate;
+                    break;
+                }
+            }
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updatePolicy");
+
+                JsonObject policyObj = new JsonObject();
+                policyObj.addProperty("policyNumber", updatedPolicy.policyNumber);
+                policyObj.addProperty("lastPaid", updatedPolicy.lastPaid);
+                policyObj.addProperty("dueDate", updatedPolicy.dueDate);
+
+                postBody.add("policy", policyObj);
+
+                String jsonStr = gson.toJson(postBody);
+                executeHttpPost(GAS_URL, jsonStr);
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating policy in Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to update policy: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void addPolicy(InsurancePolicy newPolicy, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Pre-append to in-memory database
+        if (database != null) {
+            if (database.insurance == null) database.insurance = new java.util.ArrayList<>();
+            database.insurance.add(newPolicy);
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "addPolicy");
+
+                JsonObject policyObj = new JsonObject();
+                policyObj.addProperty("policyNumber", newPolicy.policyNumber);
+                policyObj.addProperty("birthDate", newPolicy.birthDate != null ? newPolicy.birthDate : "05/05/2000");
+                policyObj.addProperty("premiumAmount", newPolicy.premiumAmount);
+                policyObj.addProperty("lastPaid", newPolicy.lastPaid);
+                policyObj.addProperty("dueDate", newPolicy.dueDate);
+                policyObj.addProperty("lastDate", newPolicy.lastDate != null ? newPolicy.lastDate : "");
+                policyObj.addProperty("installmentsRemaining", newPolicy.installmentsRemaining != null ? newPolicy.installmentsRemaining : "");
+                policyObj.addProperty("subCategory", newPolicy.subCategory != null ? newPolicy.subCategory : "LIC Policies");
+                policyObj.addProperty("category", newPolicy.category != null ? newPolicy.category : "Savings");
+                policyObj.addProperty("id", newPolicy.id != null ? newPolicy.id : "");
+                policyObj.addProperty("password", newPolicy.password != null ? newPolicy.password : "");
+                policyObj.addProperty("sumAssured", newPolicy.sumAssured);
+                policyObj.addProperty("notes", newPolicy.notes != null ? newPolicy.notes : "");
+
+                postBody.add("policy", policyObj);
+
+                String jsonStr = gson.toJson(postBody);
+                executeHttpPost(GAS_URL, jsonStr);
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding policy in Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to add policy: " + e.getMessage());
                 });
             }
         });
