@@ -163,6 +163,9 @@ function doPost(e) {
       if (p.dueDate !== undefined && p.dueDate !== null) {
         sheet.getRange(matchedRow, 5).setValue(String(p.dueDate).trim());
       }
+      if (p.installmentsRemaining !== undefined && p.installmentsRemaining !== null && String(p.installmentsRemaining).trim() === '0') {
+        sheet.getRange(matchedRow, 7).setValue('0');
+      }
 
       return jsonResponse({ status: 'success', message: 'Policy dates updated successfully' });
     }

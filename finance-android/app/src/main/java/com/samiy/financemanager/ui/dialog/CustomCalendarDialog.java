@@ -48,6 +48,61 @@ public class CustomCalendarDialog extends Dialog {
     private int todayMonth;
     private int todayDay;
 
+    private Calendar minDate;
+    private Calendar maxDate;
+
+    public void setMinDate(Calendar min) {
+        if (min != null) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(min.getTime());
+            cal.set(Calendar.HOUR_OF_DAY, 0);
+            cal.set(Calendar.MINUTE, 0);
+            cal.set(Calendar.SECOND, 0);
+            cal.set(Calendar.MILLISECOND, 0);
+            this.minDate = cal;
+            clampDates();
+        } else {
+            this.minDate = null;
+        }
+    }
+
+    public void setMaxDate(Calendar max) {
+        if (max != null) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(max.getTime());
+            cal.set(Calendar.HOUR_OF_DAY, 23);
+            cal.set(Calendar.MINUTE, 59);
+            cal.set(Calendar.SECOND, 59);
+            cal.set(Calendar.MILLISECOND, 999);
+            this.maxDate = cal;
+            clampDates();
+        } else {
+            this.maxDate = null;
+        }
+    }
+
+    private void clampDates() {
+        Calendar checkCal = Calendar.getInstance();
+        checkCal.set(selectedYear, selectedMonth, selectedDay, 12, 0, 0);
+        if (minDate != null && checkCal.before(minDate)) {
+            selectedYear = minDate.get(Calendar.YEAR);
+            selectedMonth = minDate.get(Calendar.MONTH);
+            selectedDay = minDate.get(Calendar.DAY_OF_MONTH);
+            displayYear = selectedYear;
+            displayMonth = selectedMonth;
+        }
+        if (maxDate != null && checkCal.after(maxDate)) {
+            selectedYear = maxDate.get(Calendar.YEAR);
+            selectedMonth = maxDate.get(Calendar.MONTH);
+            selectedDay = maxDate.get(Calendar.DAY_OF_MONTH);
+            displayYear = selectedYear;
+            displayMonth = selectedMonth;
+        }
+        if (rvCalendarGrid != null) {
+            updateCalendarGrid();
+        }
+    }
+
     private TextView tvMonthYear;
     private TextView tvSelectedDatePreview;
     private RecyclerView rvCalendarGrid;
@@ -105,6 +160,7 @@ public class CustomCalendarDialog extends Dialog {
 
         displayYear = selectedYear;
         displayMonth = selectedMonth;
+        clampDates();
     }
 
     private void initViews() {
@@ -183,6 +239,19 @@ public class CustomCalendarDialog extends Dialog {
 
         if (btnConfirm != null) {
             btnConfirm.setOnClickListener(v -> {
+                Calendar checkCal = Calendar.getInstance();
+                checkCal.set(selectedYear, selectedMonth, selectedDay, 12, 0, 0);
+
+                if (maxDate != null && checkCal.after(maxDate)) {
+                    android.widget.Toast.makeText(getContext(), "Selected date cannot be in the future", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                if (minDate != null && checkCal.before(minDate)) {
+                    android.widget.Toast.makeText(getContext(), "Selected date cannot be in the past", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 String formatted = String.format(Locale.US, "%02d/%02d/%04d", selectedDay, selectedMonth + 1, selectedYear);
                 if (listener != null) {
                     listener.onDateSelected(selectedDay, selectedMonth + 1, selectedYear, formatted);
@@ -442,28 +511,61 @@ public class CustomCalendarDialog extends Dialog {
             holder.tvDayNumber.setText(String.valueOf(day));
             holder.layoutDayCell.setClickable(true);
 
-            boolean isSelected = (day == selectedDay && displayMonth == selectedMonth && displayYear == selectedYear);
-            boolean isToday = (day == todayDay && displayMonth == todayMonth && displayYear == todayYear);
-
-            if (isSelected) {
-                holder.tvDayNumber.setBackgroundResource(R.drawable.bg_calendar_day_selected);
-                holder.tvDayNumber.setTextColor(Color.WHITE);
-            } else if (isToday) {
-                holder.tvDayNumber.setBackgroundResource(R.drawable.bg_calendar_day_today);
-                holder.tvDayNumber.setTextColor(ContextCompat.getColor(getContext(), R.color.green_mint));
-            } else {
-                holder.tvDayNumber.setBackground(null);
-                holder.tvDayNumber.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+            boolean isBeforeMin = false;
+            if (minDate != null) {
+                Calendar cellCal = Calendar.getInstance();
+                cellCal.set(displayYear, displayMonth, day, 23, 59, 59);
+                if (cellCal.before(minDate)) {
+                    isBeforeMin = true;
+                }
             }
 
-            holder.layoutDayCell.setOnClickListener(v -> {
-                selectedDay = day;
-                selectedMonth = displayMonth;
-                selectedYear = displayYear;
-                v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
-                updatePreview();
-                notifyDataSetChanged();
-            });
+            boolean isAfterMax = false;
+            if (maxDate != null) {
+                Calendar cellCal = Calendar.getInstance();
+                cellCal.set(displayYear, displayMonth, day, 0, 0, 0);
+                if (cellCal.after(maxDate)) {
+                    isAfterMax = true;
+                }
+            }
+
+            boolean isDisabled = isBeforeMin || isAfterMax;
+
+            if (isDisabled) {
+                holder.tvDayNumber.setBackground(null);
+                holder.tvDayNumber.setTextColor(Color.parseColor("#475569"));
+                final boolean fAfterMax = isAfterMax;
+                holder.layoutDayCell.setOnClickListener(v -> {
+                    if (fAfterMax) {
+                        android.widget.Toast.makeText(getContext(), "Cannot select future date", android.widget.Toast.LENGTH_SHORT).show();
+                    } else {
+                        android.widget.Toast.makeText(getContext(), "Cannot select past date for Due Date", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                boolean isSelected = (day == selectedDay && displayMonth == selectedMonth && displayYear == selectedYear);
+                boolean isToday = (day == todayDay && displayMonth == todayMonth && displayYear == todayYear);
+
+                if (isSelected) {
+                    holder.tvDayNumber.setBackgroundResource(R.drawable.bg_calendar_day_selected);
+                    holder.tvDayNumber.setTextColor(Color.WHITE);
+                } else if (isToday) {
+                    holder.tvDayNumber.setBackgroundResource(R.drawable.bg_calendar_day_today);
+                    holder.tvDayNumber.setTextColor(ContextCompat.getColor(getContext(), R.color.green_mint));
+                } else {
+                    holder.tvDayNumber.setBackground(null);
+                    holder.tvDayNumber.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+                }
+
+                holder.layoutDayCell.setOnClickListener(v -> {
+                    selectedDay = day;
+                    selectedMonth = displayMonth;
+                    selectedYear = displayYear;
+                    v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+                    updatePreview();
+                    notifyDataSetChanged();
+                });
+            }
         }
 
         @Override

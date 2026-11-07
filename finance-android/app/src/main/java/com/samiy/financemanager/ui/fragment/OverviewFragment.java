@@ -1,5 +1,10 @@
 package com.samiy.financemanager.ui.fragment;
 
+import com.samiy.financemanager.auth.GoogleAuthManager;
+import com.samiy.financemanager.MainActivity;
+import com.samiy.financemanager.ui.dialog.AddTransactionBottomSheet;
+import com.samiy.financemanager.ui.dialog.AddMutualFundTransactionBottomSheet;
+import android.widget.Toast;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -55,6 +60,42 @@ public class OverviewFragment extends Fragment {
         tvCycleInterest = v.findViewById(R.id.tvCycleInterest);
         tvCycleReceivables = v.findViewById(R.id.tvCycleReceivables);
         layoutSubCategoriesContainer = v.findViewById(R.id.layoutSubCategoriesContainer);
+
+        View btnAddTx = v.findViewById(R.id.btnOverviewAddTx);
+        if (btnAddTx != null) {
+            btnAddTx.setOnClickListener(view -> {
+                if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                    Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                AddTransactionBottomSheet dialog = new AddTransactionBottomSheet();
+                dialog.setListener(() -> {
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).updateHeaderInfo();
+                    }
+                    refreshData();
+                });
+                dialog.show(getChildFragmentManager(), "AddTxDialog");
+            });
+        }
+
+        View btnAddMf = v.findViewById(R.id.btnOverviewAddMfTx);
+        if (btnAddMf != null) {
+            btnAddMf.setOnClickListener(view -> {
+                if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                    Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                AddMutualFundTransactionBottomSheet dialog = new AddMutualFundTransactionBottomSheet();
+                dialog.setListener(() -> {
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).updateHeaderInfo();
+                    }
+                    refreshData();
+                });
+                dialog.show(getChildFragmentManager(), "AddMfTxDialog");
+            });
+        }
 
         swipeRefresh.setOnRefreshListener(this::refreshData);
 

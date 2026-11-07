@@ -41,7 +41,6 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
     private ImageButton btnRefresh;
     private View btnGoogleAuth;
     private BottomNavigationView bottomNav;
-    private ExtendedFloatingActionButton fabAdd;
     private FrameLayout fragmentContainer;
 
     // Unauthorized Overlay Views
@@ -87,7 +86,6 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         btnRefresh = findViewById(R.id.btnRefresh);
         btnGoogleAuth = findViewById(R.id.btnGoogleAuth);
         bottomNav = findViewById(R.id.bottomNavigation);
-        fabAdd = findViewById(R.id.fabAdd);
         fragmentContainer = findViewById(R.id.fragmentContainer);
 
         layoutUnauthorized = findViewById(R.id.layoutUnauthorized);
@@ -103,7 +101,6 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
 
         setupHeader();
         setupNavigation();
-        setupFab();
         setupAuth();
 
         // Apply initial authorization state
@@ -232,7 +229,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         });
     }
 
-    private void updateHeaderInfo() {
+    public void updateHeaderInfo() {
         if (!authManager.isAuthorized()) {
             tvHeaderNetWorth.setText("Protected");
             tvHeaderCycle.setText("Access Restricted");
@@ -295,57 +292,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         ft.commitAllowingStateLoss();
     }
 
-    private void setupFab() {
-        fabAdd.setOnClickListener(v -> {
-            if (!authManager.isAuthorized()) {
-                Toast.makeText(this, "You are not authorized", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (currentFragment instanceof HoldingsFragment) {
-                AddMutualFundTransactionBottomSheet dialog = new AddMutualFundTransactionBottomSheet();
-                dialog.setListener(() -> {
-                    updateHeaderInfo();
-                    notifyActiveFragment();
-                });
-                dialog.show(getSupportFragmentManager(), "AddMfTxDialog");
-            } else {
-                AddTransactionBottomSheet dialog = new AddTransactionBottomSheet();
-                dialog.setListener(() -> {
-                    updateHeaderInfo();
-                    notifyActiveFragment();
-                });
-                dialog.show(getSupportFragmentManager(), "AddTxDialog");
-            }
-        });
 
-        fabAdd.setOnLongClickListener(v -> {
-            if (!authManager.isAuthorized()) {
-                Toast.makeText(this, "You are not authorized", Toast.LENGTH_SHORT).show();
-                return true;
-            }
-            new AlertDialog.Builder(this)
-                    .setTitle("Record Transaction")
-                    .setItems(new CharSequence[]{"General Transaction (Expense / Income / Transfer)", "Mutual Fund Transaction (Buy / SIP / Redeem)"}, (dialog, which) -> {
-                        if (which == 0) {
-                            AddTransactionBottomSheet txDialog = new AddTransactionBottomSheet();
-                            txDialog.setListener(() -> {
-                                updateHeaderInfo();
-                                notifyActiveFragment();
-                            });
-                            txDialog.show(getSupportFragmentManager(), "AddTxDialog");
-                        } else {
-                            AddMutualFundTransactionBottomSheet mfDialog = new AddMutualFundTransactionBottomSheet();
-                            mfDialog.setListener(() -> {
-                                updateHeaderInfo();
-                                notifyActiveFragment();
-                            });
-                            mfDialog.show(getSupportFragmentManager(), "AddMfTxDialog");
-                        }
-                    })
-                    .show();
-            return true;
-        });
-    }
 
     private void setupAuth() {
         btnUnauthorizedAction.setOnClickListener(v -> {
@@ -410,7 +357,6 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         if (authorized) {
             layoutUnauthorized.setVisibility(View.GONE);
             fragmentContainer.setVisibility(View.VISIBLE);
-            fabAdd.setVisibility(View.VISIBLE);
             btnRefresh.setEnabled(true);
             btnRefresh.setAlpha(1.0f);
 
@@ -431,7 +377,6 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
             stopAutoSync();
             layoutUnauthorized.setVisibility(View.VISIBLE);
             fragmentContainer.setVisibility(View.GONE);
-            fabAdd.setVisibility(View.GONE);
             btnRefresh.setEnabled(false);
             btnRefresh.setAlpha(0.3f);
 
@@ -455,7 +400,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         }
     }
 
-    private void notifyActiveFragment() {
+    public void notifyActiveFragment() {
         if (!authManager.isAuthorized()) return;
 
         if (currentFragment instanceof OverviewFragment) {

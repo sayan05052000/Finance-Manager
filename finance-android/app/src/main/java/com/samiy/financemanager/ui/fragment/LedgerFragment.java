@@ -1,5 +1,9 @@
 package com.samiy.financemanager.ui.fragment;
 
+import com.samiy.financemanager.auth.GoogleAuthManager;
+import com.samiy.financemanager.MainActivity;
+import com.samiy.financemanager.ui.dialog.AddTransactionBottomSheet;
+import android.widget.Toast;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.view.LayoutInflater;
@@ -77,6 +81,24 @@ public class LedgerFragment extends Fragment {
         rvLedger.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new TransactionsAdapter();
         rvLedger.setAdapter(adapter);
+
+        View btnAddTx = v.findViewById(R.id.btnAddTransactionLedger);
+        if (btnAddTx != null) {
+            btnAddTx.setOnClickListener(view -> {
+                if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                    Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                AddTransactionBottomSheet dialog = new AddTransactionBottomSheet();
+                dialog.setListener(() -> {
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).updateHeaderInfo();
+                    }
+                    refreshData();
+                });
+                dialog.show(getChildFragmentManager(), "AddTxDialog");
+            });
+        }
 
         setupFilters();
         swipeRefresh.setOnRefreshListener(this::refreshData);

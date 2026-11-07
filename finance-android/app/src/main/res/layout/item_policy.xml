@@ -191,6 +191,22 @@
             android:textSize="11sp" />
 
         <TextView
+            android:id="@+id/tvPolicyMaturedBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_pill_dark"
+            android:text="✓ Fully Paid"
+            android:textColor="@color/green_mint"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/btnMarkPolicyPaidQuick"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

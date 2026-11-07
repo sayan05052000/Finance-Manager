@@ -96,6 +96,64 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Matured Notice Card (Shown when policy is fully paid / reached maturity) -->
+    <LinearLayout
+        android:id="@+id/cardPolicyMaturedNotice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_pill_dark"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✓"
+            android:textColor="@color/green_mint"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="10dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Policy Fully Paid &amp; Matured"
+                android:textColor="@color/green_mint"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="All installments completed. No further payments due."
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip_green"
+            android:text="Completed"
+            android:textColor="@color/green_mint"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp" />
+    </LinearLayout>
+
     <!-- Mark as Paid Quick Action Card -->
     <LinearLayout
         android:id="@+id/cardMarkPolicyPaid"
@@ -138,7 +196,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Sets payment date to Today and shifts Due Date by +1 year"
+                android:text="Defaults to Today • Auto-shifts Due Date +1 year"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -158,15 +216,39 @@
             android:paddingBottom="3dp" />
     </LinearLayout>
 
-    <!-- Due Date Field -->
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- Due Date Field Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Next Due Date (Shifted +1 Year when Paid)"
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvEditPolicyDueDateLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Next Due Date"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvDueDateLockedTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip_green"
+            android:text="🔒 Auto-Calculated"
+            android:textColor="@color/green_mint"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <EditText
         android:id="@+id/etEditPolicyDueDate"
@@ -185,12 +267,22 @@
         android:drawablePadding="8dp"
         android:drawableTint="@color/green_mint" />
 
+    <TextView
+        android:id="@+id/tvDueDateHelper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Auto-shifted +1 year (capped at maturity date). Locked during payment."
+        android:textColor="@color/text_muted"
+        android:textSize="10.5sp"
+        android:visibility="gone" />
+
     <!-- Last Paid Date Field -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:text="Payment Date / Last Paid (Defaults to Today)"
+        android:text="Payment Date / Last Paid (Cannot be in the future)"
         android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:textStyle="bold" />

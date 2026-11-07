@@ -150,7 +150,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
         // Pre-fill today's date & wire calendar picker
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
         etMfDate.setText(sdf.format(new Date()));
-        com.samiy.financemanager.util.DateTimeHelper.setupDatePicker(etMfDate);
+        com.samiy.financemanager.util.DateTimeHelper.setupPastDatePicker(etMfDate);
 
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         

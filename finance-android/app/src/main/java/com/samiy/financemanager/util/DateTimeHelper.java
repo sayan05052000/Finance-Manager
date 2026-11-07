@@ -125,4 +125,64 @@ public class DateTimeHelper {
         editText.setCursorVisible(false);
         editText.setOnClickListener(v -> showDatePickerDialog(v.getContext(), editText));
     }
+
+    public static void setupPastDatePicker(EditText editText) {
+        if (editText == null) return;
+        editText.setFocusable(false);
+        editText.setClickable(true);
+        editText.setCursorVisible(false);
+        editText.setOnClickListener(v -> {
+            String currentText = editText.getText().toString().trim();
+            CustomCalendarDialog dialog = new CustomCalendarDialog(v.getContext(), currentText, (day, month, year, formattedDate) -> {
+                editText.setText(formattedDate);
+            });
+            Calendar today = Calendar.getInstance();
+            dialog.setMaxDate(today); // Cannot select future date!
+            dialog.show();
+        });
+    }
+
+    public static void setupFutureDatePicker(EditText editText) {
+        if (editText == null) return;
+        editText.setFocusable(false);
+        editText.setClickable(true);
+        editText.setCursorVisible(false);
+        editText.setOnClickListener(v -> {
+            String currentText = editText.getText().toString().trim();
+            CustomCalendarDialog dialog = new CustomCalendarDialog(v.getContext(), currentText, (day, month, year, formattedDate) -> {
+                editText.setText(formattedDate);
+            });
+            Calendar today = Calendar.getInstance();
+            dialog.setMinDate(today); // Cannot select past date!
+            dialog.show();
+        });
+    }
+
+    public static void setupDueDatePicker(EditText editText, String maturityDateStr) {
+        if (editText == null) return;
+        editText.setFocusable(false);
+        editText.setClickable(true);
+        editText.setCursorVisible(false);
+        editText.setOnClickListener(v -> {
+            String currentText = editText.getText().toString().trim();
+            CustomCalendarDialog dialog = new CustomCalendarDialog(v.getContext(), currentText, (day, month, year, formattedDate) -> {
+                editText.setText(formattedDate);
+            });
+            Calendar today = Calendar.getInstance();
+            dialog.setMinDate(today); // Cannot select past date for Due Date
+
+            if (maturityDateStr != null && !maturityDateStr.trim().isEmpty()) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                    Date matDate = sdf.parse(maturityDateStr.trim());
+                    if (matDate != null) {
+                        Calendar matCal = Calendar.getInstance();
+                        matCal.setTime(matDate);
+                        dialog.setMaxDate(matCal); // Due date can NEVER be greater than maturity date
+                    }
+                } catch (Exception ignored) {}
+            }
+            dialog.show();
+        });
+    }
 }

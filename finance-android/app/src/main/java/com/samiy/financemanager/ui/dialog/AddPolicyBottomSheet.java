@@ -92,10 +92,10 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
         etLastPaid.setText(sdf.format(new Date()));
 
         // Wire calendar date pickers
-        DateTimeHelper.setupDatePicker(etBirthDate);
-        DateTimeHelper.setupDatePicker(etDueDate);
-        DateTimeHelper.setupDatePicker(etLastPaid);
-        DateTimeHelper.setupDatePicker(etMaturityDate);
+        DateTimeHelper.setupPastDatePicker(etBirthDate);
+        DateTimeHelper.setupFutureDatePicker(etDueDate);
+        DateTimeHelper.setupPastDatePicker(etLastPaid);
+        DateTimeHelper.setupFutureDatePicker(etMaturityDate);
         com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etPolicyNumber, etAmount, etSumAssured, etNotes);
 
         // Subcategory modal selector
@@ -135,6 +135,18 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
             if (amountStr.isEmpty()) {
                 Toast.makeText(getContext(), "Please enter premium amount", Toast.LENGTH_SHORT).show();
                 return;
+            }
+
+            if (!due.isEmpty() && !maturityDate.isEmpty()) {
+                try {
+                    java.text.SimpleDateFormat dateCmp = new java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US);
+                    java.util.Date dDate = dateCmp.parse(DateTimeHelper.formatDisplayDate(due));
+                    java.util.Date mDate = dateCmp.parse(DateTimeHelper.formatDisplayDate(maturityDate));
+                    if (dDate != null && mDate != null && dDate.after(mDate)) {
+                        Toast.makeText(getContext(), "Due date cannot be greater than maturity date", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                } catch (Exception ignored) {}
             }
             if (due.isEmpty()) {
                 Toast.makeText(getContext(), "Please select due date from calendar", Toast.LENGTH_SHORT).show();

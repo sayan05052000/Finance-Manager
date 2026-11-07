@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -24,7 +25,6 @@ import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.InsurancePolicy;
 import com.samiy.financemanager.util.DateTimeHelper;
 
-import android.widget.CheckBox;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -58,6 +58,69 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
 
     public void setOnPolicyUpdatedListener(OnPolicyUpdatedListener listener) {
         this.listener = listener;
+    }
+
+    public static boolean isPolicyFullyPaidOrMatured(InsurancePolicy policy) {
+        if (policy == null) return false;
+
+        // 1. Installments Remaining check
+        if (policy.installmentsRemaining != null && !policy.installmentsRemaining.trim().isEmpty()) {
+            String rem = policy.installmentsRemaining.trim();
+            try {
+                double remVal = Double.parseDouble(rem);
+                if (remVal <= 0) return true;
+            } catch (Exception ignored) {}
+            if (rem.equalsIgnoreCase("0") || rem.equalsIgnoreCase("0.0") ||
+                    rem.equalsIgnoreCase("matured") || rem.equalsIgnoreCase("completed")) {
+                return true;
+            }
+        }
+
+        // 2. Notes check
+        if (policy.notes != null) {
+            String n = policy.notes.toLowerCase();
+            if (n.contains("fully paid") || n.contains("matured") || n.contains("surrender pending") || n.contains("stopped")) {
+                return true;
+            }
+        }
+
+        // 3. Last Paid year reaches or exceeds Maturity year
+        if (policy.lastDate != null && !policy.lastDate.trim().isEmpty() &&
+                policy.lastPaid != null && !policy.lastPaid.trim().isEmpty()) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                Date mat = sdf.parse(DateTimeHelper.formatDisplayDate(policy.lastDate));
+                Date paid = sdf.parse(DateTimeHelper.formatDisplayDate(policy.lastPaid));
+                if (mat != null && paid != null) {
+                    Calendar matCal = Calendar.getInstance();
+                    matCal.setTime(mat);
+                    Calendar paidCal = Calendar.getInstance();
+                    paidCal.setTime(paid);
+                    if (paidCal.get(Calendar.YEAR) >= matCal.get(Calendar.YEAR)) {
+                        return true;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // 4. Due Date reached or exceeded Maturity Date AND lastPaid is in the same year or after
+        if (policy.lastDate != null && !policy.lastDate.trim().isEmpty() &&
+                policy.dueDate != null && !policy.dueDate.trim().isEmpty() &&
+                policy.lastPaid != null && !policy.lastPaid.trim().isEmpty()) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                Date mat = sdf.parse(DateTimeHelper.formatDisplayDate(policy.lastDate));
+                Date due = sdf.parse(DateTimeHelper.formatDisplayDate(policy.dueDate));
+                Date paid = sdf.parse(DateTimeHelper.formatDisplayDate(policy.lastPaid));
+                if (mat != null && due != null && paid != null) {
+                    if (due.compareTo(mat) >= 0 && (paid.compareTo(due) >= 0 || paid.compareTo(mat) >= 0)) {
+                        return true;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return false;
     }
 
     @NonNull
@@ -103,6 +166,13 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         TextView tvPolicyNumber = v.findViewById(R.id.tvEditPolicyNumber);
         TextView tvPremium = v.findViewById(R.id.tvEditPolicyPremium);
 
+        View cardMaturedNotice = v.findViewById(R.id.cardPolicyMaturedNotice);
+        View cardMarkPaid = v.findViewById(R.id.cardMarkPolicyPaid);
+        CheckBox cbMarkPaid = v.findViewById(R.id.cbMarkPolicyPaid);
+        TextView tvMarkPaidSub = v.findViewById(R.id.tvMarkPaidSub);
+
+        TextView tvDueDateLockedTag = v.findViewById(R.id.tvDueDateLockedTag);
+        TextView tvDueDateHelper = v.findViewById(R.id.tvDueDateHelper);
         EditText etDueDate = v.findViewById(R.id.etEditPolicyDueDate);
         EditText etLastPaid = v.findViewById(R.id.etEditPolicyLastPaid);
         Button btnUpdate = v.findViewById(R.id.btnUpdatePolicy);
@@ -118,47 +188,77 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         etDueDate.setText(originalDue);
         etLastPaid.setText(originalLastPaid);
 
-        // Setup calendar date pickers for Due Date and Last Paid Date
-        DateTimeHelper.setupDatePicker(etDueDate);
-        DateTimeHelper.setupDatePicker(etLastPaid);
-
-        // Mark as Paid quick option
-        View cardMarkPaid = v.findViewById(R.id.cardMarkPolicyPaid);
-        CheckBox cbMarkPaid = v.findViewById(R.id.cbMarkPolicyPaid);
-        TextView tvMarkPaidSub = v.findViewById(R.id.tvMarkPaidSub);
+        boolean isMatured = isPolicyFullyPaidOrMatured(policy);
 
         SimpleDateFormat todaySdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
         String todayStr = todaySdf.format(new Date());
 
-        Runnable applyMarkAsPaid = () -> {
-            cbMarkPaid.setChecked(true);
-            etLastPaid.setText(todayStr);
-            String shiftedDue = shiftDateByOneYear(originalDue);
-            etDueDate.setText(shiftedDue);
-            tvMarkPaidSub.setText("Payment date set to Today (" + todayStr + ") • Next due shifted to " + shiftedDue);
-            btnUpdate.setText("Mark Paid & Update Dates");
-        };
+        if (isMatured) {
+            // Policy already fully paid or reached maturity: Remove option to mark as paid
+            if (cardMarkPaid != null) cardMarkPaid.setVisibility(View.GONE);
+            if (cardMaturedNotice != null) cardMaturedNotice.setVisibility(View.VISIBLE);
+            if (tvDueDateLockedTag != null) tvDueDateLockedTag.setVisibility(View.GONE);
+            if (tvDueDateHelper != null) tvDueDateHelper.setVisibility(View.GONE);
 
-        Runnable revertMarkAsPaid = () -> {
-            cbMarkPaid.setChecked(false);
-            etDueDate.setText(originalDue);
-            etLastPaid.setText(originalLastPaid);
-            tvMarkPaidSub.setText("Sets payment date to Today and shifts Due Date by +1 year");
-            btnUpdate.setText("Update Policy Dates");
-        };
+            // In matured state, user can only do manual date adjustments if necessary
+            DateTimeHelper.setupDueDatePicker(etDueDate, policy.lastDate);
+            DateTimeHelper.setupPastDatePicker(etLastPaid);
+        } else {
+            if (cardMaturedNotice != null) cardMaturedNotice.setVisibility(View.GONE);
+            if (cardMarkPaid != null) cardMarkPaid.setVisibility(View.VISIBLE);
 
-        cardMarkPaid.setOnClickListener(view -> {
-            if (!cbMarkPaid.isChecked()) {
+            final String calculatedDue = calculateNextDueDate(originalDue, policy.lastDate);
+
+            Runnable applyMarkAsPaid = () -> {
+                cbMarkPaid.setChecked(true);
+                etLastPaid.setText(todayStr);
+
+                // Payment date can NEVER be in the future
+                DateTimeHelper.setupPastDatePicker(etLastPaid);
+
+                // During marking as paid, NO option to choose due date: locked & auto-calculated
+                etDueDate.setText(calculatedDue);
+                etDueDate.setOnClickListener(null);
+                etDueDate.setClickable(false);
+                etDueDate.setFocusable(false);
+                if (tvDueDateLockedTag != null) tvDueDateLockedTag.setVisibility(View.VISIBLE);
+                if (tvDueDateHelper != null) tvDueDateHelper.setVisibility(View.VISIBLE);
+
+                tvMarkPaidSub.setText("Payment set to Today (" + todayStr + ") • Due auto-shifted to " + calculatedDue);
+                btnUpdate.setText("Mark Paid & Update Dates");
+            };
+
+            Runnable revertMarkAsPaid = () -> {
+                cbMarkPaid.setChecked(false);
+                etDueDate.setText(originalDue);
+                etLastPaid.setText(originalLastPaid);
+
+                // Re-enable manual due date calendar (cannot select past date, cannot exceed maturity date)
+                DateTimeHelper.setupDueDatePicker(etDueDate, policy.lastDate);
+                DateTimeHelper.setupPastDatePicker(etLastPaid);
+
+                if (tvDueDateLockedTag != null) tvDueDateLockedTag.setVisibility(View.GONE);
+                if (tvDueDateHelper != null) tvDueDateHelper.setVisibility(View.GONE);
+
+                tvMarkPaidSub.setText("Defaults to Today • Auto-shifts Due Date +1 year");
+                btnUpdate.setText("Update Policy Dates");
+            };
+
+            cardMarkPaid.setOnClickListener(view -> {
+                if (!cbMarkPaid.isChecked()) {
+                    applyMarkAsPaid.run();
+                    Toast.makeText(getContext(), "Payment date set to Today! Due date auto-shifted to " + calculatedDue, Toast.LENGTH_SHORT).show();
+                } else {
+                    revertMarkAsPaid.run();
+                }
+            });
+
+            boolean autoMarkPaid = getArguments() != null && getArguments().getBoolean(ARG_AUTO_MARK_PAID, false);
+            if (autoMarkPaid) {
                 applyMarkAsPaid.run();
-                Toast.makeText(getContext(), "Payment date set to Today! Next due date shifted +1 year.", Toast.LENGTH_SHORT).show();
             } else {
                 revertMarkAsPaid.run();
             }
-        });
-
-        boolean autoMarkPaid = getArguments() != null && getArguments().getBoolean(ARG_AUTO_MARK_PAID, false);
-        if (autoMarkPaid) {
-            applyMarkAsPaid.run();
         }
 
         btnUpdate.setOnClickListener(view -> {
@@ -168,6 +268,18 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
             if (newDue.isEmpty()) {
                 Toast.makeText(getContext(), "Please select a due date", Toast.LENGTH_SHORT).show();
                 return;
+            }
+
+            if (cbMarkPaid.isChecked()) {
+                // If marking as paid, check if this is the final installment
+                if (policy.lastDate != null && !policy.lastDate.trim().isEmpty()) {
+                    String matClean = DateTimeHelper.formatDisplayDate(policy.lastDate);
+                    String dueClean = DateTimeHelper.formatDisplayDate(newDue);
+                    String origDueClean = DateTimeHelper.formatDisplayDate(originalDue);
+                    if (dueClean.equals(matClean) || origDueClean.equals(matClean)) {
+                        policy.installmentsRemaining = "0";
+                    }
+                }
             }
 
             policy.dueDate = newDue;
@@ -200,6 +312,24 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         return v;
     }
 
+    private String calculateNextDueDate(String currentDueStr, String maturityDateStr) {
+        String shifted = shiftDateByOneYear(currentDueStr);
+        if (maturityDateStr != null && !maturityDateStr.trim().isEmpty()) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                Date shiftedDate = sdf.parse(DateTimeHelper.formatDisplayDate(shifted));
+                Date matDate = sdf.parse(DateTimeHelper.formatDisplayDate(maturityDateStr));
+                if (shiftedDate != null && matDate != null) {
+                    if (shiftedDate.after(matDate)) {
+                        // Due date can NEVER be greater than maturity date: cap it at maturity date!
+                        return DateTimeHelper.formatDisplayDate(maturityDateStr);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return shifted;
+    }
+
     private String shiftDateByOneYear(String dateStr) {
         if (dateStr == null || dateStr.trim().isEmpty()) {
             Calendar c = Calendar.getInstance();
@@ -208,7 +338,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
         }
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
-            Date d = sdf.parse(dateStr.trim());
+            Date d = sdf.parse(DateTimeHelper.formatDisplayDate(dateStr));
             if (d != null) {
                 Calendar c = Calendar.getInstance();
                 c.setTime(d);

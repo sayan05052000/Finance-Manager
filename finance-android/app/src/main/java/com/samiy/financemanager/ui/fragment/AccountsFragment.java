@@ -445,18 +445,28 @@ public class AccountsFragment extends Fragment {
                 tvNotes.setVisibility(View.GONE);
             }
 
-            // Quick Mark as Paid Button Click: Opens with today's payment date and +1 year shifted due date
+            // Quick Mark as Paid Button or Matured Badge
+            boolean isMatured = com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet.isPolicyFullyPaidOrMatured(p);
             View btnMarkPaidQuick = itemView.findViewById(R.id.btnMarkPolicyPaidQuick);
-            if (btnMarkPaidQuick != null) {
-                btnMarkPaidQuick.setOnClickListener(view -> {
-                    if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                        Toast.makeText(getContext(), "You are not authorized to update policies.", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    EditPolicyBottomSheet bottomSheet = EditPolicyBottomSheet.newInstance(p, true);
-                    bottomSheet.setOnPolicyUpdatedListener(this::refreshData);
-                    bottomSheet.show(getChildFragmentManager(), "mark_paid_" + p.policyNumber);
-                });
+            View tvPolicyMaturedBadge = itemView.findViewById(R.id.tvPolicyMaturedBadge);
+
+            if (isMatured) {
+                if (btnMarkPaidQuick != null) btnMarkPaidQuick.setVisibility(View.GONE);
+                if (tvPolicyMaturedBadge != null) tvPolicyMaturedBadge.setVisibility(View.VISIBLE);
+            } else {
+                if (tvPolicyMaturedBadge != null) tvPolicyMaturedBadge.setVisibility(View.GONE);
+                if (btnMarkPaidQuick != null) {
+                    btnMarkPaidQuick.setVisibility(View.VISIBLE);
+                    btnMarkPaidQuick.setOnClickListener(view -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            Toast.makeText(getContext(), "You are not authorized to update policies.", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        EditPolicyBottomSheet bottomSheet = EditPolicyBottomSheet.newInstance(p, true);
+                        bottomSheet.setOnPolicyUpdatedListener(this::refreshData);
+                        bottomSheet.show(getChildFragmentManager(), "mark_paid_" + p.policyNumber);
+                    });
+                }
             }
 
             // Update Dates Button Click: Only Last Paid and Due Date can be modified!
