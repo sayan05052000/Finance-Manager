@@ -58,6 +58,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Inspecting Logcat Logs](#inspecting-logcat-logs)
    - [Common Pitfalls & Fixes](#common-pitfalls--fixes)
 8. [Google Apps Script Deployment Guide (`androidscript.gs`)](#8-google-apps-script-deployment-guide)
+9. [Project Changelog (`CHANGELOG.md`)](#9-project-changelog)
 
 ---
 
@@ -572,7 +573,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 
 | Sheet Name | Key Columns | Purpose |
 |---|---|---|
-| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Processed Flag, Tagged Credit Card | General ledger of all income, expenses, and tagged credit card spends (15 columns; dynamically resolved by `tagged credit card` header) |
+| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Tagged Credit Card (Col 14), Scanned / Processed Flag (Col 15) | General ledger of all income, expenses, and tagged credit card spends (15 columns; 100% dynamically resolved by header names via `findTransactionsColumnIndices`) |
 | **Account Opening Balance** | Account Name, Opening Balance | Initial liquid account baseline for running balance calculations |
 | **Loans Opening Balance** | Loan Name, Opening Balance | Initial liability baseline for running balance calculations |
 | **Mutual Investment Holdings** | Scheme Name, Scheme Code, Scheme Id, Category, Sub-category, Savings Type, Units, Avg Buying NAV, Invested Value, NAV, Current Value, 1D Change | Current portfolio valuation and live NAV tracking |
@@ -593,6 +594,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 ```
 Finance-Manager/
 ├── .gitignore                          # Root ignore rules (build, gradle, IDE, apk)
+├── CHANGELOG.md                        # Comprehensive release notes & historical change log
 ├── FinanceManager.apk                  # Current ready-to-install build (v1.8)
 ├── README.md                           # This architecture, developer & build guide
 ├── google-apps-script/
@@ -1035,3 +1037,10 @@ Whenever modifying `androidscript.gs`:
 > [!NOTE]
 > **100% Dynamic Column Order Resilience (`Transactions` & `Credit Cards`)**:
 > `androidscript.gs` incorporates comprehensive dynamic column finders (`findTransactionsColumnIndices` and `findCreditCardColumnIndices`). In both `Transactions` and `Credit Cards` sheets, every column (Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Status/Scanned, Tagged Credit Card) is resolved dynamically by matching header names rather than static column numbers. Users can freely rearrange, reorder, or reposition columns in Google Sheets without breaking `getTransactions`, `addTransaction`, `updateTransaction`, `deleteTransaction`, or `calculateRemainders`.
+
+---
+
+## 9. Project Changelog
+
+A comprehensive, historical version-by-version log of all architectural improvements, features, UI refinements, and fixes is maintained in:
+👉 [**`CHANGELOG.md`**](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/CHANGELOG.md)
