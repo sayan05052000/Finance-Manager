@@ -438,11 +438,7 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
 
             // DEBIT WITH SIGN:
             // Non-zero exact debit with sign (negative for expenses/debits, so Debit column is NEVER 0)
-            if (debitVal != 0) {
-                tx.debit = -Math.abs(debitVal);
-            } else {
-                tx.debit = 0;
-            }
+            tx.debit = -tx.debitWithoutSign;
 
             tx.net = (creditVal > 0 ? creditVal : 0) + (tx.debit != 0 ? tx.debit : 0);
             tx.remainder = 0;
