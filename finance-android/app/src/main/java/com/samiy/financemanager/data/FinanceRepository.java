@@ -244,6 +244,27 @@ public class FinanceRepository {
         });
     }
 
+    private void updateEntityBalance(String entityName, double delta) {
+        if (database == null || entityName == null || entityName.trim().isEmpty() || delta == 0) return;
+        String name = entityName.trim();
+        if (database.accounts != null) {
+            for (com.samiy.financemanager.data.model.Account a : database.accounts) {
+                if (a != null && a.name != null && a.name.trim().equalsIgnoreCase(name)) {
+                    a.currentBalance = Math.round((a.currentBalance + delta) * 100.0) / 100.0;
+                    return;
+                }
+            }
+        }
+        if (database.loans != null) {
+            for (com.samiy.financemanager.data.model.Loan l : database.loans) {
+                if (l != null && l.name != null && l.name.trim().equalsIgnoreCase(name)) {
+                    l.outstanding = Math.round((l.outstanding + delta) * 100.0) / 100.0;
+                    return;
+                }
+            }
+        }
+    }
+
     public void updateTransaction(Transaction tx, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
@@ -252,13 +273,73 @@ public class FinanceRepository {
             return;
         }
 
-        // Update in local database immediately
+        // Update in local database immediately with precise running remainder recalculation
         if (database != null && database.transactions != null) {
+            Transaction oldTx = null;
+            int foundIdx = -1;
             for (int i = 0; i < database.transactions.size(); i++) {
                 if (database.transactions.get(i).id == tx.id) {
-                    database.transactions.set(i, tx);
+                    oldTx = database.transactions.get(i);
+                    foundIdx = i;
                     break;
                 }
+            }
+
+            if (foundIdx != -1 && oldTx != null) {
+                double oldNet = (oldTx.credit > 0 ? oldTx.credit : 0) + 
+                        (oldTx.debit != 0 ? oldTx.debit : (oldTx.debitWithoutSign > 0 ? -oldTx.debitWithoutSign : 0));
+                double newNet = (tx.credit > 0 ? tx.credit : 0) + 
+                        (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
+                tx.net = newNet;
+
+                String oldEntity = oldTx.account != null && !oldTx.account.trim().isEmpty() 
+                        ? oldTx.account.trim() : (oldTx.loans != null ? oldTx.loans.trim() : "");
+                String newEntity = tx.account != null && !tx.account.trim().isEmpty() 
+                        ? tx.account.trim() : (tx.loans != null ? tx.loans.trim() : "");
+
+                if (oldEntity.equalsIgnoreCase(newEntity) && !oldEntity.isEmpty()) {
+                    double delta = newNet - oldNet;
+                    tx.remainder = Math.round((oldTx.remainder + delta) * 100.0) / 100.0;
+                    for (Transaction t : database.transactions) {
+                        String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                        if (tEntity.equalsIgnoreCase(newEntity) && t.id > tx.id) {
+                            t.remainder = Math.round((t.remainder + delta) * 100.0) / 100.0;
+                        }
+                    }
+                    updateEntityBalance(newEntity, delta);
+                } else {
+                    if (!oldEntity.isEmpty()) {
+                        for (Transaction t : database.transactions) {
+                            String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                            if (tEntity.equalsIgnoreCase(oldEntity) && t.id > tx.id) {
+                                t.remainder = Math.round((t.remainder - oldNet) * 100.0) / 100.0;
+                            }
+                        }
+                        updateEntityBalance(oldEntity, -oldNet);
+                    }
+                    if (!newEntity.isEmpty()) {
+                        double prevRem = 0;
+                        for (int k = database.transactions.size() - 1; k >= 0; k--) {
+                            Transaction t = database.transactions.get(k);
+                            if (t.id < tx.id) {
+                                String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                                if (tEntity.equalsIgnoreCase(newEntity)) {
+                                    prevRem = t.remainder;
+                                }
+                            }
+                        }
+                        tx.remainder = Math.round((prevRem + newNet) * 100.0) / 100.0;
+                        for (Transaction t : database.transactions) {
+                            String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                            if (tEntity.equalsIgnoreCase(newEntity) && t.id > tx.id) {
+                                t.remainder = Math.round((t.remainder + newNet) * 100.0) / 100.0;
+                            }
+                        }
+                        updateEntityBalance(newEntity, newNet);
+                    }
+                }
+
+                database.transactions.set(foundIdx, tx);
             }
             CalculationEngine.recalculate(database);
             saveLocalCache();
@@ -313,13 +394,33 @@ public class FinanceRepository {
             return;
         }
 
-        // Remove from local database immediately
+        // Remove from local database immediately and adjust remainders
         if (database != null && database.transactions != null) {
+            Transaction toRemove = null;
+            int foundIdx = -1;
             for (int i = 0; i < database.transactions.size(); i++) {
                 if (database.transactions.get(i).id == transactionId) {
-                    database.transactions.remove(i);
+                    toRemove = database.transactions.get(i);
+                    foundIdx = i;
                     break;
                 }
+            }
+
+            if (foundIdx != -1 && toRemove != null) {
+                double net = (toRemove.credit > 0 ? toRemove.credit : 0) + 
+                        (toRemove.debit != 0 ? toRemove.debit : (toRemove.debitWithoutSign > 0 ? -toRemove.debitWithoutSign : 0));
+                String entity = toRemove.account != null && !toRemove.account.trim().isEmpty() 
+                        ? toRemove.account.trim() : (toRemove.loans != null ? toRemove.loans.trim() : "");
+                if (!entity.isEmpty()) {
+                    for (Transaction t : database.transactions) {
+                        String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                        if (tEntity.equalsIgnoreCase(entity) && t.id > toRemove.id) {
+                            t.remainder = Math.round((t.remainder - net) * 100.0) / 100.0;
+                        }
+                    }
+                    updateEntityBalance(entity, -net);
+                }
+                database.transactions.remove(foundIdx);
             }
             CalculationEngine.recalculate(database);
             saveLocalCache();

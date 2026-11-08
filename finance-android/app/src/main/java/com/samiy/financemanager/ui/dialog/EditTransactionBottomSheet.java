@@ -492,6 +492,7 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
             } else {
                 transaction.debit = 0;
             }
+            transaction.net = (transaction.credit > 0 ? transaction.credit : 0) + (transaction.debit != 0 ? transaction.debit : 0);
 
             if (isLoan) {
                 transaction.loans = selectedSource;

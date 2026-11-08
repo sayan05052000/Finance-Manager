@@ -14,6 +14,16 @@ function doGet(e) {
     const action = (e && e.parameter && e.parameter.action) || 'all';
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+    if (action === 'recalculateRemainders') {
+      if (typeof calculateRemainders === 'function') {
+        calculateRemainders();
+      }
+      return jsonResponse({
+        status: 'success',
+        message: 'Remainders and account/loan balances recalculated successfully'
+      });
+    }
+
     if (action === 'all') {
       return jsonResponse({
         status: 'success',
@@ -72,19 +82,23 @@ function doPost(e) {
 
       const tx = data.transaction || {};
       const date = tx.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
-      const credit = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) !== 0) ? Number(tx.credit) : '';
-      const debitVal = tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' ? tx.debitWithoutSign : tx.debit;
-      const debitWithoutSign = (debitVal !== undefined && debitVal !== null && debitVal !== '' && Number(debitVal) !== 0) ? Number(debitVal) : '';
-      const debit = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0)
-          ? Number(tx.debit)
-          : (debitWithoutSign !== '' ? -debitWithoutSign : '');
-      const net = '';
+      const credit = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : '';
+      let debitVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0) ? Number(tx.debit) : '';
+      let debitWithoutSign = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' && Number(tx.debitWithoutSign) > 0) ? Number(tx.debitWithoutSign) : '';
+
+      if (debitVal === '' && debitWithoutSign !== '') {
+        debitVal = -debitWithoutSign;
+      } else if (debitVal !== '' && debitWithoutSign === '') {
+        debitWithoutSign = Math.abs(debitVal);
+      }
+
+      const net = (credit !== '' ? Number(credit) : 0) + (debitVal !== '' ? Number(debitVal) : 0);
       const remainder = '';
       const subCategory = tx.subCategory || '';
       const type = tx.type || 'Expense';
       const loans = tx.loans || '';
       const account = tx.account || '';
-      const category = '';
+      const category = tx.category || '';
       const parts = String(date).split('/');
       const year = tx.year || (parts.length === 3 ? parts[2] : new Date().getFullYear());
       const month = tx.month || (parts.length >= 2 ? parts[1] : (new Date().getMonth() + 1));
@@ -92,8 +106,8 @@ function doPost(e) {
       sheet.appendRow([
         date,
         credit,
-        '',
-        net,
+        debitVal !== '' ? debitVal : '',
+        net !== 0 ? net : (credit !== '' ? credit : ''),
         remainder,
         subCategory,
         type,
@@ -102,9 +116,17 @@ function doPost(e) {
         category,
         year,
         month,
-        debitWithoutSign,
+        debitWithoutSign !== '' ? debitWithoutSign : '',
         ''
       ]);
+
+      if (typeof calculateRemainders === 'function') {
+        try {
+          calculateRemainders();
+        } catch (err) {
+          console.warn('calculateRemainders error: ' + err);
+        }
+      }
 
       return jsonResponse({ status: 'success', message: 'Transaction added successfully' });
     }
@@ -133,6 +155,19 @@ function doPost(e) {
         throw new Error('Invalid transaction row ID: ' + tx.id);
       }
 
+      // Compute consistent credit, debit, debitWithoutSign, and net
+      const creditVal = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : 0;
+      let debitVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0) ? Number(tx.debit) : 0;
+      let dwsVal = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' && Number(tx.debitWithoutSign) > 0) ? Number(tx.debitWithoutSign) : 0;
+
+      if (debitVal === 0 && dwsVal > 0) {
+        debitVal = -dwsVal;
+      } else if (debitVal !== 0 && dwsVal === 0) {
+        dwsVal = Math.abs(debitVal);
+      }
+
+      const netVal = creditVal + debitVal;
+
       // Col 1: Date
       if (tx.date !== undefined && tx.date !== null && String(tx.date).trim() !== '') {
         const dStr = String(tx.date).trim();
@@ -145,16 +180,13 @@ function doPost(e) {
       }
 
       // Col 2: Credit
-      if (tx.credit !== undefined && tx.credit !== null) {
-        const creditVal = Number(tx.credit);
-        sheet.getRange(rowId, 2).setValue(creditVal > 0 ? creditVal : '');
-      }
+      sheet.getRange(rowId, 2).setValue(creditVal > 0 ? creditVal : '');
 
       // Col 3: Debit (with sign)
-      if (tx.debit !== undefined && tx.debit !== null) {
-        const debitVal = Number(tx.debit);
-        sheet.getRange(rowId, 3).setValue(debitVal !== 0 ? debitVal : '');
-      }
+      sheet.getRange(rowId, 3).setValue(debitVal !== 0 ? debitVal : '');
+
+      // Col 4: NET (CRITICAL: ALWAYS UPDATED)
+      sheet.getRange(rowId, 4).setValue(netVal !== 0 ? netVal : (creditVal > 0 ? creditVal : ''));
 
       // Col 6: Sub Category
       if (tx.subCategory !== undefined && tx.subCategory !== null) {
@@ -167,14 +199,10 @@ function doPost(e) {
       }
 
       // Col 8: Loans
-      if (tx.loans !== undefined) {
-        sheet.getRange(rowId, 8).setValue(tx.loans ? String(tx.loans).trim() : '');
-      }
+      sheet.getRange(rowId, 8).setValue(tx.loans ? String(tx.loans).trim() : '');
 
       // Col 9: Account
-      if (tx.account !== undefined) {
-        sheet.getRange(rowId, 9).setValue(tx.account ? String(tx.account).trim() : '');
-      }
+      sheet.getRange(rowId, 9).setValue(tx.account ? String(tx.account).trim() : '');
 
       // Col 10: Category
       if (tx.category !== undefined && tx.category !== null && String(tx.category).trim() !== '') {
@@ -182,10 +210,7 @@ function doPost(e) {
       }
 
       // Col 13: Debit Without Sign
-      if (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null) {
-        const dwsVal = Number(tx.debitWithoutSign);
-        sheet.getRange(rowId, 13).setValue(dwsVal > 0 ? dwsVal : '');
-      }
+      sheet.getRange(rowId, 13).setValue(dwsVal > 0 ? dwsVal : '');
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -526,13 +551,29 @@ function getTransactions(ss, limit, page) {
       dateVal = '';
     }
 
+    let credit = Number(row[1]) || 0;
+    let debit = Number(row[2]) || 0;
+    let net = Number(row[3]) || 0;
+    let remainder = Number(row[4]) || 0;
+    let dws = Number(row[12]) || 0;
+
+    // Ensure robust debit and net consistency
+    if (debit === 0 && dws > 0) {
+      debit = -dws;
+    } else if (debit !== 0 && dws === 0) {
+      dws = Math.abs(debit);
+    }
+    if (net === 0 && (credit > 0 || debit !== 0)) {
+      net = credit + debit;
+    }
+
     return {
       id: startRow + idx,
       date: dateVal,
-      credit: Number(row[1]) || 0,
-      debit: Number(row[2]) || 0,
-      net: Number(row[3]) || 0,
-      remainder: Number(row[4]) || 0,
+      credit: credit,
+      debit: debit,
+      net: net,
+      remainder: remainder,
       subCategory: row[5],
       type: row[6],
       loans: row[7],
@@ -540,7 +581,7 @@ function getTransactions(ss, limit, page) {
       category: row[9],
       year: row[10],
       month: row[11],
-      debitWithoutSign: Number(row[12]) || 0,
+      debitWithoutSign: dws,
       scannedForBudgetAnalysis: row[13] ? String(row[13]) : '',
       isProcessed: row[13] === 'Done' || (row[13] !== '' && row[13] !== null && row[13] !== undefined)
     };
@@ -759,37 +800,36 @@ function calculateRemainders() {
     }
   }
 
-  // 3. Read only the necessary columns from Transactions to maximize speed:
-  // Col B (2): Credit
-  // Col C (3): Debit
-  // Col H (8): Loans
-  // Col I (9): Account
   var lastRow = transSheet.getLastRow();
   if (lastRow < 2) return; // No transaction rows
 
   var numRows = lastRow - 1; // Exclude header row
 
-  // Read data ranges
-  var creditDebitValues = transSheet.getRange(2, 2, numRows, 2).getValues(); // Cols B & C
-  var loanAccountValues = transSheet.getRange(2, 8, numRows, 2).getValues(); // Cols H & I
+  // Read columns 1 to 13 (A to M) to get Credit, Debit, Loans, Account, and Debit Without Sign
+  var transData = transSheet.getRange(2, 1, numRows, 13).getValues();
 
   var runningBalances = {};
   var remainderOutput = [];
 
-  // 4. Calculate running balances in-memory
+  // Calculate running balances in-memory
   for (var i = 0; i < numRows; i++) {
-    var credit = Number(creditDebitValues[i][0]) || 0;
-    var debit = Number(creditDebitValues[i][1]) || 0;
-    var loan = loanAccountValues[i][0] ? String(loanAccountValues[i][0]).trim() : "";
-    var account = loanAccountValues[i][1] ? String(loanAccountValues[i][1]).trim() : "";
+    var row = transData[i];
+    var credit = Number(row[1]) || 0;
+    var debit = Number(row[2]) || 0;
+    var loan = row[7] ? String(row[7]).trim() : "";
+    var account = row[8] ? String(row[8]).trim() : "";
+    var dws = Number(row[12]) || 0;
 
-    // Determine the entity key: Account takes precedence; if empty, use Loans
+    // CRITICAL FIX: If debit is 0, but dws is non-zero, debit is -Math.abs(dws)
+    if (debit === 0 && dws !== 0) {
+      debit = -Math.abs(dws);
+    }
+
     var entityKey = account !== "" ? account : loan;
     var currentBalance = 0;
 
     if (entityKey !== "") {
       if (!(entityKey in runningBalances)) {
-        // Initialize opening balance
         if (account !== "") {
           runningBalances[entityKey] = (account in accBalances) ? accBalances[account] : 0;
         } else {
@@ -805,6 +845,33 @@ function calculateRemainders() {
     remainderOutput.push([currentBalance]);
   }
 
-  // 5. Batch-write directly into Column E (starting at row 2)
+  // Batch-write directly into Column E (starting at row 2)
   transSheet.getRange(2, 5, remainderOutput.length, 1).setValues(remainderOutput);
+
+  // Sync latest running balances into Current Account Balance and Current Loan OutStanding
+  try {
+    var currAccSheet = ss.getSheetByName('Current Account Balance');
+    if (currAccSheet) {
+      var currAccData = currAccSheet.getDataRange().getValues();
+      for (var a = 1; a < currAccData.length; a++) {
+        var aName = currAccData[a][0] ? String(currAccData[a][0]).trim() : "";
+        if (aName in runningBalances) {
+          currAccSheet.getRange(a + 1, 2).setValue(runningBalances[aName]);
+        }
+      }
+    }
+
+    var currLoanSheet = ss.getSheetByName('Current Loan OutStanding');
+    if (currLoanSheet) {
+      var currLoanData = currLoanSheet.getDataRange().getValues();
+      for (var l = 1; l < currLoanData.length; l++) {
+        var lName = currLoanData[l][0] ? String(currLoanData[l][0]).trim() : "";
+        if (lName in runningBalances) {
+          currLoanSheet.getRange(l + 1, 2).setValue(runningBalances[lName]);
+        }
+      }
+    }
+  } catch (syncErr) {
+    console.warn('Sync balance error: ' + syncErr);
+  }
 }
