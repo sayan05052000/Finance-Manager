@@ -11,6 +11,7 @@
 
 function doGet(e) {
   try {
+    SpreadsheetApp.flush();
     const action = (e && e.parameter && e.parameter.action) || 'all';
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -119,6 +120,7 @@ function doPost(e) {
         debitWithoutSign !== '' ? debitWithoutSign : '',
         ''
       ]);
+      SpreadsheetApp.flush();
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -198,6 +200,7 @@ function doPost(e) {
 
       // Col 13: Debit Without Sign
       sheet.getRange(rowId, 13).setValue(dwsVal);
+      SpreadsheetApp.flush();
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -235,6 +238,7 @@ function doPost(e) {
       }
 
       sheet.deleteRow(rowId);
+      SpreadsheetApp.flush();
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -472,6 +476,7 @@ function doPost(e) {
     if (typeof calculateRemainders === 'function') {
       try {
         calculateRemainders();
+        SpreadsheetApp.flush();
       } catch (err) {
         console.warn('calculateRemainders error: ' + err);
       }
@@ -754,6 +759,7 @@ function getCategories(ss) {
  * calculates chronological running balances per account/loan, and batch-updates Column E.
  */
 function calculateRemainders() {
+  SpreadsheetApp.flush();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var transSheet = ss.getSheetByName('Transactions');
   if (!transSheet) {
@@ -834,4 +840,5 @@ function calculateRemainders() {
 
   // Batch-write directly into Column E (starting at row 2)
   transSheet.getRange(2, 5, remainderOutput.length, 1).setValues(remainderOutput);
+  SpreadsheetApp.flush();
 }

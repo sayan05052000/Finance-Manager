@@ -28,6 +28,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.UUID;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -168,7 +169,10 @@ public class FinanceRepository {
      */
     public FinanceDatabase performSyncInternal() {
         try {
-            String resultJson = executeHttpGetWithRedirect(GAS_URL + "?action=all");
+            long ts = System.currentTimeMillis();
+            String nonce = UUID.randomUUID().toString().substring(0, 8);
+            String url = GAS_URL + (GAS_URL.contains("?") ? "&" : "?") + "action=all&_t=" + ts + "&_nonce=" + nonce;
+            String resultJson = executeHttpGetWithRedirect(url);
             if (resultJson != null && !resultJson.isEmpty()) {
                 JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
                 if (root.has("data") && root.get("data").isJsonObject()) {
@@ -187,6 +191,9 @@ public class FinanceRepository {
                                 }
                             }
                         }
+                        if (this.database != null) {
+                            mergeRecentLocalTransactions(this.database, freshDb);
+                        }
                         CalculationEngine.recalculate(freshDb);
                         this.database = freshDb;
                         saveLocalCache();
@@ -241,6 +248,7 @@ public class FinanceRepository {
             database.transactions.add(0, tx);
             CalculationEngine.recalculate(database);
             saveLocalCache();
+            notifySyncListeners();
         }
 
         executor.execute(() -> {
@@ -807,65 +815,113 @@ public class FinanceRepository {
         } catch (com.google.gson.JsonSyntaxException ignored) {}
     }
 
-    private String executeHttpGetWithRedirect(String urlStr) throws Exception {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setInstanceFollowRedirects(true);
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(15000);
-
-        int status = conn.getResponseCode();
-        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
-            String redirectUrl = conn.getHeaderField("Location");
-            if (redirectUrl != null) {
-                return executeHttpGetWithRedirect(redirectUrl);
-            }
-        }
-
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String inputLine;
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            return response.toString();
-        }
-    }
-
-    private String executeHttpPost(String urlStr, String jsonBody) throws Exception {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(15000);
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = jsonBody.getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
-        }
-
-        int status = conn.getResponseCode();
-        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
-            String redirectUrl = conn.getHeaderField("Location");
-            if (redirectUrl != null) {
-                String resp = executeHttpGetWithRedirect(redirectUrl);
-                checkJsonResponseForError(resp);
-                return resp;
-            }
-        }
-
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String inputLine;
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            String resp = response.toString();
-            checkJsonResponseForError(resp);
-            return resp;
-        }
-    }
-}
+    private void mergeRecentLocalTransactions(FinanceDatabase oldDb, FinanceDatabase newDb) {
+        if (oldDb == null || oldDb.transactions == null || newDb == null || newDb.transactions == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (Transaction oldTx : oldDb.transactions) {
+            if (oldTx.id > 1000000000000L && (now - oldTx.id) < 180000) {
+                boolean foundInNew = false;
+                for (Transaction newTx : newDb.transactions) {
+                    if (isSameTransaction(oldTx, newTx)) {
+                        foundInNew = true;
+                        break;
+                    }
+                }
+                if (!foundInNew) {
+                    newDb.transactions.add(0, oldTx);
+                }
+            }
+        }
+    }
+
+    private boolean isSameTransaction(Transaction a, Transaction b) {
+        if (a == null || b == null) return false;
+        boolean sameDate = (a.date != null && a.date.equals(b.date));
+        boolean sameCredit = Math.abs(a.credit - b.credit) < 0.01;
+        boolean sameDebit = Math.abs(a.debit - b.debit) < 0.01;
+        boolean sameSubCat = (a.subCategory != null && a.subCategory.equalsIgnoreCase(b.subCategory));
+        boolean sameAccount = (a.account == null && b.account == null) || (a.account != null && a.account.equalsIgnoreCase(b.account));
+        boolean sameLoans = (a.loans == null && b.loans == null) || (a.loans != null && a.loans.equalsIgnoreCase(b.loans));
+        return sameDate && sameCredit && sameDebit && sameSubCat && sameAccount && sameLoans;
+    }
+
+    private String executeHttpGetWithRedirect(String urlStr) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setInstanceFollowRedirects(true);
+        conn.setUseCaches(false);
+        conn.setDefaultUseCaches(false);
+        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+        conn.setRequestProperty("Pragma", "no-cache");
+        conn.setRequestProperty("Expires", "0");
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(20000);
+
+        int status = conn.getResponseCode();
+        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
+            String redirectUrl = conn.getHeaderField("Location");
+            conn.disconnect();
+            if (redirectUrl != null) {
+                return executeHttpGetWithRedirect(redirectUrl);
+            }
+        }
+
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            StringBuilder response = new StringBuilder();
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            return response.toString();
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private String executeHttpPost(String urlStr, String jsonBody) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setUseCaches(false);
+        conn.setDefaultUseCaches(false);
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(20000);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+        conn.setRequestProperty("Pragma", "no-cache");
+        conn.setRequestProperty("Expires", "0");
+
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonBody.getBytes(StandardCharsets.UTF_8);
+            os.write(input, 0, input.length);
+        }
+
+        int status = conn.getResponseCode();
+        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
+            String redirectUrl = conn.getHeaderField("Location");
+            conn.disconnect();
+            if (redirectUrl != null) {
+                String resp = executeHttpGetWithRedirect(redirectUrl);
+                checkJsonResponseForError(resp);
+                return resp;
+            }
+        }
+
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            StringBuilder response = new StringBuilder();
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            String resp = response.toString();
+            checkJsonResponseForError(resp);
+            return resp;
+        } finally {
+            conn.disconnect();
+        }
+    }
+}

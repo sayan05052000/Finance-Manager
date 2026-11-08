@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
     private final Handler autoSyncHandler = new Handler(Looper.getMainLooper());
-    private static final long AUTO_SYNC_INTERVAL_MS = 10000; // 10 seconds auto-resync
+    private static final long AUTO_SYNC_INTERVAL_MS = 30000; // 30 seconds auto-resync
     private boolean isSyncing = false;
 
     private final Runnable autoSyncRunnable = new Runnable() {
