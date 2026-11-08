@@ -385,10 +385,24 @@ public class LedgerFragment extends Fragment {
                 .setTitle("Delete Transaction")
                 .setMessage("Are you sure you want to permanently delete this transaction from your Google Sheet?\n\n" + details)
                 .setPositiveButton("Delete", (dialog, which) -> {
+                    if (adapter != null) {
+                        adapter.markDeleting(tx.id);
+                    }
+                    if (swipeRefresh != null) {
+                        swipeRefresh.setRefreshing(true);
+                    }
+                    Toast.makeText(getContext(), "Deleting transaction from Google Sheet...", Toast.LENGTH_SHORT).show();
+
                     FinanceRepository.getInstance(requireContext()).deleteTransaction(tx.id, new FinanceRepository.DataCallback() {
                         @Override
                         public void onLoaded(FinanceDatabase updatedDb) {
                             if (isAdded()) {
+                                if (adapter != null) {
+                                    adapter.unmarkDeleting(tx.id);
+                                }
+                                if (swipeRefresh != null) {
+                                    swipeRefresh.setRefreshing(false);
+                                }
                                 Toast.makeText(getContext(), "Transaction deleted successfully!", Toast.LENGTH_SHORT).show();
                                 if (getActivity() instanceof MainActivity) {
                                     ((MainActivity) getActivity()).updateHeaderInfo();
@@ -401,6 +415,12 @@ public class LedgerFragment extends Fragment {
                         @Override
                         public void onError(String error) {
                             if (isAdded()) {
+                                if (adapter != null) {
+                                    adapter.unmarkDeleting(tx.id);
+                                }
+                                if (swipeRefresh != null) {
+                                    swipeRefresh.setRefreshing(false);
+                                }
                                 Toast.makeText(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG).show();
                             }
                         }

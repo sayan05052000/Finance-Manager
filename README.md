@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.6` (`versionCode 7`)  
+**Version:** `1.7` (`versionCode 8`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -158,12 +158,17 @@ To safeguard financial audit integrity, prevent historical balance corruption, a
    - Automatically populates Year and Month columns as numeric integers matching the 6th-to-5th cycle rule.
    - Immediate optimistic local insertion into `FinanceRepository` for zero perceived latency.
 
-2. **Deleting Transactions (`LedgerFragment`)**:
+2. **Deleting Transactions (`LedgerFragment`) with Real-Time Visual Feedback**:
    - Each transaction card in the ledger features an immediate **🗑️ Delete** button (styled in `@color/red_rose`).
    - Clicking or long-pressing anywhere on a transaction card prompts a custom dark confirmation dialog (`"Are you sure you want to permanently delete this transaction from your Google Sheet?"`).
-   - Confirming deletion dispatches `action: 'deleteTransaction'` to `androidscript.gs`.
+   - **Instant In-Progress Visual Feedback**:
+     - The target transaction card's opacity immediately dims to **35% alpha**.
+     - A strike-through is drawn across the transaction amount (`Paint.STRIKE_THRU_TEXT_FLAG`).
+     - The button changes from `"🗑️ Delete"` to `"⏳ Deleting..."` with clicks disabled.
+     - The swipe-to-refresh sync spinner activates at the top (`swipeRefresh.setRefreshing(true)`).
+     - A Toast displays `"Deleting transaction from Google Sheet..."`.
    - The server deletes the specified row, invokes `calculateRemainders()`, executes `SpreadsheetApp.flush()`, and returns confirmation.
-   - Local database automatically syncs and refreshes to reflect new running balances instantly.
+   - Upon confirmation, the card smoothly disappears from the list, the spinner stops, and a success Toast confirms deletion.
 
 3. **Resilient Deserialization & Zero-Latency Sync Engine**:
    - **Lenient Numeric TypeAdapters**: Custom `SAFE_INT_DESERIALIZER`, `SAFE_DOUBLE_DESERIALIZER`, and `SAFE_LONG_DESERIALIZER` in `FinanceRepository` guarantee that empty cells (`""`), whitespace, or currency formatted strings in any sheet column will never trigger `JsonSyntaxException: NumberFormatException: empty String`.
@@ -519,7 +524,7 @@ Finance-Manager/
     ├── build.gradle                    # Top-level Gradle configuration (redirects buildDir)
     ├── gradlew / gradlew.bat           # Gradle wrapper scripts
     └── app/
-        ├── build.gradle                # App module configuration (version 1.6, versionCode 7)
+        ├── build.gradle                # App module configuration (version 1.7, versionCode 8)
         └── src/main/
             ├── AndroidManifest.xml     # App manifest (INTERNET permission, MainActivity)
             ├── java/com/samiy/financemanager/
@@ -693,8 +698,8 @@ defaultConfig {
     applicationId "com.samiy.financemanager"
     minSdkVersion rootProject.ext.minSdkVersion
     targetSdkVersion rootProject.ext.targetSdkVersion
-    versionCode 7        // Increment by 1 for each new release (e.g., 6 -> 7)
-    versionName "1.6"    // Semantic version string (e.g., "1.5" -> "1.6")
+    versionCode 8        // Increment by 1 for each new release (e.g., 7 -> 8)
+    versionName "1.7"    // Semantic version string (e.g., "1.5" -> "1.6")
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 }
 ```

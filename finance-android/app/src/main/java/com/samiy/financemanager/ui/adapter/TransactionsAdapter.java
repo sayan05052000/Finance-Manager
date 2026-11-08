@@ -12,10 +12,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.samiy.financemanager.R;
 import com.samiy.financemanager.data.model.Transaction;
 
+import android.graphics.Paint;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapter.ViewHolder> {
     public interface OnTransactionClickListener {
@@ -36,6 +39,32 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
 
     public void setOnTransactionLongClickListener(OnTransactionLongClickListener listener) {
         this.longClickListener = listener;
+    }
+
+    private final Set<Long> deletingTxIds = new HashSet<>();
+
+    public void markDeleting(long id) {
+        deletingTxIds.add(id);
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).id == id) {
+                notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+
+    public void unmarkDeleting(long id) {
+        deletingTxIds.remove(id);
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).id == id) {
+                notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+
+    public boolean isDeleting(long id) {
+        return deletingTxIds.contains(id);
     }
 
     private List<Transaction> items = new ArrayList<>();
@@ -96,7 +125,27 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
             holder.tvRemainder.setVisibility(View.GONE);
         }
 
+        boolean isDeleting = deletingTxIds.contains(tx.id);
+        if (isDeleting) {
+            holder.itemView.setAlpha(0.35f);
+            holder.tvAmount.setPaintFlags(holder.tvAmount.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+            if (holder.btnDelete != null) {
+                holder.btnDelete.setText("⏳ Deleting...");
+                holder.btnDelete.setEnabled(false);
+            }
+            holder.itemView.setEnabled(false);
+        } else {
+            holder.itemView.setAlpha(1.0f);
+            holder.tvAmount.setPaintFlags(holder.tvAmount.getPaintFlags() & (~Paint.STRIKE_THRU_TEXT_FLAG));
+            if (holder.btnDelete != null) {
+                holder.btnDelete.setText("🗑️ Delete");
+                holder.btnDelete.setEnabled(true);
+            }
+            holder.itemView.setEnabled(true);
+        }
+
         View.OnClickListener clickListener = v -> {
+            if (isDeleting) return;
             if (listener != null) {
                 listener.onTransactionClick(tx);
             }
@@ -107,6 +156,7 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         }
 
         holder.itemView.setOnLongClickListener(v -> {
+            if (isDeleting) return false;
             if (longClickListener != null) {
                 longClickListener.onTransactionLongClick(tx);
                 return true;
