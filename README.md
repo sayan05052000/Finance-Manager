@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.5` (`versionCode 6`)  
+**Version:** `1.6` (`versionCode 7`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -519,7 +519,7 @@ Finance-Manager/
     ├── build.gradle                    # Top-level Gradle configuration (redirects buildDir)
     ├── gradlew / gradlew.bat           # Gradle wrapper scripts
     └── app/
-        ├── build.gradle                # App module configuration (version 1.2, versionCode 3)
+        ├── build.gradle                # App module configuration (version 1.6, versionCode 7)
         └── src/main/
             ├── AndroidManifest.xml     # App manifest (INTERNET permission, MainActivity)
             ├── java/com/samiy/financemanager/
@@ -693,8 +693,8 @@ defaultConfig {
     applicationId "com.samiy.financemanager"
     minSdkVersion rootProject.ext.minSdkVersion
     targetSdkVersion rootProject.ext.targetSdkVersion
-    versionCode 5        // Increment by 1 for each new release (e.g., 4 -> 5)
-    versionName "1.4"    // Semantic version string (e.g., "1.3" -> "1.4")
+    versionCode 7        // Increment by 1 for each new release (e.g., 6 -> 7)
+    versionName "1.6"    // Semantic version string (e.g., "1.5" -> "1.6")
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 }
 ```
