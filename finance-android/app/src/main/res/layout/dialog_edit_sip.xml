@@ -489,28 +489,35 @@
             android:layout_marginBottom="16dp"
             android:orientation="horizontal">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSipCancel"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
                 android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                android:backgroundTint="@color/bg_card_secondary"
+                app:cornerRadius="24dp"
+                app:backgroundTint="@color/bg_card_secondary"
+                app:strokeColor="@color/border_dark"
+                app:strokeWidth="1dp"
                 android:text="Cancel"
                 android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textAllCaps="false" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSipSave"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1.5"
-                android:backgroundTint="@color/green_emerald"
+                app:cornerRadius="24dp"
+                app:backgroundTint="@color/colorPrimary"
                 android:text="Save Changes"
-                android:textColor="#0B0F19"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textColor="@color/bg_dark"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textAllCaps="false" />
         </LinearLayout>
 
     </LinearLayout>

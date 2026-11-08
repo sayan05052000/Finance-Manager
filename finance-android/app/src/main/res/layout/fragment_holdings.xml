@@ -75,29 +75,33 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal">
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnAddMfTx"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="42dp"
                             android:layout_marginEnd="5dp"
-                            android:backgroundTint="@color/green_emerald"
+                            app:cornerRadius="21dp"
+                            app:backgroundTint="@color/colorPrimary"
                             android:text="+ Add MF Tx"
-                            android:textColor="#0B0F19"
+                            android:textColor="@color/bg_dark"
                             android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textAllCaps="false" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnViewMfTransactions"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="42dp"
                             android:layout_marginStart="5dp"
-                            android:backgroundTint="@color/blue_royal"
+                            app:cornerRadius="21dp"
+                            app:backgroundTint="@color/blue_royal"
                             android:text="View MF Tx"
                             android:textColor="@color/text_primary"
                             android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textAllCaps="false" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -106,28 +110,36 @@
                         android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSipTracer"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="42dp"
                             android:layout_marginEnd="5dp"
-                            android:backgroundTint="@color/bg_card_secondary"
+                            app:cornerRadius="21dp"
+                            app:backgroundTint="@color/bg_card_secondary"
+                            app:strokeColor="@color/border_dark"
+                            app:strokeWidth="1dp"
                             android:text="📅 SIP Tracer"
                             android:textColor="@color/amber_gold"
                             android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textAllCaps="false" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnRefreshHoldings"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="42dp"
                             android:layout_marginStart="5dp"
-                            android:backgroundTint="@color/bg_card_secondary"
+                            app:cornerRadius="21dp"
+                            app:backgroundTint="@color/bg_card_secondary"
+                            app:strokeColor="@color/border_dark"
+                            app:strokeWidth="1dp"
                             android:text="🔄 Refresh"
                             android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textSize="12sp"
+                            android:textAllCaps="false" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

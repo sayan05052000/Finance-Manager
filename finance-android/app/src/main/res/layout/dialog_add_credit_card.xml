@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/bg_card"
+    android:background="@drawable/bg_bottom_sheet"
     android:padding="20dp">
 
     <!-- Bottom Sheet Drag Handle -->
@@ -18,7 +19,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="💳 Add Credit Card"
+        android:text="Add Credit Card"
         android:textColor="@color/text_primary"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -36,8 +37,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Card Name (Mandatory &amp; Unique) *"
-        android:textColor="@color/amber_gold"
+        android:text="Card Name *"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:textStyle="bold" />
 
@@ -45,13 +46,14 @@
         android:id="@+id/etAddCardName"
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_pill_dark"
         android:hint="e.g. Tata Neu Infinity, HDFC Swyp, SBI SimplyCLICK"
         android:textColorHint="@color/text_muted"
         android:textColor="@color/text_primary"
         android:inputType="textCapWords"
         android:imeOptions="actionNext"
+        android:textSize="14sp"
         android:paddingStart="14dp"
         android:paddingEnd="14dp" />
 
@@ -60,20 +62,27 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:text="Due Date (Optional)"
+        android:text="Due Date (Calendar Picker)"
         android:textColor="@color/text_secondary"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/etAddCardDueDate"
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_pill_dark"
-        android:hint="Select or enter DD/MM/YYYY (Optional)"
+        android:hint="Select DD/MM/YYYY (Optional)"
         android:textColorHint="@color/text_muted"
         android:textColor="@color/text_primary"
-        android:inputType="date"
+        android:textSize="14sp"
+        android:focusable="false"
+        android:clickable="true"
+        android:cursorVisible="false"
+        android:drawableEnd="@drawable/ic_calendar"
+        android:drawablePadding="8dp"
+        android:drawableTint="@color/colorPrimary"
         android:paddingStart="14dp"
         android:paddingEnd="14dp" />
 
@@ -84,19 +93,21 @@
         android:layout_marginTop="14dp"
         android:text="Statement Billed Amount (₹) (Optional)"
         android:textColor="@color/text_secondary"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/etAddCardBilledAmount"
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_pill_dark"
         android:hint="0.00 (Optional)"
         android:textColorHint="@color/text_muted"
         android:textColor="@color/text_primary"
         android:inputType="numberDecimal"
         android:imeOptions="actionDone"
+        android:textSize="14sp"
         android:paddingStart="14dp"
         android:paddingEnd="14dp" />
 
@@ -107,27 +118,34 @@
         android:layout_marginTop="20dp"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAddCardCancel"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="46dp"
+            android:layout_height="48dp"
             android:layout_marginEnd="6dp"
-            android:background="@drawable/bg_pill_dark"
+            app:cornerRadius="24dp"
+            app:backgroundTint="@color/bg_card_secondary"
+            app:strokeColor="@color/border_dark"
+            app:strokeWidth="1dp"
             android:text="Cancel"
             android:textColor="@color/text_secondary"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textAllCaps="false" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAddCardSubmit"
             android:layout_width="0dp"
-            android:layout_weight="1.5"
-            android:layout_height="46dp"
+            android:layout_weight="1.4"
+            android:layout_height="48dp"
             android:layout_marginStart="6dp"
-            android:background="@drawable/bg_pill_emerald"
+            app:cornerRadius="24dp"
+            app:backgroundTint="@color/colorPrimary"
             android:text="+ Add Card"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/bg_dark"
             android:textSize="13sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textAllCaps="false" />
     </LinearLayout>
 </LinearLayout>

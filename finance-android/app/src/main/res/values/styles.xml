@@ -11,6 +11,7 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="bottomSheetDialogTheme">@style/FinMngrBottomSheetDialogTheme</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="AppTheme">
@@ -19,6 +20,14 @@
     </style>
 
     <style name="AppTheme.NoActionBarLaunch" parent="AppTheme">
+    </style>
+
+    <style name="FinMngrBottomSheetDialogTheme" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/FinMngrBottomSheetModal</item>
+    </style>
+
+    <style name="FinMngrBottomSheetModal" parent="Widget.MaterialComponents.BottomSheet.Modal">
+        <item name="android:background">@android:color/transparent</item>
     </style>
 
     <style name="CustomDarkDialog" parent="Theme.MaterialComponents.Dialog.Alert">

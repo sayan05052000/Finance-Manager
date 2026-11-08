@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.0] - 2026-11-08
 
 ### Added
+- **Design Language System Harmonization & Unification**:
+  - Eliminated legacy unstyled flat `<Button>` tags across all modals (`dialog_edit_credit_card`, `dialog_add_credit_card`, `dialog_add_transaction`, `dialog_add_mf_transaction`, `dialog_edit_sip`, `dialog_select_folio`, `dialog_select_subcategory`, `fragment_holdings`), replacing them with cohesive `com.google.android.material.button.MaterialButton` pill elements with standard 21-25dp radii and `textAllCaps="false"`.
+  - Added dedicated `@drawable/bg_bottom_sheet` (24dp top corner radius with clean subtle borders) paired with `FinMngrBottomSheetDialogTheme` in `styles.xml` to eliminate harsh square container edges and background clipping.
+  - Standardized all modal date inputs with calendar pickers (`@drawable/ic_calendar` tinted with `@color/colorPrimary`).
+  - Removed inconsistent emoji headers ("✏️ Update Credit Card", "💳 Add Credit Card", "💳 Credit Cards") in favor of clean typography and unified subtitle hierarchy across the entire app.
 - **Pastel Color Design System & Dynamic Theme Switcher**:
   - Implemented cohesive pastel visual design with dual palettes:
     - **Pastel Dark (Obsidian / Sage)**: Soothing desaturated pastel tones engineered for low light and OLED displays.

@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/bg_card"
+    android:background="@drawable/bg_bottom_sheet"
     android:padding="20dp">
 
     <!-- Bottom Sheet Drag Handle -->
@@ -18,7 +19,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="✏️ Update Credit Card"
+        android:text="Update Credit Card"
         android:textColor="@color/text_primary"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -27,17 +28,17 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="Update current billed amount and due date. (Payment cannot be recorded from this dialog)"
+        android:text="Update current billed amount and due date"
         android:textColor="@color/text_muted"
         android:textSize="11sp" />
 
-    <!-- Card Summary Chip -->
+    <!-- Card Summary Hero Container -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:background="@drawable/bg_card"
-        android:padding="12dp"
+        android:background="@drawable/bg_pill_dark"
+        android:padding="14dp"
         android:orientation="vertical">
 
         <TextView
@@ -66,81 +67,106 @@
         android:layout_marginTop="14dp"
         android:text="Statement Billed Amount (₹)"
         android:textColor="@color/text_secondary"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/etEditBilledAmount"
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_pill_dark"
         android:hint="e.g. 5000.00"
         android:textColorHint="@color/text_muted"
         android:textColor="@color/text_primary"
         android:inputType="numberDecimal"
         android:imeOptions="actionDone"
+        android:textSize="14sp"
         android:paddingStart="14dp"
         android:paddingEnd="14dp" />
 
-    <!-- Field 2: Due Date -->
+    <!-- Field 2: Due Date with Calendar Picker -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:text="Due Date (DD/MM/YYYY)"
+        android:text="Due Date (Calendar Picker)"
         android:textColor="@color/text_secondary"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/etEditDueDate"
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_pill_dark"
-        android:hint="Select or enter DD/MM/YYYY"
+        android:hint="Select DD/MM/YYYY"
         android:textColorHint="@color/text_muted"
         android:textColor="@color/text_primary"
-        android:inputType="date"
+        android:textSize="14sp"
+        android:focusable="false"
+        android:clickable="true"
+        android:cursorVisible="false"
+        android:drawableEnd="@drawable/ic_calendar"
+        android:drawablePadding="8dp"
+        android:drawableTint="@color/colorPrimary"
         android:paddingStart="14dp"
         android:paddingEnd="14dp" />
 
-    <!-- Explicit Constraint Note -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="ℹ️ Note: This update modal does not allow marking the card as paid. Use the 'Mark as Paid' action to clear the bill."
-        android:textColor="@color/text_muted"
-        android:textSize="11sp" />
-
-    <!-- Buttons -->
+    <!-- Explicit Constraint Note in Rounded Container -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_pill_dark"
+        android:padding="10dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Note: This update modal does not mark the card as paid. Use the 'Mark as Paid' action on the card to clear the bill."
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Footer Action Buttons: Cancel and Save Changes -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEditCardCancel"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="46dp"
+            android:layout_height="48dp"
             android:layout_marginEnd="6dp"
-            android:background="@drawable/bg_pill_dark"
+            app:cornerRadius="24dp"
+            app:backgroundTint="@color/bg_card_secondary"
+            app:strokeColor="@color/border_dark"
+            app:strokeWidth="1dp"
             android:text="Cancel"
             android:textColor="@color/text_secondary"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textAllCaps="false" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEditCardSubmit"
             android:layout_width="0dp"
-            android:layout_weight="1.5"
-            android:layout_height="46dp"
+            android:layout_weight="1.4"
+            android:layout_height="48dp"
             android:layout_marginStart="6dp"
-            android:background="@drawable/bg_pill_emerald"
+            app:cornerRadius="24dp"
+            app:backgroundTint="@color/colorPrimary"
             android:text="Save Changes"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/bg_dark"
             android:textSize="13sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textAllCaps="false" />
     </LinearLayout>
 </LinearLayout>
