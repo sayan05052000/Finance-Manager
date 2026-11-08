@@ -510,6 +510,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 | **Category Tables** | Category Name, SubCategory | Category hierarchy definitions |
 | **Goals** | Goals Name, Goal Amount, Occured Till Date, Percentage Of saving To Put | Long-term savings goals (View Only in app) |
 | **LIC AND TATA AIA** | Policy Number, Birth Date, Amount, Last Paid, Due Date, Maturity Date (Last Date), Installment Remains (Formula), Sub Category, Category, Id, Password, Sum Assured, Status / Notes | Insurance policy master ledger (13 columns) |
+| **Credit Cards** | Card Name, Billed Amount, Unbilled Amount, Due Date, Last Paid, Status | Credit card statement bills, unbilled spends, and due tracking (6 columns) |
 
 ---
 
@@ -518,7 +519,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 ```
 Finance-Manager/
 ├── .gitignore                          # Root ignore rules (build, gradle, IDE, apk)
-├── FinanceManager.apk                  # Current ready-to-install build (v1.2)
+├── FinanceManager.apk                  # Current ready-to-install build (v1.8)
 ├── README.md                           # This architecture, developer & build guide
 ├── google-apps-script/
 │   └── androidscript.gs                # Google Apps Script Web App REST API gateway
@@ -537,6 +538,7 @@ Finance-Manager/
             │   │   ├── FinanceRepository.java  # Core network client, cache buster & in-flight merger
             │   │   └── model/                  # Data models (Gson serialized)
             │   │       ├── Account.java        # Bank account balance DTO
+│   │       ├── CreditCard.java     # Credit card statement, unbilled & due dates DTO
             │   │       ├── BudgetItem.java     # Budget & spend limits DTO
             │   │       ├── CategoryItem.java   # Category & subcategories DTO
             │   │       ├── CurrentCycle.java   # Billing cycle metadata DTO
@@ -843,7 +845,39 @@ fetch('YOUR_GAS_URL', {
 }).then(r => r.json()).then(console.log);
 ```
 
-#### 3. Test POST (Recalculate Remainders):
+#### 3. Test POST (Add Credit Card):
+```javascript
+fetch('YOUR_GAS_URL', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'addCreditCard',
+    card: {
+      cardName: 'Tata Neu Infinity',
+      dueDate: '15/11/2026',
+      billedAmount: 4500
+    }
+  }),
+  redirect: 'follow'
+}).then(r => r.json()).then(console.log);
+```
+
+#### 4. Test POST (Mark Credit Card Paid - Auto-Advances Due Date by 1 Month):
+```javascript
+fetch('YOUR_GAS_URL', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'markCreditCardPaid',
+    card: {
+      cardName: 'Tata Neu Infinity'
+    }
+  }),
+  redirect: 'follow'
+}).then(r => r.json()).then(console.log);
+```
+
+#### 5. Test POST (Recalculate Remainders):
 ```bash
 node -e "fetch('YOUR_GAS_URL?action=recalculateRemainders', {redirect: 'follow'}).then(r => r.json()).then(console.log)"
 ```
