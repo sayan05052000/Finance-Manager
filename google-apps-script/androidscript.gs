@@ -157,8 +157,7 @@ function doPost(e) {
 
       // Compute consistent credit, debit, debitWithoutSign, and net
       const creditVal = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : 0;
-      let debitVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0) ? Number(tx.debit) : 0;
-      let dwsVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '')? Number(tx.debit) : 0;
+      let dwsVal = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '')? Number(tx.debitWithoutSign) : 0;
 
     
 

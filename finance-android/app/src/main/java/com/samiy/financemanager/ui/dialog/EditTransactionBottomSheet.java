@@ -189,7 +189,6 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
         DateTimeHelper.setupPastDatePicker(etDate);
 
 
-
         // Pre-fill Type
         String currentType = transaction.type != null ? transaction.type.trim() : "Expense";
         if ("Income".equalsIgnoreCase(currentType)) {
@@ -208,9 +207,9 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
 
         // Pre-fill Debit & Credit
         double dVal = transaction.debitWithoutSign;
-            String dStr = String.format(Locale.US, "%.2f", dVal);
-            if (dStr.endsWith(".00")) dStr = dStr.substring(0, dStr.length() - 3);
-            etDebit.setText(dStr);
+        String dStr = String.format(Locale.US, "%.2f", dVal);
+        if (dStr.endsWith(".00")) dStr = dStr.substring(0, dStr.length() - 3);
+        etDebit.setText(dStr);
         if (transaction.credit > 0) {
             String cStr = String.format(Locale.US, "%.2f", transaction.credit);
             if (cStr.endsWith(".00")) cStr = cStr.substring(0, cStr.length() - 3);
@@ -295,13 +294,17 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
 
                 etSearch.addTextChangedListener(new android.text.TextWatcher() {
                     @Override
-                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                    }
+
                     @Override
                     public void onTextChanged(CharSequence s, int start, int before, int count) {
                         renderList.accept(s != null ? s.toString() : "");
                     }
+
                     @Override
-                    public void afterTextChanged(android.text.Editable s) {}
+                    public void afterTextChanged(android.text.Editable s) {
+                    }
                 });
 
                 dialog.show();
@@ -422,8 +425,9 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
                 }
                 try {
                     creditVal = Double.parseDouble(creditStr);
-                    if(creditVal < 0){
-                        
+                    if (creditVal < 0) {
+                        Toast.makeText(getContext(), "Credit amount has to be greater than 0", Toast.LENGTH_SHORT).show();
+                        return;
                     }
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "Invalid credit amount", Toast.LENGTH_SHORT).show();
@@ -435,10 +439,20 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
                     return;
                 }
                 if (!debitStr.isEmpty()) {
-                    try { debitVal = Double.parseDouble(debitStr); } catch (Exception ignored) {}
+                    try {
+                        debitVal = Double.parseDouble(debitStr);
+                    } catch (Exception ignored) {
+                    }
                 }
                 if (!creditStr.isEmpty()) {
-                    try { creditVal = Double.parseDouble(creditStr); } catch (Exception ignored) {}
+                    try {
+                        creditVal = Double.parseDouble(creditStr);
+                        if (creditVal < 0) {
+                            Toast.makeText(getContext(), "Credit amount has to be greater than 0", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    } catch (Exception ignored) {
+                    }
                 }
             }
 
@@ -485,7 +499,8 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
                     }
                     transaction.month = m;
                     transaction.year = y;
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
 
             if (isLoan) {
