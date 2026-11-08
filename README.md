@@ -276,7 +276,17 @@ The application features a dedicated Credit Cards management engine to track mon
   - Users can select an existing card or click **`＋ Add Card`** to register a new card inline without leaving the transaction flow.
   - Selecting a credit card automatically increments that card's unbilled balance upon adding the transaction:
     $$\text{Unbilled Amount}_{\text{new}} = \text{Unbilled Amount}_{\text{current}} + \text{Transaction Net}$$
-  - The transaction record in the `Transactions` sheet logs the tagged card name in the description/category metadata for complete traceability.
+  - **Dedicated `tagged credit card` Column in Google Sheets**:
+    - Tagged card names are permanently written into the dedicated **`tagged credit card`** column in the `Transactions` tab.
+    - **Dynamic Column Detection (`findTransactionsTaggedCardColumn`)**: The Google Apps Script backend dynamically inspects row 1 headers and automatically resolves the `tagged credit card` column index, regardless of which physical column position it is placed in.
+  - **Prominent Card Badges in Ledger**:
+    - Displayed in Row 1 of each transaction card as a dedicated Sky Blue chip (`[💳 Card Name]`).
+    - Formatted in Row 2 category description (e.g. `Shopping • Personal • 💳 Tata Neu Infinity`).
+    - Visible with full metadata and deletion warning in the **Transaction Details modal** (`TransactionDetailsBottomSheet`).
+  - **Automatic Spend Reversal on Transaction Deletion**:
+    - Deleting a transaction tagged to a credit card immediately reverses its spend contribution on the card's unbilled balance:
+      $$\text{Unbilled Amount}_{\text{new}} = \max(0, \text{Unbilled Amount}_{\text{current}} - \text{Spend Delta})$$
+    - Reversal applies instantly in local in-memory cache and synchronizes to Google Sheets `Credit Cards` tab.
 * **Adding Credit Cards (`AddCreditCardBottomSheet`)**:
   - **Card Name**: **Mandatory & Unique** (verified against local memory and sheet records using case-insensitive validation).
   - **Due Date**: **Optional** (integrated with `CustomCalendarDialog` date picker).
@@ -562,7 +572,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 
 | Sheet Name | Key Columns | Purpose |
 |---|---|---|
-| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Processed Flag, Tagged Credit Card | General ledger of all income, expenses, and tagged credit card spends (15 columns) |
+| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Processed Flag, Tagged Credit Card | General ledger of all income, expenses, and tagged credit card spends (15 columns; dynamically resolved by `tagged credit card` header) |
 | **Account Opening Balance** | Account Name, Opening Balance | Initial liquid account baseline for running balance calculations |
 | **Loans Opening Balance** | Loan Name, Opening Balance | Initial liability baseline for running balance calculations |
 | **Mutual Investment Holdings** | Scheme Name, Scheme Code, Scheme Id, Category, Sub-category, Savings Type, Units, Avg Buying NAV, Invested Value, NAV, Current Value, 1D Change | Current portfolio valuation and live NAV tracking |
@@ -1021,3 +1031,7 @@ Whenever modifying `androidscript.gs`:
    - **Who has access**: `Anyone`
 6. Click **Deploy**.
 7. If the deployment URL changes, update `GAS_URL` in `FinanceRepository.java` and recompile.
+
+> [!NOTE]
+> **Dynamic Column Header Support (`tagged credit card` & `Credit Cards`)**:
+> `androidscript.gs` incorporates dynamic column finders (`findTransactionsTaggedCardColumn` and `findCreditCardColumnIndices`). Whenever columns like `tagged credit card` in `Transactions` or custom columns in `Credit Cards` are added, the script dynamically discovers and binds to their column positions automatically without hardcoded column indices.
