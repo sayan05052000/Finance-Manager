@@ -105,17 +105,17 @@ function doPost(e) {
 
       sheet.appendRow([
         date,
-        credit !== '' ? credit : '',
-        debitVal !== '' ? debitVal : '',
-        net !== 0 ? net : (credit !== '' ? credit : ''),
+        credit,
+        '',
+        '',
         '',
         subCategory,
         type,
         loans,
         account,
-        category !== '' ? category : '',
-        year !== '' ? year : '',
-        month !== '' ? month : '',
+        '',
+        '',
+        '',
         debitWithoutSign !== '' ? debitWithoutSign : '',
         ''
       ]);
@@ -123,7 +123,6 @@ function doPost(e) {
       if (typeof calculateRemainders === 'function') {
         try {
           calculateRemainders();
-          SpreadsheetApp.flush();
         } catch (err) {
           console.warn('calculateRemainders error: ' + err);
         }
