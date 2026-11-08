@@ -354,6 +354,18 @@ public class FinanceRepository {
                 updateEntityBalance(entity, netVal);
             }
 
+            // If tagged to a credit card, update its local unbilled amount
+            if (tx.taggedCreditCard != null && !tx.taggedCreditCard.trim().isEmpty() && database.creditCards != null) {
+                for (com.samiy.financemanager.data.model.CreditCard cc : database.creditCards) {
+                    if (cc != null && cc.cardName != null && cc.cardName.trim().equalsIgnoreCase(tx.taggedCreditCard.trim())) {
+                        double delta = (tx.debitWithoutSign > 0) ? (tx.debitWithoutSign - tx.credit) : -tx.credit;
+                        if (delta == 0 && tx.net != 0) delta = Math.abs(tx.net);
+                        cc.unbilledAmount = Math.max(0, Math.round((cc.unbilledAmount + delta) * 100.0) / 100.0);
+                        break;
+                    }
+                }
+            }
+
             database.transactions.add(0, tx);
             CalculationEngine.recalculate(database);
             saveLocalCache();
@@ -387,6 +399,9 @@ public class FinanceRepository {
                 txObj.addProperty("loans", tx.loans);
                 txObj.addProperty("year", tx.year);
                 txObj.addProperty("month", tx.month);
+                if (tx.taggedCreditCard != null && !tx.taggedCreditCard.trim().isEmpty()) {
+                    txObj.addProperty("taggedCreditCard", tx.taggedCreditCard.trim());
+                }
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
@@ -853,6 +868,166 @@ public class FinanceRepository {
                 Log.e(TAG, "Error updating policy in Google Sheets", e);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError("Failed to update policy: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void addCreditCard(com.samiy.financemanager.data.model.CreditCard newCard, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Uniqueness check
+        if (database != null && database.creditCards != null) {
+            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
+                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(newCard.cardName.trim())) {
+                    mainHandler.post(() -> {
+                        if (callback != null) callback.onError("A credit card named '" + newCard.cardName + "' already exists");
+                    });
+                    return;
+                }
+            }
+            // Pre-append to in-memory list
+            newCard.id = database.creditCards.size() + 1;
+            database.creditCards.add(newCard);
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "addCreditCard");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", newCard.cardName);
+                cardObj.addProperty("dueDate", newCard.dueDate);
+                cardObj.addProperty("billedAmount", newCard.billedAmount);
+
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                executeHttpPost(GAS_URL, jsonStr);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding credit card to Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to add credit card: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void updateCreditCard(com.samiy.financemanager.data.model.CreditCard updatedCard, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Update in-memory database immediately
+        if (database != null && database.creditCards != null) {
+            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
+                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(updatedCard.cardName.trim())) {
+                    c.dueDate = updatedCard.dueDate;
+                    c.billedAmount = updatedCard.billedAmount;
+                    if (c.billedAmount > 0) {
+                        c.status = "Unpaid";
+                    }
+                    break;
+                }
+            }
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updateCreditCard");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", updatedCard.cardName);
+                cardObj.addProperty("dueDate", updatedCard.dueDate);
+                cardObj.addProperty("billedAmount", updatedCard.billedAmount);
+
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                executeHttpPost(GAS_URL, jsonStr);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating credit card in Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to update credit card: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void markCreditCardPaid(com.samiy.financemanager.data.model.CreditCard cardToPay, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        final String todayStr = new java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US).format(new java.util.Date());
+        String advancedDueDate = "";
+
+        // Update in-memory database immediately:
+        // Set billedAmount = 0, advance dueDate by 1 month, lastPaid = today, status = Paid
+        if (database != null && database.creditCards != null) {
+            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
+                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(cardToPay.cardName.trim())) {
+                    c.billedAmount = 0;
+                    c.dueDate = com.samiy.financemanager.util.DateTimeHelper.advanceDateByOneMonth(c.dueDate);
+                    advancedDueDate = c.dueDate;
+                    c.lastPaid = todayStr;
+                    c.status = "Paid";
+                    break;
+                }
+            }
+            saveLocalCache();
+        }
+
+        final String finalNextDueDate = advancedDueDate;
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "markCreditCardPaid");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", cardToPay.cardName);
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                executeHttpPost(GAS_URL, jsonStr);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error marking credit card paid in Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to mark card paid: " + e.getMessage());
                 });
             }
         });

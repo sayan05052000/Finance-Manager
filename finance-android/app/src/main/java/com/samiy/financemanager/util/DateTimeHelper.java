@@ -185,4 +185,76 @@ public class DateTimeHelper {
             dialog.show();
         });
     }
+
+    /**
+     * Calculates days remaining from today (at midnight) to the specified dateStr (at midnight).
+     * Returns:
+     *   null if dateStr is invalid/empty,
+     *   0 if due today,
+     *   > 0 if due in the future,
+     *   < 0 if overdue.
+     */
+    public static Integer getDaysRemaining(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return null;
+        String clean = formatDisplayDate(dateStr);
+        if (clean == null || !clean.contains("/")) return null;
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+            Date targetDate = sdf.parse(clean);
+            if (targetDate == null) return null;
+
+            Calendar todayCal = Calendar.getInstance();
+            todayCal.set(Calendar.HOUR_OF_DAY, 0);
+            todayCal.set(Calendar.MINUTE, 0);
+            todayCal.set(Calendar.SECOND, 0);
+            todayCal.set(Calendar.MILLISECOND, 0);
+
+            Calendar targetCal = Calendar.getInstance();
+            targetCal.setTime(targetDate);
+            targetCal.set(Calendar.HOUR_OF_DAY, 0);
+            targetCal.set(Calendar.MINUTE, 0);
+            targetCal.set(Calendar.SECOND, 0);
+            targetCal.set(Calendar.MILLISECOND, 0);
+
+            long diffMillis = targetCal.getTimeInMillis() - todayCal.getTimeInMillis();
+            return (int) Math.round((double) diffMillis / (1000 * 60 * 60 * 24));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Advances a "dd/MM/yyyy" date by exactly 1 month.
+     * Preserves day-of-month and handles month rollover (Dec -> Jan of next year).
+     */
+    public static String advanceDateByOneMonth(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return "";
+        String clean = formatDisplayDate(dateStr);
+        if (clean == null || !clean.contains("/")) return dateStr;
+        try {
+            String[] parts = clean.split("/");
+            if (parts.length == 3) {
+                int day = Integer.parseInt(parts[0].trim());
+                int month = Integer.parseInt(parts[1].trim());
+                int year = Integer.parseInt(parts[2].trim());
+
+                month += 1;
+                if (month > 12) {
+                    month = 1;
+                    year += 1;
+                }
+
+                Calendar cal = Calendar.getInstance();
+                cal.set(Calendar.YEAR, year);
+                cal.set(Calendar.MONTH, month - 1);
+                int maxDays = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
+                if (day > maxDays) {
+                    day = maxDays;
+                }
+
+                return String.format(Locale.US, "%02d/%02d/%04d", day, month, year);
+            }
+        } catch (Exception ignored) {}
+        return dateStr;
+    }
 }

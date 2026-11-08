@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.7` (`versionCode 8`)  
+**Version:** `1.8` (`versionCode 9`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -27,6 +27,8 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [SIP Tracer Architecture & Constraints](#sip-tracer-architecture--constraints)
    - [Financial Goals (View Only)](#financial-goals-view-only)
    - [LIC & Tata AIA Policies (Controlled Updates, 'Mark as Paid' & Add Flow)](#lic--tata-aia-policies)
+   - [Credit Cards Management (Billed vs Unbilled, Adding Cards & 1-Month Due Date Advance)](#credit-cards-management)
+   - [Upcoming Due Date Reminders & Automated Daily System Notifications](#upcoming-due-date-reminders--daily-notifications)
    - [Insurance Financing Visual Representation (Health & Life Goal vs Policies)](#insurance-financing-visual-representation)
    - [Universal Custom Calendar Dialog V2 (Decades Quick-Jump & Min/Max Constraints)](#universal-custom-calendar-dialog-v2)
    - [Mutual Fund Transactions (Buy vs. Redeem)](#mutual-fund-transactions-buy-vs-redeem)

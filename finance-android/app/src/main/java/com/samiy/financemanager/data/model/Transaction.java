@@ -61,10 +61,16 @@ public class Transaction implements Serializable {
     @SerializedName("description")
     public String description = "";
 
+    @SerializedName("taggedCreditCard")
+    public String taggedCreditCard = "";
+
     public Transaction() {}
 
     public String getDisplaySource() {
         if (loans != null && !loans.trim().isEmpty()) {
+            if (taggedCreditCard != null && !taggedCreditCard.trim().isEmpty()) {
+                return loans + " (" + taggedCreditCard.trim() + ")";
+            }
             return loans;
         }
         if (account != null && !account.trim().isEmpty()) {

@@ -35,6 +35,10 @@ public class OverviewFragment extends Fragment {
     private TextView tvCycleInterest, tvCycleReceivables;
     private LinearLayout layoutSubCategoriesContainer;
 
+    // Upcoming Reminders Container & Views
+    private LinearLayout layoutDueRemindersContainer, layoutDueRemindersList;
+    private TextView tvRemindersHeaderTitle, tvRemindersCountBadge;
+
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
     @Nullable
@@ -60,6 +64,11 @@ public class OverviewFragment extends Fragment {
         tvCycleInterest = v.findViewById(R.id.tvCycleInterest);
         tvCycleReceivables = v.findViewById(R.id.tvCycleReceivables);
         layoutSubCategoriesContainer = v.findViewById(R.id.layoutSubCategoriesContainer);
+
+        layoutDueRemindersContainer = v.findViewById(R.id.layoutDueRemindersContainer);
+        layoutDueRemindersList = v.findViewById(R.id.layoutDueRemindersList);
+        tvRemindersHeaderTitle = v.findViewById(R.id.tvRemindersHeaderTitle);
+        tvRemindersCountBadge = v.findViewById(R.id.tvRemindersCountBadge);
 
         View btnAddTx = v.findViewById(R.id.btnOverviewAddTx);
         if (btnAddTx != null) {
@@ -141,6 +150,9 @@ public class OverviewFragment extends Fragment {
         tvCycleInterest.setText(formatCurrency(cycle.interestThisCycle));
         tvCycleReceivables.setText(formatCurrency(cycle.totalReceivables));
 
+        // Populate Upcoming Due Reminders (LIC / Tata AIA & Credit Cards within 14 days)
+        populateDueReminders(db);
+
         // Subcategories
         layoutSubCategoriesContainer.removeAllViews();
         if (cycle.subCategories != null) {
@@ -201,4 +213,137 @@ public class OverviewFragment extends Fragment {
     private String formatCurrency(double amount) {
         return currencyFormat.format(amount).replace("INR", "₹").replace(".00", "");
     }
+
+    private void populateDueReminders(FinanceDatabase db) {
+        if (layoutDueRemindersContainer == null || layoutDueRemindersList == null) return;
+        layoutDueRemindersList.removeAllViews();
+
+        int reminderCount = 0;
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+
+        // 1. Check LIC / Tata AIA Policies
+        if (db.insurance != null) {
+            for (com.samiy.financemanager.data.model.InsurancePolicy p : db.insurance) {
+                if (p == null || !p.isLicOrTataAia()) continue;
+                if (com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet.isPolicyFullyPaidOrMatured(p)) continue;
+
+                Integer days = p.getDaysRemaining();
+                if (days != null && days >= 0 && days <= 14) {
+                    reminderCount++;
+                    View item = inflater.inflate(R.layout.item_due_reminder, layoutDueRemindersList, false);
+
+                    TextView tvType = item.findViewById(R.id.tvReminderTypeBadge);
+                    TextView tvDays = item.findViewById(R.id.tvReminderDaysCounter);
+                    TextView tvTitle = item.findViewById(R.id.tvReminderTitle);
+                    TextView tvSubtitle = item.findViewById(R.id.tvReminderSubtitle);
+                    TextView tvAmount = item.findViewById(R.id.tvReminderAmount);
+
+                    tvType.setText("🛡️ POLICY PREMIUM");
+                    tvType.setBackgroundResource(R.drawable.bg_chip_blue);
+                    tvType.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.blue_sky));
+
+                    String daysText;
+                    if (days == 0) {
+                        daysText = "🚨 DUE TODAY!";
+                        tvDays.setBackgroundResource(R.drawable.bg_badge_red);
+                        tvDays.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    } else if (days == 1) {
+                        daysText = "⚠️ DUE TOMORROW (1 day left)";
+                        tvDays.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvDays.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    } else {
+                        daysText = "⏳ " + days + " days remaining";
+                        tvDays.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvDays.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    }
+                    tvDays.setText(daysText);
+
+                    String name = (p.subCategory != null && !p.subCategory.trim().isEmpty()) ? p.subCategory.trim() : "Insurance Policy";
+                    tvTitle.setText(name + " (" + p.policyNumber + ")");
+                    tvSubtitle.setText("Due Date: " + p.dueDate + (p.lastDate != null && !p.lastDate.isEmpty() ? " • Maturity: " + p.lastDate : ""));
+                    tvAmount.setText(formatCurrency(p.premiumAmount));
+
+                    item.setOnClickListener(view -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet dialog = com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet.newInstance(p);
+                        dialog.setOnPolicyUpdatedListener(this::refreshData);
+                        dialog.show(getChildFragmentManager(), "reminder_policy_" + p.policyNumber);
+                    });
+
+                    layoutDueRemindersList.addView(item);
+                }
+            }
+        }
+
+        // 2. Check Credit Cards
+        if (db.creditCards != null) {
+            for (com.samiy.financemanager.data.model.CreditCard c : db.creditCards) {
+                if (c == null || c.billedAmount <= 0) continue;
+
+                Integer days = c.getDaysRemaining();
+                if (days != null && days >= 0 && days <= 14) {
+                    reminderCount++;
+                    View item = inflater.inflate(R.layout.item_due_reminder, layoutDueRemindersList, false);
+
+                    TextView tvType = item.findViewById(R.id.tvReminderTypeBadge);
+                    TextView tvDays = item.findViewById(R.id.tvReminderDaysCounter);
+                    TextView tvTitle = item.findViewById(R.id.tvReminderTitle);
+                    TextView tvSubtitle = item.findViewById(R.id.tvReminderSubtitle);
+                    TextView tvAmount = item.findViewById(R.id.tvReminderAmount);
+
+                    tvType.setText("💳 CREDIT CARD BILL");
+                    tvType.setBackgroundResource(R.drawable.bg_chip_green);
+                    tvType.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
+
+                    String daysText;
+                    if (days == 0) {
+                        daysText = "🚨 DUE TODAY!";
+                        tvDays.setBackgroundResource(R.drawable.bg_badge_red);
+                        tvDays.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    } else if (days == 1) {
+                        daysText = "⚠️ DUE TOMORROW (1 day left)";
+                        tvDays.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvDays.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    } else {
+                        daysText = "⏳ " + days + " days remaining";
+                        tvDays.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvDays.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    }
+                    tvDays.setText(daysText);
+
+                    tvTitle.setText(c.cardName);
+                    tvSubtitle.setText("Due Date: " + c.dueDate + " • Unbilled: " + formatCurrency(c.unbilledAmount));
+                    tvAmount.setText(formatCurrency(c.billedAmount));
+
+                    item.setOnClickListener(view -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet dialog = com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet.newInstance(c);
+                        dialog.setOnCreditCardUpdatedListener(this::refreshData);
+                        dialog.show(getChildFragmentManager(), "reminder_card_" + c.cardName);
+                    });
+
+                    layoutDueRemindersList.addView(item);
+                }
+            }
+        }
+
+        if (reminderCount > 0) {
+            layoutDueRemindersContainer.setVisibility(View.VISIBLE);
+            if (tvRemindersCountBadge != null) {
+                tvRemindersCountBadge.setText(reminderCount + (reminderCount == 1 ? " Due" : " Dues"));
+            }
+        } else {
+            layoutDueRemindersContainer.setVisibility(View.GONE);
+        }
+
+        // Trigger daily notification check
+        com.samiy.financemanager.util.ReminderNotificationManager.checkAndSendReminders(requireContext(), db);
+    }
+
 }

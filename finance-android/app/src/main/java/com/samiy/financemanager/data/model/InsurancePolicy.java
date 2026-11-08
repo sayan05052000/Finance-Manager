@@ -62,4 +62,25 @@ public class InsurancePolicy implements Serializable {
         this.sumAssured = sumAssured;
         this.notes = notes;
     }
+
+    public Integer getDaysRemaining() {
+        return com.samiy.financemanager.util.DateTimeHelper.getDaysRemaining(dueDate);
+    }
+
+    public boolean isLicOrTataAia() {
+        String sub = (subCategory != null ? subCategory : "").toUpperCase();
+        String cat = (category != null ? category : "").toUpperCase();
+        String n = (notes != null ? notes : "").toUpperCase();
+        return sub.contains("LIC") || sub.contains("TATA") || cat.contains("LIC") || cat.contains("TATA") || n.contains("LIC") || n.contains("TATA");
+    }
+
+    public boolean isDueSoon() {
+        Integer days = getDaysRemaining();
+        return isLicOrTataAia() && days != null && days >= 0 && days <= 14;
+    }
+
+    public boolean isOverdue() {
+        Integer days = getDaysRemaining();
+        return isLicOrTataAia() && days != null && days < 0;
+    }
 }

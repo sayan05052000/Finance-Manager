@@ -34,9 +34,13 @@ public class AccountsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
 
     // Filter Section Pills
-    private TextView btnSectionFilterAll, btnSectionFilterBanks, btnSectionFilterInsurance, btnSectionFilterGoals;
-    private View layoutSectionBanksAndLoans, layoutSectionInsurance, layoutSectionGoals;
+    private TextView btnSectionFilterAll, btnSectionFilterBanks, btnSectionFilterInsurance, btnSectionFilterCreditCards, btnSectionFilterGoals;
+    private View layoutSectionBanksAndLoans, layoutSectionInsurance, layoutSectionCreditCards, layoutSectionGoals;
     private String currentSection = "ALL";
+
+    // Credit Cards Views
+    private TextView tvCreditCardsSummary, btnAddCreditCard;
+    private LinearLayout layoutCreditCardsList;
 
     // Bank & Loan Section
     private TextView tvTotalBankBalance, tvTotalLoanDebt;
@@ -69,11 +73,16 @@ public class AccountsFragment extends Fragment {
         btnSectionFilterAll = v.findViewById(R.id.btnSectionFilterAll);
         btnSectionFilterBanks = v.findViewById(R.id.btnSectionFilterBanks);
         btnSectionFilterInsurance = v.findViewById(R.id.btnSectionFilterInsurance);
+        btnSectionFilterCreditCards = v.findViewById(R.id.btnSectionFilterCreditCards);
         btnSectionFilterGoals = v.findViewById(R.id.btnSectionFilterGoals);
 
         layoutSectionBanksAndLoans = v.findViewById(R.id.layoutSectionBanksAndLoans);
         layoutSectionInsurance = v.findViewById(R.id.layoutSectionInsurance);
+        layoutSectionCreditCards = v.findViewById(R.id.layoutSectionCreditCards);
         layoutSectionGoals = v.findViewById(R.id.layoutSectionGoals);
+
+        tvCreditCardsSummary = v.findViewById(R.id.tvCreditCardsSummary);
+        layoutCreditCardsList = v.findViewById(R.id.layoutCreditCardsList);
 
         // Banks & Loans Views
         tvTotalBankBalance = v.findViewById(R.id.tvTotalBankBalance);
@@ -94,6 +103,7 @@ public class AccountsFragment extends Fragment {
         pbInsuranceFinancing = v.findViewById(R.id.pbInsuranceFinancing);
 
         btnAddPolicy = v.findViewById(R.id.btnAddPolicy);
+        btnAddCreditCard = v.findViewById(R.id.btnAddCreditCard);
         layoutInsurancePoliciesList = v.findViewById(R.id.layoutInsurancePoliciesList);
 
         // Goals View
@@ -119,7 +129,22 @@ public class AccountsFragment extends Fragment {
         if (btnSectionFilterAll != null) btnSectionFilterAll.setOnClickListener(view -> setSectionFilter("ALL"));
         if (btnSectionFilterBanks != null) btnSectionFilterBanks.setOnClickListener(view -> setSectionFilter("BANKS"));
         if (btnSectionFilterInsurance != null) btnSectionFilterInsurance.setOnClickListener(view -> setSectionFilter("INSURANCE"));
+        if (btnSectionFilterCreditCards != null) btnSectionFilterCreditCards.setOnClickListener(view -> setSectionFilter("CREDIT_CARDS"));
         if (btnSectionFilterGoals != null) btnSectionFilterGoals.setOnClickListener(view -> setSectionFilter("GOALS"));
+
+        // Add Credit Card Button Listener
+        if (btnAddCreditCard != null) {
+            btnAddCreditCard.setOnClickListener(view -> {
+                if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                    Toast.makeText(getContext(), "You are not authorized to add credit cards.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                com.samiy.financemanager.ui.dialog.AddCreditCardBottomSheet sheet =
+                        com.samiy.financemanager.ui.dialog.AddCreditCardBottomSheet.newInstance();
+                sheet.setOnCreditCardAddedListener(newCard -> refreshData());
+                sheet.show(getChildFragmentManager(), "add_credit_card");
+            });
+        }
 
         // Add Policy Button Listener
         if (btnAddPolicy != null) {
@@ -154,6 +179,7 @@ public class AccountsFragment extends Fragment {
         resetPill(btnSectionFilterAll);
         resetPill(btnSectionFilterBanks);
         resetPill(btnSectionFilterInsurance);
+        resetPill(btnSectionFilterCreditCards);
         resetPill(btnSectionFilterGoals);
 
         switch (currentSection) {
@@ -161,18 +187,28 @@ public class AccountsFragment extends Fragment {
                 highlightPill(btnSectionFilterBanks);
                 if (layoutSectionBanksAndLoans != null) layoutSectionBanksAndLoans.setVisibility(View.VISIBLE);
                 if (layoutSectionInsurance != null) layoutSectionInsurance.setVisibility(View.GONE);
+                if (layoutSectionCreditCards != null) layoutSectionCreditCards.setVisibility(View.GONE);
                 if (layoutSectionGoals != null) layoutSectionGoals.setVisibility(View.GONE);
                 break;
             case "INSURANCE":
                 highlightPill(btnSectionFilterInsurance);
                 if (layoutSectionBanksAndLoans != null) layoutSectionBanksAndLoans.setVisibility(View.GONE);
                 if (layoutSectionInsurance != null) layoutSectionInsurance.setVisibility(View.VISIBLE);
+                if (layoutSectionCreditCards != null) layoutSectionCreditCards.setVisibility(View.GONE);
+                if (layoutSectionGoals != null) layoutSectionGoals.setVisibility(View.GONE);
+                break;
+            case "CREDIT_CARDS":
+                highlightPill(btnSectionFilterCreditCards);
+                if (layoutSectionBanksAndLoans != null) layoutSectionBanksAndLoans.setVisibility(View.GONE);
+                if (layoutSectionInsurance != null) layoutSectionInsurance.setVisibility(View.GONE);
+                if (layoutSectionCreditCards != null) layoutSectionCreditCards.setVisibility(View.VISIBLE);
                 if (layoutSectionGoals != null) layoutSectionGoals.setVisibility(View.GONE);
                 break;
             case "GOALS":
                 highlightPill(btnSectionFilterGoals);
                 if (layoutSectionBanksAndLoans != null) layoutSectionBanksAndLoans.setVisibility(View.GONE);
                 if (layoutSectionInsurance != null) layoutSectionInsurance.setVisibility(View.GONE);
+                if (layoutSectionCreditCards != null) layoutSectionCreditCards.setVisibility(View.GONE);
                 if (layoutSectionGoals != null) layoutSectionGoals.setVisibility(View.VISIBLE);
                 break;
             case "ALL":
@@ -180,6 +216,7 @@ public class AccountsFragment extends Fragment {
                 highlightPill(btnSectionFilterAll);
                 if (layoutSectionBanksAndLoans != null) layoutSectionBanksAndLoans.setVisibility(View.VISIBLE);
                 if (layoutSectionInsurance != null) layoutSectionInsurance.setVisibility(View.VISIBLE);
+                if (layoutSectionCreditCards != null) layoutSectionCreditCards.setVisibility(View.VISIBLE);
                 if (layoutSectionGoals != null) layoutSectionGoals.setVisibility(View.VISIBLE);
                 break;
         }
@@ -235,6 +272,7 @@ public class AccountsFragment extends Fragment {
         populateBankAndLoanAccounts();
         populateInsuranceFinancing(db);
         populateInsurancePolicies(db);
+        populateCreditCards(db);
         populateGoals(db);
     }
 
@@ -497,6 +535,151 @@ public class AccountsFragment extends Fragment {
             });
 
             layoutInsurancePoliciesList.addView(itemView);
+        }
+    }
+
+    private void populateCreditCards(FinanceDatabase db) {
+        if (layoutCreditCardsList == null) return;
+        layoutCreditCardsList.removeAllViews();
+
+        if (db.creditCards == null || db.creditCards.isEmpty()) {
+            TextView tvEmpty = new TextView(getContext());
+            tvEmpty.setText("No credit cards recorded.");
+            tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
+            tvEmpty.setTextSize(12);
+            tvEmpty.setPadding(0, 16, 0, 16);
+            layoutCreditCardsList.addView(tvEmpty);
+            return;
+        }
+
+        if (tvCreditCardsSummary != null) {
+            double totalBilled = db.getTotalCreditCardBilledAmount();
+            double totalUnbilled = db.getTotalCreditCardUnbilledAmount();
+            tvCreditCardsSummary.setText("Total Billed: " + formatCurrency(totalBilled) + " • Total Unbilled: " + formatCurrency(totalUnbilled));
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        for (com.samiy.financemanager.data.model.CreditCard card : db.creditCards) {
+            if (card == null) continue;
+
+            View itemView = inflater.inflate(R.layout.item_credit_card, layoutCreditCardsList, false);
+
+            TextView tvName = itemView.findViewById(R.id.tvCreditCardName);
+            TextView tvStatusBadge = itemView.findViewById(R.id.tvCreditCardStatusBadge);
+            TextView tvBilled = itemView.findViewById(R.id.tvCreditCardBilledAmount);
+            TextView tvUnbilled = itemView.findViewById(R.id.tvCreditCardUnbilledAmount);
+            TextView tvDueDate = itemView.findViewById(R.id.tvCreditCardDueDate);
+            TextView tvLastPaid = itemView.findViewById(R.id.tvCreditCardLastPaid);
+            View btnMarkPaidQuick = itemView.findViewById(R.id.btnMarkCreditCardPaidQuick);
+            View btnEditCard = itemView.findViewById(R.id.btnEditCreditCard);
+
+            tvName.setText(card.cardName != null ? card.cardName : "Credit Card");
+            tvBilled.setText(formatCurrency(card.billedAmount));
+            tvUnbilled.setText(formatCurrency(card.unbilledAmount));
+
+            if (card.dueDate != null && !card.dueDate.trim().isEmpty()) {
+                tvDueDate.setText("Due Date: " + card.dueDate.trim());
+            } else {
+                tvDueDate.setText("Due Date: N/A");
+            }
+
+            if (card.lastPaid != null && !card.lastPaid.trim().isEmpty()) {
+                tvLastPaid.setText("Last Paid: " + card.lastPaid.trim());
+            } else {
+                tvLastPaid.setText("Last Paid: N/A");
+            }
+
+            // Status Badge & Mark as Paid visibility
+            if (card.billedAmount > 0) {
+                Integer days = card.getDaysRemaining();
+                if (days != null) {
+                    if (days == 0) {
+                        tvStatusBadge.setText("🚨 Due TODAY");
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_badge_red);
+                        tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    } else if (days == 1) {
+                        tvStatusBadge.setText("⚠️ Due Tomorrow (1d)");
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    } else if (days > 1 && days <= 14) {
+                        tvStatusBadge.setText("⏳ Due in " + days + "d");
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    } else if (days < 0) {
+                        tvStatusBadge.setText("🚨 Overdue (" + Math.abs(days) + "d)");
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_badge_red);
+                        tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    } else {
+                        tvStatusBadge.setText("Unpaid (" + days + "d)");
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_pill_dark);
+                        tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+                    }
+                } else {
+                    tvStatusBadge.setText("Unpaid");
+                    tvStatusBadge.setBackgroundResource(R.drawable.bg_pill_dark);
+                    tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+                }
+
+                if (btnMarkPaidQuick != null) {
+                    btnMarkPaidQuick.setVisibility(View.VISIBLE);
+                    btnMarkPaidQuick.setOnClickListener(view -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        // Confirmation dialog: once mark as paid the due date will move 1 month automatically
+                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                .setTitle("Mark " + card.cardName + " as Paid?")
+                                .setMessage("This will set the billed amount to ₹0, automatically advance the due date by 1 month, and record today as the paid date in Google Sheets.")
+                                .setPositiveButton("Yes, Mark Paid", (dialog, which) -> {
+                                    Toast.makeText(getContext(), "Marking " + card.cardName + " as paid...", Toast.LENGTH_SHORT).show();
+                                    FinanceRepository.getInstance(requireContext()).markCreditCardPaid(card, new FinanceRepository.DataCallback() {
+                                        @Override
+                                        public void onLoaded(FinanceDatabase updatedDb) {
+                                            if (isAdded()) {
+                                                Toast.makeText(getContext(), card.cardName + " marked as paid! Due date moved 1 month.", Toast.LENGTH_LONG).show();
+                                                refreshData();
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onError(String error) {
+                                            if (isAdded()) {
+                                                Toast.makeText(getContext(), "Failed to mark paid: " + error, Toast.LENGTH_SHORT).show();
+                                            }
+                                        }
+                                    });
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    });
+                }
+            } else {
+                tvStatusBadge.setText("Paid");
+                tvStatusBadge.setBackgroundResource(R.drawable.bg_chip_green);
+                tvStatusBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+
+                if (btnMarkPaidQuick != null) {
+                    btnMarkPaidQuick.setVisibility(View.GONE);
+                }
+            }
+
+            // Edit Due / Billed Amount Button (Explicit constraint: user CANNOT mark as paid from update option)
+            if (btnEditCard != null) {
+                btnEditCard.setOnClickListener(view -> {
+                    if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                        Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet sheet =
+                            com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet.newInstance(card);
+                    sheet.setOnCreditCardUpdatedListener(this::refreshData);
+                    sheet.show(getChildFragmentManager(), "edit_card_" + card.cardName);
+                });
+            }
+
+            layoutCreditCardsList.addView(itemView);
         }
     }
 

@@ -45,6 +45,9 @@ public class FinanceDatabase implements Serializable {
     @SerializedName("insurance")
     public List<InsurancePolicy> insurance = new ArrayList<>();
 
+    @SerializedName("creditCards")
+    public List<CreditCard> creditCards = new ArrayList<>();
+
     public FinanceDatabase() {}
 
     public double getTotalBankBalance() {
@@ -52,6 +55,26 @@ public class FinanceDatabase implements Serializable {
         if (accounts != null) {
             for (Account a : accounts) {
                 if (a != null) sum += a.currentBalance;
+            }
+        }
+        return sum;
+    }
+
+    public double getTotalCreditCardBilledAmount() {
+        double sum = 0.0;
+        if (creditCards != null) {
+            for (CreditCard c : creditCards) {
+                if (c != null && c.billedAmount > 0) sum += c.billedAmount;
+            }
+        }
+        return sum;
+    }
+
+    public double getTotalCreditCardUnbilledAmount() {
+        double sum = 0.0;
+        if (creditCards != null) {
+            for (CreditCard c : creditCards) {
+                if (c != null && c.unbilledAmount > 0) sum += c.unbilledAmount;
             }
         }
         return sum;

@@ -38,7 +38,8 @@ function doGet(e) {
           sips: getSips(ss),
           categories: getCategories(ss),
           expenseTracker: getExpenseTracker(ss),
-          transactions: getTransactions(ss)
+          transactions: getTransactions(ss),
+          creditCards: getCreditCards(ss)
         }
       });
     }
@@ -112,6 +113,42 @@ function doPost(e) {
         debitWithoutSign !== '' ? debitWithoutSign : 0,
         ''
       ]);
+
+      // If tagged to a credit card, update its Unbilled Amount in 'Credit Cards' sheet
+      const taggedCard = tx.taggedCreditCard || tx.creditCard;
+      if (taggedCard) {
+        try {
+          const ccSheet = ss.getSheetByName('Credit Cards');
+          if (ccSheet && ccSheet.getLastRow() >= 2) {
+            const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
+            const cols = findCreditCardColumnIndices(ccHeaders);
+            const ccValues = ccSheet.getDataRange().getValues();
+            const targetName = String(taggedCard).toLowerCase().trim();
+            for (let i = 1; i < ccValues.length; i++) {
+              const rowCardName = String(ccValues[i][cols.colCardName - 1] || '').toLowerCase().trim();
+              if (rowCardName === targetName) {
+                const currUnbilled = Number(ccValues[i][cols.colUnbilled - 1]) || 0;
+                let delta = 0;
+                if (debitWithoutSign > 0) {
+                  delta += debitWithoutSign;
+                }
+                if (credit > 0) {
+                  delta -= credit;
+                }
+                if (delta === 0 && tx.net !== undefined) {
+                  delta = Math.abs(Number(tx.net) || 0);
+                }
+                let newUnbilled = currUnbilled + delta;
+                if (currUnbilled >= 0 && newUnbilled < 0) newUnbilled = 0;
+                ccSheet.getRange(i + 1, cols.colUnbilled).setValue(Math.round(newUnbilled * 100) / 100);
+                break;
+              }
+            }
+          }
+        } catch (ccErr) {
+          console.warn('Error updating credit card unbilled amount: ' + ccErr);
+        }
+      }
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -458,6 +495,151 @@ function doPost(e) {
       ]);
 
       return jsonResponse({ status: 'success', message: 'Mutual Fund holding added successfully' });
+    }
+
+    if (action === 'addCreditCard') {
+      const sheet = ss.getSheetByName('Credit Cards');
+      if (!sheet) throw new Error('Credit Cards sheet not found');
+
+      const c = data.card || {};
+      const cardName = String(c.cardName || '').trim();
+      if (!cardName) throw new Error('Card name is mandatory');
+
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const cols = findCreditCardColumnIndices(headers);
+      const values = sheet.getDataRange().getValues();
+
+      // Check uniqueness
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
+          throw new Error('A credit card named "' + cardName + '" already exists');
+        }
+      }
+
+      const billedAmount = Number(c.billedAmount) || 0;
+      const unbilledAmount = 0; // Unbilled amount not taken during creation, defaults to 0
+      const dueDate = String(c.dueDate || '').trim();
+      const lastPaid = '';
+      const status = billedAmount > 0 ? 'Unpaid' : 'Paid';
+
+      const newRow = new Array(headers.length).fill('');
+      newRow[cols.colCardName - 1] = cardName;
+      newRow[cols.colBilled - 1] = billedAmount;
+      newRow[cols.colUnbilled - 1] = unbilledAmount;
+      newRow[cols.colDueDate - 1] = dueDate;
+      if (cols.colLastPaid > 0) newRow[cols.colLastPaid - 1] = lastPaid;
+      if (cols.colStatus > 0) newRow[cols.colStatus - 1] = status;
+
+      sheet.appendRow(newRow);
+      SpreadsheetApp.flush();
+
+      return jsonResponse({
+        status: 'success',
+        message: 'Credit card ' + cardName + ' added successfully',
+        card: {
+          id: sheet.getLastRow() - 1,
+          cardName: cardName,
+          billedAmount: billedAmount,
+          unbilledAmount: unbilledAmount,
+          dueDate: dueDate,
+          lastPaid: lastPaid,
+          status: status
+        }
+      });
+    }
+
+    if (action === 'updateCreditCard') {
+      const sheet = ss.getSheetByName('Credit Cards');
+      if (!sheet) throw new Error('Credit Cards sheet not found');
+
+      const c = data.card || {};
+      const cardName = String(c.cardName || '').trim();
+      if (!cardName) throw new Error('Card name is required');
+
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const cols = findCreditCardColumnIndices(headers);
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
+          matchedRow = i + 1;
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Credit Card not found: ' + cardName);
+      }
+
+      // User constraint: from the update option user CANNOT mark it as paid.
+      // Only Due Date and Billed Amount can be updated.
+      if (c.dueDate !== undefined && c.dueDate !== null) {
+        sheet.getRange(matchedRow, cols.colDueDate).setValue(String(c.dueDate).trim());
+      }
+      if (c.billedAmount !== undefined && c.billedAmount !== null) {
+        const bAmt = Number(c.billedAmount) || 0;
+        sheet.getRange(matchedRow, cols.colBilled).setValue(bAmt);
+        if (bAmt > 0 && cols.colStatus > 0) {
+          sheet.getRange(matchedRow, cols.colStatus).setValue('Unpaid');
+        }
+      }
+
+      SpreadsheetApp.flush();
+      return jsonResponse({ status: 'success', message: 'Credit card details updated successfully' });
+    }
+
+    if (action === 'markCreditCardPaid') {
+      const sheet = ss.getSheetByName('Credit Cards');
+      if (!sheet) throw new Error('Credit Cards sheet not found');
+
+      const c = data.card || {};
+      const cardName = String(c.cardName || '').trim();
+      if (!cardName) throw new Error('Card name is required');
+
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const cols = findCreditCardColumnIndices(headers);
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
+          matchedRow = i + 1;
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Credit Card not found: ' + cardName);
+      }
+
+      const todayStr = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy');
+      // Set billed amount to 0
+      sheet.getRange(matchedRow, cols.colBilled).setValue(0);
+      
+      // Advance due date by +1 month automatically
+      let currDueDate = values[matchedRow - 1][cols.colDueDate - 1];
+      if (currDueDate instanceof Date) {
+        currDueDate = Utilities.formatDate(currDueDate, 'Asia/Kolkata', 'dd/MM/yyyy');
+      } else {
+        currDueDate = String(currDueDate || '').trim();
+      }
+      const nextDueDate = advanceDateByOneMonth(currDueDate);
+      if (nextDueDate) {
+        sheet.getRange(matchedRow, cols.colDueDate).setValue(nextDueDate);
+      }
+
+      if (cols.colLastPaid > 0) {
+        sheet.getRange(matchedRow, cols.colLastPaid).setValue(todayStr);
+      }
+      if (cols.colStatus > 0) {
+        sheet.getRange(matchedRow, cols.colStatus).setValue('Paid');
+      }
+
+      SpreadsheetApp.flush();
+      return jsonResponse({ 
+        status: 'success', 
+        message: cardName + ' marked as paid! Next due date moved 1 month to ' + nextDueDate,
+        nextDueDate: nextDueDate
+      });
     }
 
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
@@ -835,4 +1017,121 @@ function calculateRemainders() {
   // Batch-write directly into Column E (starting at row 2)
   transSheet.getRange(2, 5, remainderOutput.length, 1).setValues(remainderOutput);
   SpreadsheetApp.flush();
+}
+
+function advanceDateByOneMonth(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return dateStr;
+  var parts = dateStr.trim().split('/');
+  if (parts.length === 3) {
+    var day = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10); // 1-12
+    var year = parseInt(parts[2], 10);
+
+    // Advance 1 month
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+
+    // Adjust day for months with fewer days (e.g. Feb)
+    var maxDaysInMonth = new Date(year, month, 0).getDate();
+    if (day > maxDaysInMonth) {
+      day = maxDaysInMonth;
+    }
+
+    var dd = day < 10 ? '0' + day : '' + day;
+    var mm = month < 10 ? '0' + month : '' + month;
+    return dd + '/' + mm + '/' + year;
+  }
+  return dateStr;
+}
+
+function findCreditCardColumnIndices(headers) {
+  let colCardName = -1;
+  let colBilled = -1;
+  let colUnbilled = -1;
+  let colDueDate = -1;
+  let colLastPaid = -1;
+  let colStatus = -1;
+
+  for (let c = 0; c < headers.length; c++) {
+    const h = String(headers[c] || '').toLowerCase().trim();
+    if (colUnbilled === -1 && (h.includes('unbill') || h.includes('un-bill'))) {
+      colUnbilled = c + 1;
+    } else if (colBilled === -1 && (h.includes('bill') || h.includes('due amount'))) {
+      colBilled = c + 1;
+    } else if (colDueDate === -1 && h.includes('due')) {
+      colDueDate = c + 1;
+    } else if (colLastPaid === -1 && (h.includes('paid date') || h.includes('last paid'))) {
+      colLastPaid = c + 1;
+    } else if (colCardName === -1 && (h.includes('card') || h.includes('name') || h.includes('option'))) {
+      colCardName = c + 1;
+    } else if (colStatus === -1 && h.includes('status')) {
+      colStatus = c + 1;
+    }
+  }
+
+  if (colCardName === -1) colCardName = 1;
+  if (colBilled === -1) colBilled = 2;
+  if (colUnbilled === -1) colUnbilled = 3;
+  if (colDueDate === -1) colDueDate = 4;
+  if (colLastPaid === -1) colLastPaid = 5;
+  if (colStatus === -1) colStatus = 6;
+
+  return { colCardName, colBilled, colUnbilled, colDueDate, colLastPaid, colStatus };
+}
+
+function getCreditCards(ss) {
+  const sheet = ss.getSheetByName('Credit Cards');
+  if (!sheet) return [];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const cols = findCreditCardColumnIndices(headers);
+  const values = sheet.getDataRange().getValues();
+  const tz = 'Asia/Kolkata';
+  const results = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (row.every(cell => cell === '' || cell === null)) continue;
+
+    const cardName = String(row[cols.colCardName - 1] || '').trim();
+    if (!cardName) continue;
+
+    const billedAmount = Number(row[cols.colBilled - 1]) || 0;
+    const unbilledAmount = Number(row[cols.colUnbilled - 1]) || 0;
+
+    let dueDateVal = row[cols.colDueDate - 1];
+    if (dueDateVal instanceof Date) {
+      dueDateVal = Utilities.formatDate(dueDateVal, tz, 'dd/MM/yyyy');
+    } else {
+      dueDateVal = String(dueDateVal || '').trim();
+    }
+
+    let lastPaidVal = cols.colLastPaid > 0 ? row[cols.colLastPaid - 1] : '';
+    if (lastPaidVal instanceof Date) {
+      lastPaidVal = Utilities.formatDate(lastPaidVal, tz, 'dd/MM/yyyy');
+    } else {
+      lastPaidVal = String(lastPaidVal || '').trim();
+    }
+
+    let statusVal = cols.colStatus > 0 ? String(row[cols.colStatus - 1] || '').trim() : '';
+    if (!statusVal) {
+      statusVal = billedAmount <= 0 ? 'Paid' : 'Unpaid';
+    }
+
+    results.push({
+      id: i,
+      cardName: cardName,
+      billedAmount: billedAmount,
+      unbilledAmount: unbilledAmount,
+      dueDate: dueDateVal,
+      lastPaid: lastPaidVal,
+      status: statusVal
+    });
+  }
+  return results;
 }

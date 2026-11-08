@@ -260,6 +260,65 @@
             android:popupBackground="@color/bg_card_secondary"
             android:dropDownVerticalOffset="4dp" />
 
+        <!-- 5b. Tag to specific Credit Card (Visible when CREDIT CARD loan is selected) -->
+        <LinearLayout
+            android:id="@+id/layoutCreditCardTagSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Tag to Credit Card:"
+                    android:textColor="@color/amber_gold"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnAddCreditCardInline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="＋ Add Card"
+                    android:textColor="@color/green_mint"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_chip_green"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <Spinner
+                android:id="@+id/spCreditCardSelector"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_spinner_dark"
+                android:popupBackground="@color/bg_card_secondary"
+                android:dropDownVerticalOffset="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Unbilled amount of this card will be updated by transaction amount"
+                android:textColor="@color/text_muted"
+                android:textSize="10sp" />
+        </LinearLayout>
+
         <!-- 6. Date Field -->
         <TextView
             android:layout_width="wrap_content"

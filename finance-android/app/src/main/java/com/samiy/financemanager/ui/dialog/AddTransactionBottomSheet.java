@@ -160,6 +160,8 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
         RadioButton rbTagLoan = v.findViewById(R.id.rbTagLoan);
         RadioButton rbTagAccount = v.findViewById(R.id.rbTagAccount);
         Spinner spSourceSelector = v.findViewById(R.id.spSourceSelector);
+        LinearLayout layoutCreditCardTagSection = v.findViewById(R.id.layoutCreditCardTagSection);
+        Spinner spCreditCardSelector = v.findViewById(R.id.spCreditCardSelector);
 
         EditText etDate = v.findViewById(R.id.etDate);
         Button btnSubmit = v.findViewById(R.id.btnSubmitTransaction);
@@ -328,14 +330,84 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             accountList.add(new SourceItem("Slice", 0, false));
         }
 
+        // Populate Credit Card Options
+        List<String> creditCardNames = new ArrayList<>();
+        if (db != null && db.creditCards != null) {
+            for (com.samiy.financemanager.data.model.CreditCard cc : db.creditCards) {
+                if (cc != null && cc.cardName != null && !cc.cardName.trim().isEmpty()) {
+                    creditCardNames.add(cc.cardName.trim());
+                }
+            }
+        }
+        if (creditCardNames.isEmpty()) {
+            creditCardNames.add("Primary Card");
+        }
+        ArrayAdapter<String> ccAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, creditCardNames);
+        ccAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
+        if (spCreditCardSelector != null) {
+            spCreditCardSelector.setAdapter(ccAdapter);
+        }
+
+        View btnAddCreditCardInline = v.findViewById(R.id.btnAddCreditCardInline);
+        if (btnAddCreditCardInline != null) {
+            btnAddCreditCardInline.setOnClickListener(view -> {
+                hideKeyboard.run();
+                com.samiy.financemanager.ui.dialog.AddCreditCardBottomSheet addCardSheet =
+                        com.samiy.financemanager.ui.dialog.AddCreditCardBottomSheet.newInstance();
+                addCardSheet.setOnCreditCardAddedListener(newCard -> {
+                    if (newCard != null && newCard.cardName != null) {
+                        String newName = newCard.cardName.trim();
+                        if (!creditCardNames.contains(newName)) {
+                            creditCardNames.add(newName);
+                            ccAdapter.notifyDataSetChanged();
+                        }
+                        int pos = creditCardNames.indexOf(newName);
+                        if (pos >= 0 && spCreditCardSelector != null) {
+                            spCreditCardSelector.setSelection(pos);
+                        }
+                    }
+                });
+                addCardSheet.show(getChildFragmentManager(), "add_card_inline");
+            });
+        }
+
+        Runnable updateCreditCardVisibility = () -> {
+            if (layoutCreditCardTagSection == null) return;
+            boolean isLoan = rbTagLoan.isChecked();
+            Object selectedObj = spSourceSelector.getSelectedItem();
+            String name = "";
+            if (selectedObj instanceof SourceItem) {
+                name = ((SourceItem) selectedObj).name;
+            } else if (selectedObj != null) {
+                name = selectedObj.toString();
+            }
+            if (isLoan && "CREDIT CARD".equalsIgnoreCase(name.trim())) {
+                layoutCreditCardTagSection.setVisibility(View.VISIBLE);
+            } else {
+                layoutCreditCardTagSection.setVisibility(View.GONE);
+            }
+        };
+
         // Toggle tag sources
         Runnable updateSourceSpinner = () -> {
             boolean isLoan = rbTagLoan.isChecked();
             List<SourceItem> currentList = isLoan ? loanList : accountList;
             SourceSpinnerAdapter sourceAdapter = new SourceSpinnerAdapter(requireContext(), currentList);
             spSourceSelector.setAdapter(sourceAdapter);
+            updateCreditCardVisibility.run();
         };
         updateSourceSpinner.run();
+
+        spSourceSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateCreditCardVisibility.run();
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                updateCreditCardVisibility.run();
+            }
+        });
 
         rgTagType.setOnCheckedChangeListener((group, checkedId) -> {
             hideKeyboard.run();
@@ -446,6 +518,13 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             if (isLoan) {
                 tx.loans = selectedSource;
                 tx.account = "";
+                if ("CREDIT CARD".equalsIgnoreCase(selectedSource.trim()) &&
+                        layoutCreditCardTagSection != null &&
+                        layoutCreditCardTagSection.getVisibility() == View.VISIBLE &&
+                        spCreditCardSelector != null &&
+                        spCreditCardSelector.getSelectedItem() != null) {
+                    tx.taggedCreditCard = spCreditCardSelector.getSelectedItem().toString().trim();
+                }
             } else {
                 tx.account = selectedSource;
                 tx.loans = "";
