@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.8` (`versionCode 9`)  
+**Version:** `2.0` (`versionCode 11`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -37,6 +37,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Interactive Cycle Analytics Charts (Budget vs Expense vs Investment)](#interactive-cycle-analytics-charts)
    - [Cycle Expense Tracker (Past vs Current Cycle Comparison)](#cycle-expense-tracker-past-vs-current-cycle-comparison)
    - [App Branding & UX Modernization (Contextual Actions & Keyboard Handling)](#app-branding--ux-modernization)
+   - [Pastel Color Design System & Dynamic Theme Toggle (Dark & Light Pastel)](#pastel-color-design-system--dynamic-theme-toggle)
 2. [System Architecture & Data Flow](#2-system-architecture--data-flow)
    - [High-Level Architecture](#high-level-architecture)
    - [End-to-End Data Flow](#end-to-end-data-flow)
@@ -451,6 +452,34 @@ The **Expense Tracker** compares itemized spending and investments between the *
   - Tapping the keyboard tick / Done action (`IME_ACTION_DONE`) immediately dismisses the keyboard and clears field focus.
   - Tapping anywhere outside input fields (card backgrounds, labels, containers, or scrolling) immediately hides the keyboard.
 * **Modal Dialogs over Dropdowns**: Centered modal dialogs (`AlertDialog.Builder`) are used for picking months, platforms, and bank accounts, preventing layout jumping or keyboard overlap.
+
+---
+
+### Pastel Color Design System & Dynamic Theme Toggle
+FinMngr v2.0 introduces an end-to-end **Pastel Color Design System** featuring soothing, eye-friendly desaturated tones designed for high readability and reduced eye strain during daily financial tracking.
+
+#### Dual Pastel Palettes
+1. **Pastel Dark Palette (`values-night/colors.xml`) - Default**:
+   - **Background**: Deep obsidian slate (`#0B0F19`) providing battery savings on OLED displays.
+   - **Card / Surface**: Dark navy slate (`#131B26`) with crisp subtle borders (`#1E293B`).
+   - **Primary / Income / Balance**: Soft pastel sage mint (`#6EE7B7` / `#34D399`) with subtle mint glows.
+   - **Secondary / Expenses / Debits**: Soothing pastel rose (`#FDA4AF` / `#F43F5E`).
+   - **Warning / Unbilled / Loans**: Gentle honey buttercup (`#FDE68A` / `#F59E0B`).
+   - **Info / Accounts / Cards**: Powder sky blue (`#BAE6FD` / `#38BDF8`).
+
+2. **Pastel Light Palette (`values/colors.xml`)**:
+   - **Background**: Crisp soft porcelain (`#F8FAFC`).
+   - **Card / Surface**: Pure white (`#FFFFFF`) with refined border strokes (`#E2E8F0`).
+   - **Primary / Income / Balance**: Rich forest mint (`#059669` / `#D1FAE5`).
+   - **Secondary / Expenses / Debits**: Vivid rose coral (`#E11D48` / `#FFE4E6`).
+   - **Warning / Unbilled / Loans**: Warm amber honey (`#D97706` / `#FEF3C7`).
+   - **Info / Accounts / Cards**: Deep azure sky (`#0284C7` / `#E0F2FE`).
+
+#### 1-Tap Header Theme Switcher & Persistence
+* **One-Tap Header Action**: A dedicated theme switcher button (`btnThemeToggle`) with a half-filled contrast vector glyph (`ic_theme_toggle.xml`) sits directly in the top app bar beside the sync button.
+* **Haptic & Visual Feedback**: Tapping the button animates a 360° rotation and displays an immediate confirmation toast indicating the active mode (*"Switched to Pastel Light"* / *"Switched to Pastel Dark"*).
+* **Persistent Preference**: Managed by `ThemeManager.java`, which stores choices in `SharedPreferences` (`finmngr_theme_prefs`) and invokes `AppCompatDelegate.setDefaultNightMode()` on application boot and theme switches.
+* **Canvas & Custom View Adaptability**: Custom components like `CycleChartView` dynamically query `ContextCompat.getColor()` for all canvas paints (budget, expense, investment, axis, and highlight cursors), ensuring flawless rendering across both themes without restarts.
 
 ---
 

@@ -367,7 +367,7 @@
                         android:max="100"
                         android:progress="28"
                         android:progressTint="@color/green_mint"
-                        android:progressBackgroundTint="#1E293B" />
+                        android:progressBackgroundTint="@color/border_dark" />
 
                     <TextView
                         android:id="@+id/tvFinancingRemainingNote"

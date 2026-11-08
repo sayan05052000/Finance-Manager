@@ -120,6 +120,17 @@
                 android:contentDescription="Refresh Google Sheet"
                 android:padding="6dp" />
 
+            <!-- Theme Toggle Button (Pastel Dark / Light) -->
+            <ImageButton
+                android:id="@+id/btnThemeToggle"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_theme_toggle"
+                android:contentDescription="Toggle Pastel Theme"
+                android:padding="6dp" />
+
             <!-- Google OAuth Sign In / Profile Chip -->
             <LinearLayout
                 android:id="@+id/btnGoogleAuth"
@@ -246,9 +257,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/nav_bottom_bg"
-            app:itemIconTint="@color/colorPrimary"
-            app:itemTextColor="@color/text_secondary"
-            app:itemRippleColor="#2010B981"
+            app:itemIconTint="@color/nav_item_tint"
+            app:itemTextColor="@color/nav_item_tint"
+            app:itemRippleColor="@color/green_bg"
             app:labelVisibilityMode="labeled"
             app:menu="@menu/bottom_nav_menu" />
 

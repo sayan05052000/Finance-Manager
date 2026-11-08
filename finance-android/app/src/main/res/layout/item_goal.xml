@@ -103,7 +103,7 @@
         android:max="100"
         android:progress="25"
         android:progressTint="@color/green_mint"
-        android:progressBackgroundTint="#1E293B" />
+        android:progressBackgroundTint="@color/border_dark" />
 
     <!-- Footer Row: Achieved % and Saving Allocation % -->
     <LinearLayout

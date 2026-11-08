@@ -38,7 +38,7 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements GoogleAuthManager.AuthListener {
     private TextView tvHeaderNetWorth, tvHeaderCycle, tvGoogleAuthText;
-    private ImageButton btnRefresh;
+    private ImageButton btnRefresh, btnThemeToggle;
     private View btnGoogleAuth;
     private BottomNavigationView bottomNav;
     private FrameLayout fragmentContainer;
@@ -74,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.samiy.financemanager.util.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -84,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         tvHeaderCycle = findViewById(R.id.tvHeaderCycle);
         tvGoogleAuthText = findViewById(R.id.tvGoogleAuthText);
         btnRefresh = findViewById(R.id.btnRefresh);
+        btnThemeToggle = findViewById(R.id.btnThemeToggle);
         btnGoogleAuth = findViewById(R.id.btnGoogleAuth);
         bottomNav = findViewById(R.id.bottomNavigation);
         fragmentContainer = findViewById(R.id.fragmentContainer);
@@ -220,6 +222,14 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
 
     private void setupHeader() {
         updateHeaderInfo();
+
+        if (btnThemeToggle != null) {
+            btnThemeToggle.setOnClickListener(v -> {
+                btnThemeToggle.animate().rotationBy(360f).setDuration(400).start();
+                boolean isLight = com.samiy.financemanager.util.ThemeManager.toggleTheme(this);
+                Toast.makeText(this, isLight ? "☀️ Switched to Pastel Light Theme" : "🌙 Switched to Pastel Dark Theme", Toast.LENGTH_SHORT).show();
+            });
+        }
 
         btnRefresh.setOnClickListener(v -> {
             if (!authManager.isAuthorized()) {

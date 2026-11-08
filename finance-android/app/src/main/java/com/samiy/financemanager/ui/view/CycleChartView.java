@@ -13,6 +13,8 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import com.samiy.financemanager.R;
 
 import java.io.Serializable;
 import java.text.NumberFormat;
@@ -92,51 +94,52 @@ public class CycleChartView extends View {
         DisplayMetrics dm = getResources().getDisplayMetrics();
         density = dm.density;
 
+        Context ctx = getContext();
         paintBudget = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintBudget.setColor(Color.parseColor("#38BDF8")); // Sky Blue
+        paintBudget.setColor(ContextCompat.getColor(ctx, R.color.blue_sky)); // Pastel Sky Blue
         paintBudget.setStyle(Paint.Style.FILL);
 
         paintExpense = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintExpense.setColor(Color.parseColor("#F43F5E")); // Rose Red
+        paintExpense.setColor(ContextCompat.getColor(ctx, R.color.red_rose)); // Pastel Rose
         paintExpense.setStyle(Paint.Style.FILL);
 
         paintInvestment = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintInvestment.setColor(Color.parseColor("#F59E0B")); // Amber Gold
+        paintInvestment.setColor(ContextCompat.getColor(ctx, R.color.amber_gold)); // Pastel Amber
         paintInvestment.setStyle(Paint.Style.FILL);
 
         paintGrid = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintGrid.setColor(Color.parseColor("#64748B"));
+        paintGrid.setColor(ContextCompat.getColor(ctx, R.color.text_muted));
         paintGrid.setTextSize(9f * density);
         paintGrid.setTextAlign(Paint.Align.RIGHT);
 
         paintGridLine = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintGridLine.setColor(Color.parseColor("#1E293B"));
+        paintGridLine.setColor(ContextCompat.getColor(ctx, R.color.border_dark));
         paintGridLine.setStyle(Paint.Style.STROKE);
         paintGridLine.setStrokeWidth(1f * density);
         paintGridLine.setPathEffect(new DashPathEffect(new float[]{4f * density, 4f * density}, 0));
 
         paintAxisText = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintAxisText.setColor(Color.parseColor("#94A3B8"));
+        paintAxisText.setColor(ContextCompat.getColor(ctx, R.color.text_secondary));
         paintAxisText.setTextSize(10f * density);
         paintAxisText.setTextAlign(Paint.Align.CENTER);
 
         paintSelectedText = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintSelectedText.setColor(Color.parseColor("#FFFFFF"));
+        paintSelectedText.setColor(ContextCompat.getColor(ctx, R.color.text_primary));
         paintSelectedText.setTextSize(10.5f * density);
         paintSelectedText.setFakeBoldText(true);
         paintSelectedText.setTextAlign(Paint.Align.CENTER);
 
         paintHighlightBg = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintHighlightBg.setColor(Color.parseColor("#1E293B"));
+        paintHighlightBg.setColor(ContextCompat.getColor(ctx, R.color.bg_card_secondary));
         paintHighlightBg.setStyle(Paint.Style.FILL);
 
         paintHighlightBorder = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintHighlightBorder.setColor(Color.parseColor("#38BDF8"));
+        paintHighlightBorder.setColor(ContextCompat.getColor(ctx, R.color.blue_sky));
         paintHighlightBorder.setStyle(Paint.Style.STROKE);
         paintHighlightBorder.setStrokeWidth(1.2f * density);
 
         paintActivePip = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintActivePip.setColor(Color.parseColor("#10B981")); // Emerald Pip
+        paintActivePip.setColor(ContextCompat.getColor(ctx, R.color.green_emerald)); // Pastel Emerald Pip
         paintActivePip.setStyle(Paint.Style.FILL);
     }
 

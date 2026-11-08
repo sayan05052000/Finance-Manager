@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.0] - 2026-11-08
+
+### Added
+- **Pastel Color Design System & Dynamic Theme Switcher**:
+  - Implemented cohesive pastel visual design with dual palettes:
+    - **Pastel Dark (Obsidian / Sage)**: Soothing desaturated pastel tones engineered for low light and OLED displays.
+      - Background: Obsidian Slate (`#0B0F19`)
+      - Surface / Cards: Dark Navy Slate (`#131B26`)
+      - Primary / Sage Mint: (`#6EE7B7`)
+      - Secondary / Rose / Expense: (`#FDA4AF`)
+      - Warning / Honey Amber: (`#FDE68A`)
+      - Info / Powder Sky: (`#BAE6FD`)
+      - Card Strokes & Dividers: Muted Charcoal (`#1E293B`)
+    - **Pastel Light (Porcelain / Mint)**: Crisp, high-clarity daylight theme with gentle pastel accents.
+      - Background: Soft Porcelain (`#F8FAFC`)
+      - Surface / Cards: Pure White (`#FFFFFF`)
+      - Primary / Forest Mint: (`#059669`)
+      - Secondary / Rose Coral: (`#E11D48`)
+      - Warning / Amber: (`#D97706`)
+      - Info / Sky Blue: (`#0284C7`)
+      - Card Strokes & Dividers: Clean Slate (`#E2E8F0`)
+  - **1-Tap Dynamic Theme Toggle (`btnThemeToggle`)**:
+    - Added theme switcher action icon with vector glyph (`ic_theme_toggle.xml`) directly to the top app header in `activity_main.xml`.
+    - Features smooth 360-degree rotation animation upon toggling.
+    - Displays instant user feedback toast confirming active theme ("Switched to Pastel Light" / "Switched to Pastel Dark").
+  - **`ThemeManager` Persistent State Engine**:
+    - New `ThemeManager.java` utility persisting user theme selection in `SharedPreferences` (`finmngr_theme_prefs`).
+    - Applies user preference synchronously at startup via `AppCompatDelegate.setDefaultNightMode()`.
+    - Supports `toggleTheme()`, `applyTheme()`, `isLightPastel()`, and `getSelectedTheme()`.
+  - **Dynamic Theme-Aware Custom Views & Drawables**:
+    - `CycleChartView`: All canvas paint colors (budget lines, expense bars, investment fills, axis grid, selection cursor, highlight badges) now resolve dynamically at runtime via `ContextCompat.getColor()` responding immediately to theme changes.
+    - Bottom Navigation: Added state-aware `nav_item_tint.xml` selector making the active tab glow with the pastel primary color while inactive tabs stay muted.
+    - Badge Drawables: Converted all badge backgrounds (`bg_badge_amber.xml`, `bg_badge_good.xml`, `bg_badge_red.xml`, `bg_badge_warning.xml`, `bg_badge_loan.xml`) to use semantic color attributes.
+    - Vector Icons: Updated `ic_calendar.xml`, `ic_refresh.xml`, and dialog dividers to adapt dynamically.
+    - Status Bar Light Mode: Automatically manages `windowLightStatusBar` in `values/styles.xml` (true for light theme, false for dark theme).
+
+### Changed
+- Bumped application version to **v2.0** (`versionCode 11`, `versionName "2.0"`).
+- Updated `README.md` with complete documentation of the Pastel Design System and dynamic theme switcher.
+
+---
+
 ## [v1.9] - 2026-11-08
 
 ### Added

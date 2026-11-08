@@ -1,42 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#10B981</color>
-    <color name="colorPrimaryDark">#0B0F19</color>
-    <color name="colorAccent">#10B981</color>
+    <!-- Brand / Primary (Pastel Mint) -->
+    <color name="colorPrimary">#059669</color>
+    <color name="colorPrimaryDark">#F1F5F9</color>
+    <color name="colorAccent">#059669</color>
 
-    <!-- Theme & Backgrounds -->
-    <color name="bg_dark">#0B0F19</color>
-    <color name="bg_card">#131B26</color>
-    <color name="bg_card_secondary">#182333</color>
-    <color name="border_dark">#223247</color>
-    <color name="nav_bottom_bg">#0E1420</color>
+    <!-- Theme & Backgrounds (Pastel Light: Porcelain & Crisp White) -->
+    <color name="bg_dark">#F8FAFC</color>
+    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_card_secondary">#F1F5F9</color>
+    <color name="border_dark">#E2E8F0</color>
+    <color name="nav_bottom_bg">#FFFFFF</color>
 
-    <!-- Text Colors -->
-    <color name="text_primary">#F8FAFC</color>
-    <color name="text_secondary">#94A3B8</color>
-    <color name="text_muted">#64748B</color>
+    <!-- Text Colors (Deep Slate for High Legibility) -->
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#475569</color>
+    <color name="text_muted">#94A3B8</color>
 
-    <!-- Emerald / Green -->
-    <color name="green_emerald">#10B981</color>
-    <color name="green_mint">#34D399</color>
-    <color name="green_bg">#132B22</color>
-    <color name="green_chip">#1B4332</color>
+    <!-- Pastel Mint / Emerald (Credits & Inflows) -->
+    <color name="green_emerald">#059669</color>
+    <color name="green_mint">#10B981</color>
+    <color name="green_bg">#D1FAE5</color>
+    <color name="green_chip">#A7F3D0</color>
 
-    <!-- Rose / Red / Debit -->
-    <color name="red_rose">#F43F5E</color>
-    <color name="red_bg">#2C1217</color>
+    <!-- Pastel Coral / Rose (Debits & Expenses) -->
+    <color name="red_rose">#E11D48</color>
+    <color name="red_bg">#FFE4E6</color>
 
-    <!-- Amber / Gold / Loans -->
-    <color name="amber_gold">#F59E0B</color>
-    <color name="amber_bg">#2E2211</color>
-    <color name="amber_badge">#422006</color>
+    <!-- Pastel Honey / Amber (Badges, Loans & Investments) -->
+    <color name="amber_gold">#D97706</color>
+    <color name="amber_bg">#FEF3C7</color>
+    <color name="amber_badge">#FDE68A</color>
 
-    <!-- Blue / Sky -->
-    <color name="blue_sky">#38BDF8</color>
+    <!-- Pastel Baby Sky (Remainders, Cycles & Credit Cards) -->
+    <color name="blue_sky">#0284C7</color>
     <color name="blue_royal">#2563EB</color>
-    <color name="blue_bg">#0E2638</color>
+    <color name="blue_bg">#E0F2FE</color>
 
-    <!-- Purple / Royal -->
-    <color name="purple_royal">#A855F7</color>
-    <color name="purple_bg">#261536</color>
+    <!-- Pastel Lavender / Lilac -->
+    <color name="purple_royal">#7C3AED</color>
+    <color name="purple_bg">#F3E8FF</color>
 </resources>
