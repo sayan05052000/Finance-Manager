@@ -123,6 +123,7 @@ function doPost(e) {
       if (typeof calculateRemainders === 'function') {
         try {
           calculateRemainders();
+          SpreadsheetApp.flush();
         } catch (err) {
           console.warn('calculateRemainders error: ' + err);
         }
@@ -239,6 +240,7 @@ function doPost(e) {
       if (typeof calculateRemainders === 'function') {
         try {
           calculateRemainders();
+          SpreadsheetApp.flush();
         } catch (err) {
           console.warn('calculateRemainders error: ' + err);
         }
@@ -542,8 +544,20 @@ function getTransactions(ss, limit, page) {
     } else if (debit !== 0 && dws === 0) {
       dws = Math.abs(debit);
     }
-    if (net === 0 && (credit > 0 || debit !== 0)) {
-      net = credit + debit;
+    if (net === 0 && (credit > 0 || debit !== 0 || dws > 0)) {
+      net = credit + (debit !== 0 ? debit : -dws);
+    }
+
+    let year = Number(row[10]) || 0;
+    let month = Number(row[11]) || 0;
+    if (year === 0 || month === 0) {
+      if (dateVal && dateVal.includes('/')) {
+        const dParts = dateVal.split('/');
+        if (dParts.length === 3) {
+          if (year === 0) year = Number(dParts[2]) || new Date().getFullYear();
+          if (month === 0) month = Number(dParts[1]) || (new Date().getMonth() + 1);
+        }
+      }
     }
 
     return {
@@ -553,13 +567,13 @@ function getTransactions(ss, limit, page) {
       debit: debit,
       net: net,
       remainder: remainder,
-      subCategory: row[5],
-      type: row[6],
-      loans: row[7],
-      account: row[8],
-      category: row[9],
-      year: row[10],
-      month: row[11],
+      subCategory: row[5] ? String(row[5]).trim() : '',
+      type: row[6] ? String(row[6]).trim() : 'Expense',
+      loans: row[7] ? String(row[7]).trim() : '',
+      account: row[8] ? String(row[8]).trim() : '',
+      category: row[9] ? String(row[9]).trim() : '',
+      year: year,
+      month: month,
       debitWithoutSign: dws,
       scannedForBudgetAnalysis: row[13] ? String(row[13]) : '',
       isProcessed: row[13] === 'Done' || (row[13] !== '' && row[13] !== null && row[13] !== undefined)

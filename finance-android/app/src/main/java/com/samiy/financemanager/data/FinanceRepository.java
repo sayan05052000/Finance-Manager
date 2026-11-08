@@ -11,6 +11,8 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.lang.reflect.Type;
+import com.google.gson.JsonDeserializationContext;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.model.CategoryItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
@@ -40,8 +42,47 @@ public class FinanceRepository {
 
     private static FinanceRepository instance;
     private final Context context;
+    private static final JsonDeserializer<Integer> SAFE_INT_DESERIALIZER = (jsonEl, typeOfT, ctx) -> {
+        try {
+            if (jsonEl.isJsonPrimitive()) {
+                String s = jsonEl.getAsString().trim().replace(",", "");
+                if (s.isEmpty()) return 0;
+                return (int) Double.parseDouble(s);
+            }
+        } catch (Exception ignored) {}
+        return 0;
+    };
+
+    private static final JsonDeserializer<Double> SAFE_DOUBLE_DESERIALIZER = (jsonEl, typeOfT, ctx) -> {
+        try {
+            if (jsonEl.isJsonPrimitive()) {
+                String s = jsonEl.getAsString().trim().replace(",", "");
+                if (s.isEmpty()) return 0.0;
+                return Double.parseDouble(s);
+            }
+        } catch (Exception ignored) {}
+        return 0.0;
+    };
+
+    private static final JsonDeserializer<Long> SAFE_LONG_DESERIALIZER = (jsonEl, typeOfT, ctx) -> {
+        try {
+            if (jsonEl.isJsonPrimitive()) {
+                String s = jsonEl.getAsString().trim().replace(",", "");
+                if (s.isEmpty()) return 0L;
+                return (long) Double.parseDouble(s);
+            }
+        } catch (Exception ignored) {}
+        return 0L;
+    };
+
     private final Gson gson = new GsonBuilder()
             .setLenient()
+            .registerTypeAdapter(int.class, SAFE_INT_DESERIALIZER)
+            .registerTypeAdapter(Integer.class, SAFE_INT_DESERIALIZER)
+            .registerTypeAdapter(double.class, SAFE_DOUBLE_DESERIALIZER)
+            .registerTypeAdapter(Double.class, SAFE_DOUBLE_DESERIALIZER)
+            .registerTypeAdapter(long.class, SAFE_LONG_DESERIALIZER)
+            .registerTypeAdapter(Long.class, SAFE_LONG_DESERIALIZER)
             .registerTypeAdapter(CategoryItem.class, (JsonDeserializer<CategoryItem>) (json, typeOfT, ctx) -> {
                 CategoryItem item = new CategoryItem();
                 if (json.isJsonPrimitive()) {
@@ -251,6 +292,25 @@ public class FinanceRepository {
         double netVal = (tx.credit > 0 ? tx.credit : 0) + 
                 (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
         tx.net = netVal;
+
+        if (tx.year == 0 || tx.month == 0) {
+            if (tx.date != null && tx.date.contains("/")) {
+                String[] p = tx.date.trim().split("/");
+                if (p.length == 3) {
+                    try {
+                        int d = Integer.parseInt(p[0].trim());
+                        int m = Integer.parseInt(p[1].trim());
+                        int y = Integer.parseInt(p[2].trim());
+                        if (d < 6) {
+                            if (m == 1) { m = 12; y = y - 1; }
+                            else { m = m - 1; }
+                        }
+                        if (tx.year == 0) tx.year = y;
+                        if (tx.month == 0) tx.month = m;
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
 
         // Pre-append to local database for immediate UI responsiveness
         if (database != null) {

@@ -80,57 +80,8 @@ public class LedgerFragment extends Fragment {
         rvLedger = v.findViewById(R.id.rvLedger);
         rvLedger.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new TransactionsAdapter();
-        adapter.setOnTransactionClickListener(tx -> {
-            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            com.samiy.financemanager.ui.dialog.EditTransactionBottomSheet dialog =
-                    com.samiy.financemanager.ui.dialog.EditTransactionBottomSheet.newInstance(tx);
-            dialog.setListener(() -> {
-                if (getActivity() instanceof MainActivity) {
-                    ((MainActivity) getActivity()).updateHeaderInfo();
-                }
-                populateUI();
-                refreshData();
-            });
-            dialog.show(getChildFragmentManager(), "EditTxDialog_" + tx.id);
-        });
-
-        adapter.setOnTransactionLongClickListener(tx -> {
-            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            new androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
-                    .setTitle("Delete Transaction")
-                    .setMessage("Are you sure you want to permanently delete this transaction from your Google Sheet?")
-                    .setPositiveButton("Delete", (dialog, which) -> {
-                        FinanceRepository.getInstance(requireContext()).deleteTransaction(tx.id, new FinanceRepository.DataCallback() {
-                            @Override
-                            public void onLoaded(FinanceDatabase updatedDb) {
-                                if (isAdded()) {
-                                    Toast.makeText(getContext(), "Transaction deleted successfully!", Toast.LENGTH_SHORT).show();
-                                    if (getActivity() instanceof MainActivity) {
-                                        ((MainActivity) getActivity()).updateHeaderInfo();
-                                    }
-                                    populateUI();
-                                    refreshData();
-                                }
-                            }
-
-                            @Override
-                            public void onError(String error) {
-                                if (isAdded()) {
-                                    Toast.makeText(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG).show();
-                                }
-                            }
-                        });
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-        });
-
+        adapter.setOnTransactionClickListener(this::confirmDeleteTransaction);
+        adapter.setOnTransactionLongClickListener(this::confirmDeleteTransaction);
         rvLedger.setAdapter(adapter);
 
         View btnAddTx = v.findViewById(R.id.btnAddTransactionLedger);
@@ -420,6 +371,43 @@ public class LedgerFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void confirmDeleteTransaction(Transaction tx) {
+        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String details = (tx.getDisplaySource() != null ? tx.getDisplaySource() : "") +
+                (tx.date != null ? " • " + tx.date : "") +
+                (tx.subCategory != null ? "\n" + tx.subCategory : "");
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
+                .setTitle("Delete Transaction")
+                .setMessage("Are you sure you want to permanently delete this transaction from your Google Sheet?\n\n" + details)
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    FinanceRepository.getInstance(requireContext()).deleteTransaction(tx.id, new FinanceRepository.DataCallback() {
+                        @Override
+                        public void onLoaded(FinanceDatabase updatedDb) {
+                            if (isAdded()) {
+                                Toast.makeText(getContext(), "Transaction deleted successfully!", Toast.LENGTH_SHORT).show();
+                                if (getActivity() instanceof MainActivity) {
+                                    ((MainActivity) getActivity()).updateHeaderInfo();
+                                }
+                                populateUI();
+                                refreshData();
+                            }
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            if (isAdded()) {
+                                Toast.makeText(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private String formatCurrency(double amount) {

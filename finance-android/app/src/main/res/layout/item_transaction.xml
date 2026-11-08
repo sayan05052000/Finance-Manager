@@ -84,13 +84,13 @@
             android:textSize="11sp" />
 
         <TextView
-            android:id="@+id/btnEditTxItem"
+            android:id="@+id/btnDeleteTxItem"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_pill_dark"
-            android:text="✏️ Edit"
-            android:textColor="@color/blue_sky"
+            android:text="🗑️ Delete"
+            android:textColor="@color/red_rose"
             android:textSize="10.5sp"
             android:textStyle="bold"
             android:paddingStart="7dp"

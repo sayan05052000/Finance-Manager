@@ -102,8 +102,8 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
             }
         };
         holder.itemView.setOnClickListener(clickListener);
-        if (holder.btnEdit != null) {
-            holder.btnEdit.setOnClickListener(clickListener);
+        if (holder.btnDelete != null) {
+            holder.btnDelete.setOnClickListener(clickListener);
         }
 
         holder.itemView.setOnLongClickListener(v -> {
@@ -125,7 +125,7 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvSourceBadge, tvDate, tvAmount, tvCategoryDesc, tvRemainder, btnEdit;
+        TextView tvSourceBadge, tvDate, tvAmount, tvCategoryDesc, tvRemainder, btnDelete;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -134,7 +134,7 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
             tvAmount = itemView.findViewById(R.id.tvTxAmount);
             tvCategoryDesc = itemView.findViewById(R.id.tvTxCategoryDesc);
             tvRemainder = itemView.findViewById(R.id.tvTxRemainder);
-            btnEdit = itemView.findViewById(R.id.btnEditTxItem);
+            btnDelete = itemView.findViewById(R.id.btnDeleteTxItem);
         }
     }
 }

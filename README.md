@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.4` (`versionCode 5`)  
+**Version:** `1.5` (`versionCode 6`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -21,7 +21,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Google Account Authentication & Strict Authorization](#google-account-authentication--strict-authorization)
    - [Billing Cycle & The 6th-to-5th Rule](#billing-cycle--the-6th-to-5th-rule)
    - [Zero-Latency Sync Engine & Cache-Busting Architecture](#zero-latency-sync-engine--cache-busting-architecture)
-   - [Full Transaction Lifecycle: Add, Edit, Delete & Auto-Sync](#full-transaction-lifecycle-add-edit-delete--auto-sync)
+   - [Transaction Lifecycle: Add & Delete Only Architecture](#transaction-lifecycle-add--delete-only-architecture)
    - [Running Balance (Remainder) Synchronization & Account Reconciliation](#running-balance-remainder-synchronization--account-reconciliation)
    - [Dual Sub-Category System](#dual-sub-category-system)
    - [SIP Tracer Architecture & Constraints](#sip-tracer-architecture--constraints)
@@ -147,34 +147,31 @@ To eliminate this delay completely and ensure instant sync, the following end-to
 
 ---
 
-### Full Transaction Lifecycle: Add, Edit, Delete & Auto-Sync
-The application provides complete lifecycle management for all financial transactions:
+### Transaction Lifecycle: Add & Delete Only Architecture
+To safeguard financial audit integrity, prevent historical balance corruption, and match accounting standard practices, transaction editing/updating has been permanently removed. Transactions can strictly be **added** or **deleted**:
 
 1. **Adding Transactions (`AddTransactionBottomSheet`)**:
-   - Allows recording Expense, Income, or Transfer transactions.
-   - Date selection is powered by `CustomCalendarDialog`.
-   - Category and Sub-Category picked via modal dialogs populated from `Category Tables`.
-   - Account selection from active liquid bank accounts; Loan selection when repaying debts.
-   - **Streamlined Fields**: The redundant free-form description input has been completely removed to match the updated spreadsheet schema (where Column 14 is reserved for budget processing flags).
+   - Supports **Expense** (records debit), **Income** (records credit), and **Do not Consider / Account Transfer** (records debit or credit without impacting budget metrics).
+   - Date selection powered by `CustomCalendarDialog` (defaults to today's date).
+   - Autocomplete and modal search picker for Sub-Categories populated from live category tables.
+   - Source selector dynamically switches between **Accounts** (PNB, HDFC, etc.) and **Loans** (CREDIT CARD, SLICE CREDIT, etc.) with real-time balance displays.
+   - Automatically populates Year and Month columns as numeric integers matching the 6th-to-5th cycle rule.
+   - Immediate optimistic local insertion into `FinanceRepository` for zero perceived latency.
 
-2. **Editing Transactions (`EditTransactionBottomSheet`)**:
-   - Tapping any transaction item in `LedgerFragment` opens the bottom sheet with all existing transaction data pre-populated.
-   - All fields are editable: Date, Transaction Type (Expense/Income/Transfer), Sub-Category, Category, Account, Loan, and Amount.
-   - Dynamic real-time calculation of Net and Remainder preview as amounts or types change.
-   - Dispatches `action: 'updateTransaction'` to `androidscript.gs`.
-   - **Robust Row Lookup**: Identifies the exact row in Google Sheets by ID with fallback multi-attribute matching (Date + SubCategory + Account/Loan + Debit/Credit).
+2. **Deleting Transactions (`LedgerFragment`)**:
+   - Each transaction card in the ledger features an immediate **🗑️ Delete** button (styled in `@color/red_rose`).
+   - Clicking or long-pressing anywhere on a transaction card prompts a custom dark confirmation dialog (`"Are you sure you want to permanently delete this transaction from your Google Sheet?"`).
+   - Confirming deletion dispatches `action: 'deleteTransaction'` to `androidscript.gs`.
+   - The server deletes the specified row, invokes `calculateRemainders()`, executes `SpreadsheetApp.flush()`, and returns confirmation.
+   - Local database automatically syncs and refreshes to reflect new running balances instantly.
 
-3. **Deleting Transactions**:
-   - A dedicated **Delete Transaction** button in `EditTransactionBottomSheet` allows removing errant or cancelled entries.
-   - Guarded by a confirmation dialog (`"Are you sure you want to delete this transaction?"`).
-   - Dispatches `action: 'deleteTransaction'` to `androidscript.gs`, deleting the row from Google Sheets and triggering running balance recalculation.
+3. **Resilient Deserialization & Zero-Latency Sync Engine**:
+   - **Lenient Numeric TypeAdapters**: Custom `SAFE_INT_DESERIALIZER`, `SAFE_DOUBLE_DESERIALIZER`, and `SAFE_LONG_DESERIALIZER` in `FinanceRepository` guarantee that empty cells (`""`), whitespace, or currency formatted strings in any sheet column will never trigger `JsonSyntaxException: NumberFormatException: empty String`.
+   - **Apps Script Inferred Typing**: `getTransactions` in `androidscript.gs` automatically ensures `year` and `month` are converted to integers (inferring from `dateVal` if empty in the sheet), preventing deserialization crashes that previously caused newly added transactions to show `₹0` or take 5-10 minutes to appear.
+   - **Immediate Persistence**: Both `addTransaction` and `deleteTransaction` execute `calculateRemainders()` followed immediately by `SpreadsheetApp.flush()`, ensuring spreadsheet computations are committed before the response returns.
 
-4. **Global Real-Time Auto-Sync Engine**:
-   - Every mutation (add transaction, edit transaction, delete transaction, update policy, add policy, update SIP) automatically triggers an immediate background `syncWithGoogleSheets()` upon HTTP success.
-   - `FinanceRepository` maintains a `SyncListener` registry. Any data update notifies `MainActivity` and active fragments to re-render without requiring manual pull-to-refresh.
-
-5. **Simplified Ledger Display**:
-   - `TransactionsAdapter` presents transactions clearly with net amount, color-coded badges (`#34D399` for positive credit, `#F43F5E` for debit/expenses), account/loan labels, and formatted dates.
+4. **Simplified Ledger Display**:
+   - `TransactionsAdapter` displays the exact net amount with color-coded badges (`#34D399` for positive credit, `#F43F5E` for debit/expenses), source badge (Account/Loan), category description, and running remainder.
 
 ---
 
