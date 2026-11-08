@@ -2,9 +2,17 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.3` (`versionCode 4`)  
+**Version:** `1.4` (`versionCode 5`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
+
+
+> [!TIP]
+> **Quick Build One-Liner (Windows PowerShell):**
+> ```powershell
+> cd finance-android; .\gradlew.bat assembleDebug; Copy-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force; cd ..
+> ```
+> The freshly compiled ready-to-install binary is always maintained at the repository root as [**`FinanceManager.apk`**](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/FinanceManager.apk).
 
 ---
 
@@ -615,142 +623,187 @@ Finance-Manager/
 
 ## 6. Building & Packaging the Android APK (Step-by-Step Guide)
 
-Follow this guide to build the application from source code into a ready-to-install APK file.
-
-### Prerequisites & Toolchain Setup
-Ensure the following tools are installed on your workstation:
-1. **Java Development Kit (JDK 17)**:
-   - Verify by running `java -version`. The version must be **Java 17** (e.g. OpenJDK 17 or Oracle JDK 17).
-2. **Android SDK Platform 34**:
-   - `compileSdk 34` and `targetSdk 34`.
-   - Android SDK Command-line Tools & Platform-Tools (includes `adb`).
-3. **Gradle Wrapper**:
-   - Bundled directly in `finance-android/gradlew` (Linux/macOS) and `finance-android/gradlew.bat` (Windows). No global Gradle installation required.
+Follow this complete developer guide to compile, assemble, package, and install the native Android application from source code into a signed, ready-to-install APK.
 
 ---
 
-### Environment Variables Configuration
+### Quick Build (One-Command Build & Mirror)
 
-#### Windows (PowerShell / System Properties):
-Ensure your environment variables are configured in User/System variables:
+#### Windows (PowerShell):
 ```powershell
-# Set JAVA_HOME (replace with your exact JDK 17 path or Android Studio bundled JBR)
+# From the repository root:
+cd finance-android; .\gradlew.bat assembleDebug; Copy-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force; cd ..
+```
+
+#### macOS / Linux (Bash / Zsh):
+```bash
+# From the repository root:
+cd finance-android && ./gradlew assembleDebug && cp "C:/Users/samiy/AppData/Local/Temp/FinanceManagerBuild/app/outputs/apk/debug/app-debug.apk" "../FinanceManager.apk" && cd ..
+```
+
+---
+
+### Prerequisites & Toolchain Setup
+
+Ensure the following tools are installed and available on your PATH:
+
+1. **Java Development Kit (JDK 17)**:
+   - Check with: `java -version`.
+   - The project uses Java 17 compatibility (`sourceCompatibility JavaVersion.VERSION_17`).
+   - If using Android Studio, point `JAVA_HOME` to its bundled JetBrains Runtime (`jbr`).
+
+2. **Android SDK (API Level 34)**:
+   - `compileSdk = 34`, `targetSdk = 34`, `minSdk = 26`.
+   - Ensure the Android SDK Command-line Tools and Platform-Tools (`adb`) are installed.
+
+3. **Gradle Wrapper**:
+   - The repository includes self-contained Gradle wrappers:
+     - `finance-android/gradlew.bat` (Windows)
+     - `finance-android/gradlew` (macOS / Linux)
+   - No external Gradle installation is needed.
+
+---
+
+### Environment Variables Setup
+
+#### Windows PowerShell:
+```powershell
+# 1. Set JAVA_HOME (example with Android Studio JBR)
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
-# Set ANDROID_HOME (replace with your Android SDK location)
+# 2. Set ANDROID_HOME
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 
-# Append platform-tools and Java to PATH
+# 3. Add Platform-Tools and Java to PATH
 $env:Path += ";$env:ANDROID_HOME\platform-tools;$env:JAVA_HOME\bin"
 ```
 
 #### macOS / Linux (`~/.bashrc` or `~/.zshrc`):
 ```bash
-export JAVA_HOME="/usr/lib/jvm/java-17-openjdk" # or /Applications/Android Studio.app/Contents/jbr/Contents/Home
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" # or /usr/lib/jvm/java-17-openjdk
 export ANDROID_HOME="$HOME/Android/Sdk"
 export PATH="$PATH:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin"
 ```
 
 ---
 
-### Step-by-Step Build Commands (Windows PowerShell / CMD)
+### Version Bumping (Before Building New Releases)
 
-Execute these commands from the project root directory:
+Before releasing a new APK, update the version identifiers in [`finance-android/app/build.gradle`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/build.gradle#L11-L12):
 
-#### Step 1: Change Directory into `finance-android`
-```powershell
-Set-Location "finance-android"
-```
-
-#### Step 2 (Optional but Recommended): Clean Existing Build Caches
-```powershell
-.\gradlew.bat clean
-```
-
-#### Step 3: Compile and Assemble the Debug APK
-```powershell
-.\gradlew.bat assembleDebug --no-daemon
-```
-
-#### Step 4: Verify the Build Artifact
-```powershell
-Get-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk"
-```
-
-#### Step 5: Mirror the Built APK to the Repository Root
-For instant distribution, mirror the compiled binary to the repository root:
-```powershell
-Copy-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force
+```groovy
+defaultConfig {
+    applicationId "com.samiy.financemanager"
+    minSdkVersion rootProject.ext.minSdkVersion
+    targetSdkVersion rootProject.ext.targetSdkVersion
+    versionCode 5        // Increment by 1 for each new release (e.g., 4 -> 5)
+    versionName "1.4"    // Semantic version string (e.g., "1.3" -> "1.4")
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+}
 ```
 
 ---
 
-### Step-by-Step Build Commands (macOS / Linux / Bash)
+### Detailed Step-by-Step Build Workflow (Windows PowerShell)
 
-```bash
-cd finance-android
-chmod +x gradlew
-./gradlew clean assembleDebug --no-daemon
-cp "C:/Users/samiy/AppData/Local/Temp/FinanceManagerBuild/app/outputs/apk/debug/app-debug.apk" "../FinanceManager.apk"
+#### Step 1: Navigate to the Android Project Folder
+```powershell
+Set-Location "finance-android"
+```
+
+#### Step 2: Clean Existing Build Caches (Recommended for Major Changes)
+```powershell
+.\gradlew.bat clean
+```
+*This purges intermediate dex, resource caches, and pre-compiled classes from the custom build directory.*
+
+#### Step 3: Run the Compilation and APK Assembly Task
+```powershell
+.\gradlew.bat assembleDebug
+```
+*What happens under the hood during this task:*
+1. **Manifest Merging**: Merges Android permissions, deep-links, and application attributes.
+2. **Resource Packaging (`aapt2`)**: Compiles and flattens XML vector drawables, layouts, and strings.
+3. **Java Compilation (`javac`)**: Compiles all source files under `src/main/java` targeting Java 17 byte-code.
+4. **D8 Dexing (`dexBuilderDebug`, `mergeProjectDexDebug`)**: Transpiles Java `.class` byte-code into Dalvik Executable (`classes.dex`).
+5. **APK Packaging & Signing (`packageDebug`)**: Bundles `.dex`, assets, and resources into an uncompressed archive and signs it using the debug keystore (`~/.android/debug.keystore`).
+
+#### Step 4: Verify the Built Output Artifact
+```powershell
+Get-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" | Format-List Name, Length, LastWriteTime
+```
+
+#### Step 5: Mirror to Repository Root for Git Tracking & Direct Installation
+```powershell
+Copy-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force
+Set-Location ".."
 ```
 
 ---
 
 ### Understanding the Custom Build Directory Architecture
-In [`finance-android/build.gradle`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/build.gradle#L21), the build directory is explicitly relocated outside the repository:
+
+In [`finance-android/build.gradle`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/build.gradle#L21), the build directory is redirected outside the repository workspace:
 ```groovy
 allprojects {
     layout.buildDirectory.set(new File("C:/Users/samiy/AppData/Local/Temp/FinanceManagerBuild/${project.name}"))
 }
 ```
 
-**Why this was designed:**
-* **OneDrive Sync Prevention**: Placing `build/` inside a OneDrive-synchronized folder causes OneDrive to constantly upload hundreds of thousands of ephemeral compilation files (`.class`, `.dex`, `.flat`, `.aar`), resulting in severe I/O thrashing, file locks, and build failures.
-* **Rapid Clean Builds**: Moving build artifacts to local `%TEMP%` ensures NVMe speeds and zero synchronization overhead.
-* **Root Binary Mirroring**: Every successful build is copied to `FinanceManager.apk` at the repository root, allowing users and testers to install the APK directly from Git without compiling.
+> [!IMPORTANT]
+> **Why this configuration is essential:**
+> 1. **OneDrive Sync Thrashing Prevention**: When project repositories reside inside OneDrive folders, standard in-tree `build/` directories generate 50,000+ tiny transient files (`.class`, `.dex`, `.flat`, `.aar`) per build. OneDrive attempts to upload these locked files in real time, causing Windows file-lock errors, disk thrashing, and failed builds.
+> 2. **NVMe Compilation Performance**: Redirecting output to local `%TEMP%` guarantees raw disk read/write throughput without cloud file-locking hooks.
+> 3. **Clean Git Status**: Eliminates git status pollution without requiring gigantic `.gitignore` scanning trees.
+> 4. **Single-Point Mirroring**: The final signed artifact is mirrored directly to `FinanceManager.apk` at the repository root for seamless distribution.
 
 ---
 
-### Device Installation via ADB or Direct Transfer
+### Device Installation & Deployment
 
-#### 1. Over USB using ADB:
-Connect your Android phone with **USB Debugging** enabled and run:
-```bash
-adb install -r FinanceManager.apk
-```
+#### Option 1: Install via USB Cable using ADB
+1. Enable **Developer Options** and **USB Debugging** on your Android phone.
+2. Connect your phone via USB.
+3. Run:
+   ```bash
+   adb devices
+   adb install -r FinanceManager.apk
+   ```
+   *The `-r` flag reinstalls the application while preserving app cache and user login state.*
 
-#### 2. Wireless ADB:
-```bash
-adb connect <PHONE_IP_ADDRESS>:5555
-adb install -r FinanceManager.apk
-```
+#### Option 2: Wireless ADB Installation
+1. Ensure phone and workstation are on the same Wi-Fi network.
+2. In phone settings, enable **Wireless Debugging** and note the IP and port.
+3. Connect and install:
+   ```bash
+   adb connect <PHONE_IP_ADDRESS>:<PORT>
+   adb install -r FinanceManager.apk
+   ```
 
-#### 3. Direct Transfer:
-Send `FinanceManager.apk` directly to your phone via USB cable, Google Drive, or messaging apps, tap on the APK file in your phone's File Manager, and select **Install / Update**.
+#### Option 3: Direct File Transfer / Side-loading
+1. Copy `FinanceManager.apk` directly to phone storage (via USB file transfer, Google Drive, WhatsApp, or email).
+2. Open the phone's **File Manager**, locate `FinanceManager.apk`, tap to open, and select **Update / Install**.
 
 ---
 
-### Common Build Errors & Troubleshooting
+### Common Build Issues & Troubleshooting
 
 1. **`Unsupported class file major version`**:
-   - *Cause*: Gradle is running with an incompatible Java version (e.g. Java 8 or Java 21+).
-   - *Fix*: Set `JAVA_HOME` to JDK 17:
-     ```powershell
-     $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-     ```
+   - **Reason**: Running Gradle with Java 8, Java 11, or an unsupported preview Java 21+ SDK.
+   - **Fix**: Point `JAVA_HOME` explicitly to JDK 17 (e.g. `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`).
 
-2. **`Could not open create cache for class analysis / Daemon lock`**:
-   - *Cause*: A zombie Gradle daemon holds a file lock on a temporary `.jar` file.
-   - *Fix*: Kill active daemons and clear lock files:
+2. **`Daemon lock / Could not open cache`**:
+   - **Reason**: A background Gradle daemon process crashed and held a lock on a build cache file.
+   - **Fix**:
      ```powershell
      .\gradlew.bat --stop
      Remove-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild" -Recurse -Force -ErrorAction SilentlyContinue
      .\gradlew.bat assembleDebug
      ```
 
-3. **`Warning: SDK processing. This version only understands SDK XML versions up to 3...`**:
-   - *Cause*: A harmless informational warning from Android Gradle Plugin 8.2 encountering SDK XML v4.
-   - *Fix*: No action needed; the build will proceed and succeed normally.
+3. **`The term '.\gradlew.bat' is not recognized`**:
+   - **Reason**: Attempting to execute `.\gradlew.bat` from the repository root instead of the `finance-android/` subdirectory.
+   - **Fix**: Run `cd finance-android` first before invoking `.\gradlew.bat`.
 
 ---
 
