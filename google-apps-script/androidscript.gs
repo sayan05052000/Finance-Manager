@@ -121,9 +121,6 @@ function doPost(e) {
       if (cols.colType > 0) newRow[cols.colType - 1] = type;
       if (cols.colLoans > 0) newRow[cols.colLoans - 1] = loans;
       if (cols.colAccount > 0) newRow[cols.colAccount - 1] = account;
-      if (cols.colCategory > 0 && category) newRow[cols.colCategory - 1] = category;
-      if (cols.colYear > 0 && year) newRow[cols.colYear - 1] = year;
-      if (cols.colMonth > 0 && month) newRow[cols.colMonth - 1] = month;
       if (cols.colDebitWithoutSign > 0) newRow[cols.colDebitWithoutSign - 1] = (debitWithoutSign !== '' ? debitWithoutSign : 0);
       if (cols.colTaggedCard > 0 && taggedCard) newRow[cols.colTaggedCard - 1] = taggedCard;
 
