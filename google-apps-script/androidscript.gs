@@ -642,6 +642,52 @@ function doPost(e) {
       });
     }
 
+    if (action === 'markCreditCardBillGenerated') {
+      const sheet = ss.getSheetByName('Credit Cards');
+      if (!sheet) throw new Error('Credit Cards sheet not found');
+
+      const c = data.card || {};
+      const cardName = String(c.cardName || '').trim();
+      if (!cardName) throw new Error('Card name is required');
+
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const cols = findCreditCardColumnIndices(headers);
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
+          matchedRow = i + 1;
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Credit Card not found: ' + cardName);
+      }
+
+      // Read current unbilled amount
+      let unbilledVal = Number(values[matchedRow - 1][cols.colUnbilled - 1]) || 0;
+      if (c.unbilledAmount !== undefined && Number(c.unbilledAmount) > 0 && unbilledVal === 0) {
+        unbilledVal = Number(c.unbilledAmount);
+      }
+
+      // Set billed amount = unbilledVal, unbilled amount = 0
+      sheet.getRange(matchedRow, cols.colBilled).setValue(unbilledVal);
+      sheet.getRange(matchedRow, cols.colUnbilled).setValue(0);
+
+      if (cols.colStatus > 0) {
+        sheet.getRange(matchedRow, cols.colStatus).setValue(unbilledVal > 0 ? 'Unpaid' : 'Paid');
+      }
+
+      SpreadsheetApp.flush();
+      return jsonResponse({
+        status: 'success',
+        message: cardName + ' bill generated: ₹' + unbilledVal + ' billed, unbilled reset to ₹0',
+        billedAmount: unbilledVal,
+        unbilledAmount: 0
+      });
+    }
+
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });

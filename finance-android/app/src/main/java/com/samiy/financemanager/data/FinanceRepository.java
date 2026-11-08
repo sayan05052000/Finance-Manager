@@ -978,6 +978,57 @@ public class FinanceRepository {
         });
     }
 
+    public void markCreditCardBillGenerated(com.samiy.financemanager.data.model.CreditCard card, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Update in-memory database immediately:
+        // billedAmount = unbilledAmount, unbilledAmount = 0
+        if (database != null && database.creditCards != null) {
+            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
+                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(card.cardName.trim())) {
+                    c.billedAmount = c.unbilledAmount;
+                    c.unbilledAmount = 0.0;
+                    if (c.billedAmount > 0) {
+                        c.status = "Unpaid";
+                    }
+                    break;
+                }
+            }
+            saveLocalCache();
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "markCreditCardBillGenerated");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", card.cardName);
+                cardObj.addProperty("unbilledAmount", card.unbilledAmount);
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                executeHttpPost(GAS_URL, jsonStr);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error generating credit card bill in Google Sheets", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to generate bill: " + e.getMessage());
+                });
+            }
+        });
+    }
+
     public void markCreditCardPaid(com.samiy.financemanager.data.model.CreditCard cardToPay, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {

@@ -258,6 +258,62 @@ The application tracks life, health, and vehicle insurance policies across LIC a
 
 ---
 
+### Credit Cards Management
+The application features a dedicated Credit Cards management engine to track monthly card statements, unbilled real-time spends, due dates, and payment workflows:
+
+* **6-Column Google Sheet Schema (`Credit Cards`)**:
+  - Card Name, Billed Amount, Unbilled Amount, Due Date, Last Paid, Status.
+* **Transaction Tagging to Credit Cards (`AddTransactionBottomSheet`)**:
+  - When creating a transaction under the **`CREDIT CARD` loan account**, the app displays a **"Tag to Credit Card"** dropdown populated with all active credit cards.
+  - Users can select an existing card or click **`＋ Add Card`** to register a new card inline without leaving the transaction flow.
+  - Selecting a credit card automatically increments that card's unbilled balance upon adding the transaction:
+    $$\text{Unbilled Amount}_{\text{new}} = \text{Unbilled Amount}_{\text{current}} + \text{Transaction Net}$$
+  - The transaction record in the `Transactions` sheet logs the tagged card name in the description/category metadata for complete traceability.
+* **Adding Credit Cards (`AddCreditCardBottomSheet`)**:
+  - **Card Name**: **Mandatory & Unique** (verified against local memory and sheet records using case-insensitive validation).
+  - **Due Date**: **Optional** (integrated with `CustomCalendarDialog` date picker).
+  - **Billed Amount**: **Optional** (defaults to ₹0.00).
+  - **Unbilled Amount**: **Not prompted** (automatically initialized to ₹0.00; populated via tagged transactions).
+  - Can be initiated via **`+ Add Card`** in the Accounts tab or inline within `AddTransactionBottomSheet`.
+* **'✓ Mark as Paid' 1-Tap Action (Auto-Advances Due Date by 1 Month)**:
+  - Accessible via a prominent emerald button on any credit card item with a billed balance.
+  - **Automatic 1-Month Due Date Advancement**: Advances the due date by exactly 1 calendar month ($$m \rightarrow m + 1$$, rolling December to January and advancing year, capping day to target month length).
+  - **Zero Manual Input**: Eliminates date pickers during the payment workflow—the app advances the date and records today as `Last Paid Date` automatically.
+  - Resets `Billed Amount` to **₹0.00** and marks status as **`Paid`**.
+* **'⚡ Bill Generated' Action (Converts Unbilled to Billed)**:
+  - Visible on credit card cards whenever `Unbilled Amount > 0`.
+  - Atomically converts unbilled spending into the active billed statement balance:
+    $$\text{Billed Amount} \leftarrow \text{Unbilled Amount}, \quad \text{Unbilled Amount} \leftarrow 0.00$$
+  - Updates card status to **`Unpaid`** (if billed amount > 0) and syncs immediately to the Google Sheet via `markCreditCardBillGenerated`.
+* **'✏️ Update Due / Bill' Modal (`EditCreditCardBottomSheet`)**:
+  - Dedicated bottom sheet allowing modification of `Due Date` and `Billed Amount` only.
+  - **Strict Workflow Guard**: The user **cannot mark the card as paid from this modal**, preventing accidental payment state corruption.
+
+---
+
+### Upcoming Due Date Reminders & Automated Daily System Notifications
+To prevent missed credit card statements or lapsed insurance policies, FinMngr integrates a proactive dual reminder system:
+
+* **Overview Page Countdown Toasters (`item_due_reminder.xml`)**:
+  - Appears at the top of the Overview screen in a dedicated high-visibility container.
+  - **LIC & Tata AIA Policies**: Displays an alert when a policy due date is within upcoming **14 days** ($0 \le \text{daysLeft} \le 14$) and policy is active.
+  - **Credit Cards**: Displays an alert when a credit card has **`Billed Amount > 0`** and due date is within upcoming **14 days** ($0 \le \text{daysLeft} \le 14$).
+  - **Dynamic Countdown Counter**: Renders a dynamic counter that automatically decrements by 1 each passing day ($d \rightarrow d - 1$):
+    - `Due in X days` (Amber `#F59E0B` badge for 1 to 14 days)
+    - `Due Today!` (Urgent Crimson `#F43F5E` badge)
+    - `Overdue by X days!` (Crimson `#F43F5E` badge for past-due items)
+  - **Interactive 1-Tap Resolution**:
+    - Tapping a policy reminder opens `EditPolicyBottomSheet` with the 1-tap **'Mark as Paid'** button.
+    - Tapping a credit card reminder opens `EditCreditCardBottomSheet`.
+* **Automated Daily System Notifications (`ReminderNotificationManager`)**:
+  - FinMngr creates an Android Notification Channel: `due_date_reminders_channel` (Importance: `HIGH`, with vibration and sound).
+  - **Strict Daily Gating (1 Notification Per Day Per Reminder)**:
+    - FinMngr caches notification timestamps in `SharedPreferences` under key `last_notified_<key>` with format `yyyy-MM-dd`.
+    - Guarantees each due reminder fires **strictly once per calendar day**, eliminating repetitive notification spam on app launches or auto-sync cycles.
+  - Decrements the day countdown on every notification payload so the user is always informed of the exact days remaining.
+
+---
+
 ### Insurance Financing Visual Representation
 * **Business Logic**: The total annual insurance premiums across all active policies are financed by the `Health And Life Insurance` goal fund.
 * **Visual Representation Card (Accounts Screen)**:
@@ -563,7 +619,9 @@ Finance-Manager/
             │   │   │   └── TransactionsAdapter.java # Simplified net amount transaction view
             │   │   ├── dialog/
             │   │   │   ├── AddMutualFundTransactionBottomSheet.java # Auth-guarded MF creator
+            │   │   │   ├── AddCreditCardBottomSheet.java            # Mandatory unique name & optional due date
             │   │   │   ├── AddPolicyBottomSheet.java                # New policy with date pickers
+            │   │   │   ├── EditCreditCardBottomSheet.java           # Update due date and billed amount only
             │   │   │   ├── AddTransactionBottomSheet.java           # Auth-guarded transaction entry
             │   │   │   ├── CustomCalendarDialog.java                # Futuristic dark calendar dialog
             │   │   │   ├── EditPolicyBottomSheet.java               # Mark as Paid & policy editor
@@ -616,7 +674,10 @@ Finance-Manager/
 | `CalculationEngine` | Computes net inflow/outflow, total debit/credit, remaining budget, days remaining in cycle, daily spend allowance, and filters interest transactions. |
 | `AccountsFragment` | Renders bank balances, liabilities/debt, section filter pills (All, Banks & Debt, LIC & Tata AIA, Financial Goals), Insurance Financing visual representation card, insurance policy list with date updates and add policy action, and view-only financial goals. |
 | `EditPolicyBottomSheet` | Bottom sheet for updating insurance policies. Strictly enforces lockdown on policy terms; provides 1-tap **'Mark as Paid'** (advancing due date by +1 yr, capped by maturity) and dark-themed calendar pickers. |
+| `AddCreditCardBottomSheet` | Bottom sheet for registering new credit cards with unique name validation, optional due date picker, optional billed amount, and zero unbilled balance. |
 | `AddPolicyBottomSheet` | Allows adding new insurance policies to Google Sheets with calendar pickers for Birth Date, Due Date, Last Paid Date, and Maturity Date (installments calculated by sheet formula). |
+| `EditCreditCardBottomSheet` | Bottom sheet for updating credit card due date and billed amount. Explicitly prevents marking as paid to protect workflow integrity. |
+| `ReminderNotificationManager` | Posts daily status bar notifications for LIC/Tata AIA and credit card due dates within 14 days. Implements daily `SharedPreferences` rate limiting ensuring strictly 1 notification per day per item with dynamic countdown. |
 | `CustomCalendarDialog` | Custom dark-themed calendar dialog featuring 1-tap presets (Today, Yesterday, 6th Cycle Start, 1st of Month), decade quick-jumps (1940-2070), and month/year grid modal adhering to FinMngr design language. |
 | `DateTimeHelper` | Central utility managing calendar date picker dialogs, date string parsing/formatting in `dd/MM/yyyy`, and min/max date boundary validators (`setupPastDatePicker`, `setupFutureDatePicker`, `setupDueDatePicker`). |
 | `HoldingsFragment` | Renders portfolio KPIs (total invested, current valuation, 1D gain, ROI), savings type breakdown, and the list of holdings. |
@@ -877,7 +938,22 @@ fetch('YOUR_GAS_URL', {
 }).then(r => r.json()).then(console.log);
 ```
 
-#### 5. Test POST (Recalculate Remainders):
+#### 5. Test POST (Mark Credit Card Bill Generated):
+```javascript
+fetch('YOUR_GAS_URL', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'markCreditCardBillGenerated',
+    card: {
+      cardName: 'Tata Neu Infinity'
+    }
+  }),
+  redirect: 'follow'
+}).then(r => r.json()).then(console.log);
+```
+
+#### 6. Test POST (Recalculate Remainders):
 ```bash
 node -e "fetch('YOUR_GAS_URL?action=recalculateRemainders', {redirect: 'follow'}).then(r => r.json()).then(console.log)"
 ```

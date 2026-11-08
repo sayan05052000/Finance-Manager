@@ -571,6 +571,7 @@ public class AccountsFragment extends Fragment {
             TextView tvDueDate = itemView.findViewById(R.id.tvCreditCardDueDate);
             TextView tvLastPaid = itemView.findViewById(R.id.tvCreditCardLastPaid);
             View btnMarkPaidQuick = itemView.findViewById(R.id.btnMarkCreditCardPaidQuick);
+            View btnMarkBillGenerated = itemView.findViewById(R.id.btnMarkBillGenerated);
             View btnEditCard = itemView.findViewById(R.id.btnEditCreditCard);
 
             tvName.setText(card.cardName != null ? card.cardName : "Credit Card");
@@ -662,6 +663,49 @@ public class AccountsFragment extends Fragment {
 
                 if (btnMarkPaidQuick != null) {
                     btnMarkPaidQuick.setVisibility(View.GONE);
+                }
+            }
+
+            // Mark as Bill Generated Button:
+            // "on marking that the bill amount will be the unbilled amount and then the unbillled amount will be 0"
+            if (btnMarkBillGenerated != null) {
+                if (card.unbilledAmount > 0) {
+                    btnMarkBillGenerated.setVisibility(View.VISIBLE);
+                    btnMarkBillGenerated.setOnClickListener(view -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                .setTitle("Mark Bill Generated for " + card.cardName + "?")
+                                .setMessage("This will set the Billed Amount to " + formatCurrency(card.unbilledAmount) +
+                                        " (the current unbilled spending), and reset Unbilled Spends to ₹0.")
+                                .setPositiveButton("Yes, Generate Bill", (dialog, which) -> {
+                                    Toast.makeText(getContext(), "Generating bill for " + card.cardName + "...", Toast.LENGTH_SHORT).show();
+                                    FinanceRepository.getInstance(requireContext()).markCreditCardBillGenerated(card, new FinanceRepository.DataCallback() {
+                                        @Override
+                                        public void onLoaded(FinanceDatabase updatedDb) {
+                                            if (isAdded()) {
+                                                Toast.makeText(getContext(), card.cardName + " bill generated: " +
+                                                        formatCurrency(card.unbilledAmount) + " billed, unbilled reset to ₹0.", Toast.LENGTH_LONG).show();
+                                                refreshData();
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onError(String error) {
+                                            if (isAdded()) {
+                                                Toast.makeText(getContext(), "Failed to generate bill: " + error, Toast.LENGTH_SHORT).show();
+                                            }
+                                        }
+                                    });
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    });
+                } else {
+                    btnMarkBillGenerated.setVisibility(View.GONE);
                 }
             }
 
