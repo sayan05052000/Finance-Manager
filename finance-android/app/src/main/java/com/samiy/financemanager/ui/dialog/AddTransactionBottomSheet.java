@@ -444,8 +444,8 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
                 tx.debit = 0;
             }
 
-            tx.net = 0;        // Automatically calculated in sheet
-            tx.remainder = 0;  // Automatically calculated in sheet
+            tx.net = (creditVal > 0 ? creditVal : 0) + (tx.debit != 0 ? tx.debit : 0);
+            tx.remainder = 0;
 
             if (isLoan) {
                 tx.loans = selectedSource;

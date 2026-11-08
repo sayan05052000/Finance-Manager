@@ -28,7 +28,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.UUID;
+import java.util.UUID;
+
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -169,10 +170,14 @@ public class FinanceRepository {
      */
     public FinanceDatabase performSyncInternal() {
         try {
-            long ts = System.currentTimeMillis();
-            String nonce = UUID.randomUUID().toString().substring(0, 8);
-            String url = GAS_URL + (GAS_URL.contains("?") ? "&" : "?") + "action=all&_t=" + ts + "&_nonce=" + nonce;
-            String resultJson = executeHttpGetWithRedirect(url);
+            long ts = System.currentTimeMillis();
+
+            String nonce = UUID.randomUUID().toString().substring(0, 8);
+
+            String url = GAS_URL + (GAS_URL.contains("?") ? "&" : "?") + "action=all&_t=" + ts + "&_nonce=" + nonce;
+
+            String resultJson = executeHttpGetWithRedirect(url);
+
             if (resultJson != null && !resultJson.isEmpty()) {
                 JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
                 if (root.has("data") && root.get("data").isJsonObject()) {
@@ -191,9 +196,12 @@ public class FinanceRepository {
                                 }
                             }
                         }
-                        if (this.database != null) {
-                            mergeRecentLocalTransactions(this.database, freshDb);
-                        }
+                        if (this.database != null) {
+
+                            mergeRecentLocalTransactions(this.database, freshDb);
+
+                        }
+
                         CalculationEngine.recalculate(freshDb);
                         this.database = freshDb;
                         saveLocalCache();
@@ -239,17 +247,59 @@ public class FinanceRepository {
             return;
         }
 
+        // Ensure net is accurately computed
+        double netVal = (tx.credit > 0 ? tx.credit : 0) + 
+                (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
+        tx.net = netVal;
+
         // Pre-append to local database for immediate UI responsiveness
         if (database != null) {
             if (database.transactions == null) {
                 database.transactions = new java.util.ArrayList<>();
             }
             tx.id = System.currentTimeMillis();
+
+            // Calculate running remainder for the entity (Account or Loan)
+            String entity = tx.account != null && !tx.account.trim().isEmpty() ? tx.account.trim() : (tx.loans != null ? tx.loans.trim() : "");
+            if (!entity.isEmpty()) {
+                double prevRem = 0;
+                boolean foundPrev = false;
+                for (Transaction t : database.transactions) {
+                    String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                    if (tEntity.equalsIgnoreCase(entity)) {
+                        prevRem = t.remainder;
+                        foundPrev = true;
+                        break;
+                    }
+                }
+                if (!foundPrev) {
+                    if (database.accounts != null) {
+                        for (com.samiy.financemanager.data.model.Account a : database.accounts) {
+                            if (a != null && a.name != null && a.name.trim().equalsIgnoreCase(entity)) {
+                                prevRem = a.currentBalance;
+                                break;
+                            }
+                        }
+                    }
+                    if (database.loans != null) {
+                        for (com.samiy.financemanager.data.model.Loan l : database.loans) {
+                            if (l != null && l.name != null && l.name.trim().equalsIgnoreCase(entity)) {
+                                prevRem = l.outstanding;
+                                break;
+                            }
+                        }
+                    }
+                }
+                tx.remainder = Math.round((prevRem + netVal) * 100.0) / 100.0;
+                updateEntityBalance(entity, netVal);
+            }
+
             database.transactions.add(0, tx);
             CalculationEngine.recalculate(database);
             saveLocalCache();
-            notifySyncListeners();
+            notifySyncListeners();
         }
+
 
         executor.execute(() -> {
             try {
@@ -266,8 +316,10 @@ public class FinanceRepository {
                 if (tx.debit != 0) txObj.addProperty("debit", tx.debit);
                 else if (tx.debitWithoutSign != 0) txObj.addProperty("debit", -Math.abs(tx.debitWithoutSign));
                 else txObj.addProperty("debit", "");
-                txObj.addProperty("net", "");
-                txObj.addProperty("remainder", "");
+                if (tx.net != 0) txObj.addProperty("net", tx.net);
+                else txObj.addProperty("net", "");
+                if (tx.remainder != 0) txObj.addProperty("remainder", tx.remainder);
+                else txObj.addProperty("remainder", "");
                 txObj.addProperty("type", tx.type);
                 txObj.addProperty("category", ""); // automatically decided inside sheet
                 txObj.addProperty("subCategory", tx.subCategory);
@@ -815,113 +867,205 @@ public class FinanceRepository {
         } catch (com.google.gson.JsonSyntaxException ignored) {}
     }
 
-    private void mergeRecentLocalTransactions(FinanceDatabase oldDb, FinanceDatabase newDb) {
-        if (oldDb == null || oldDb.transactions == null || newDb == null || newDb.transactions == null) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        for (Transaction oldTx : oldDb.transactions) {
-            if (oldTx.id > 1000000000000L && (now - oldTx.id) < 180000) {
-                boolean foundInNew = false;
-                for (Transaction newTx : newDb.transactions) {
-                    if (isSameTransaction(oldTx, newTx)) {
-                        foundInNew = true;
-                        break;
-                    }
-                }
-                if (!foundInNew) {
-                    newDb.transactions.add(0, oldTx);
-                }
-            }
-        }
-    }
-
-    private boolean isSameTransaction(Transaction a, Transaction b) {
-        if (a == null || b == null) return false;
-        boolean sameDate = (a.date != null && a.date.equals(b.date));
-        boolean sameCredit = Math.abs(a.credit - b.credit) < 0.01;
-        boolean sameDebit = Math.abs(a.debit - b.debit) < 0.01;
-        boolean sameSubCat = (a.subCategory != null && a.subCategory.equalsIgnoreCase(b.subCategory));
-        boolean sameAccount = (a.account == null && b.account == null) || (a.account != null && a.account.equalsIgnoreCase(b.account));
-        boolean sameLoans = (a.loans == null && b.loans == null) || (a.loans != null && a.loans.equalsIgnoreCase(b.loans));
-        return sameDate && sameCredit && sameDebit && sameSubCat && sameAccount && sameLoans;
-    }
-
-    private String executeHttpGetWithRedirect(String urlStr) throws Exception {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setInstanceFollowRedirects(true);
-        conn.setUseCaches(false);
-        conn.setDefaultUseCaches(false);
-        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
-        conn.setRequestProperty("Pragma", "no-cache");
-        conn.setRequestProperty("Expires", "0");
-        conn.setConnectTimeout(20000);
-        conn.setReadTimeout(20000);
-
-        int status = conn.getResponseCode();
-        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
-            String redirectUrl = conn.getHeaderField("Location");
-            conn.disconnect();
-            if (redirectUrl != null) {
-                return executeHttpGetWithRedirect(redirectUrl);
-            }
-        }
-
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String inputLine;
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            return response.toString();
-        } finally {
-            conn.disconnect();
-        }
-    }
-
-    private String executeHttpPost(String urlStr, String jsonBody) throws Exception {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setUseCaches(false);
-        conn.setDefaultUseCaches(false);
-        conn.setConnectTimeout(20000);
-        conn.setReadTimeout(20000);
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
-        conn.setRequestProperty("Pragma", "no-cache");
-        conn.setRequestProperty("Expires", "0");
-
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = jsonBody.getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
-        }
-
-        int status = conn.getResponseCode();
-        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
-            String redirectUrl = conn.getHeaderField("Location");
-            conn.disconnect();
-            if (redirectUrl != null) {
-                String resp = executeHttpGetWithRedirect(redirectUrl);
-                checkJsonResponseForError(resp);
-                return resp;
-            }
-        }
-
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String inputLine;
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            String resp = response.toString();
-            checkJsonResponseForError(resp);
-            return resp;
-        } finally {
-            conn.disconnect();
-        }
-    }
-}
+    private void mergeRecentLocalTransactions(FinanceDatabase oldDb, FinanceDatabase newDb) {
+        if (oldDb == null || oldDb.transactions == null || newDb == null || newDb.transactions == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (Transaction oldTx : oldDb.transactions) {
+            if (oldTx.id > 1000000000000L && (now - oldTx.id) < 180000) {
+                boolean foundInNew = false;
+                for (Transaction newTx : newDb.transactions) {
+                    if (isSameTransaction(oldTx, newTx)) {
+                        foundInNew = true;
+                        if (newTx.net == 0 && oldTx.net != 0) {
+                            newTx.net = oldTx.net;
+                        }
+                        if (newTx.remainder == 0 && oldTx.remainder != 0) {
+                            newTx.remainder = oldTx.remainder;
+                        }
+                        break;
+                    }
+                }
+                if (!foundInNew) {
+                    newDb.transactions.add(0, oldTx);
+                }
+            }
+        }
+    }
+
+    private boolean isSameTransaction(Transaction a, Transaction b) {
+        if (a == null || b == null) return false;
+        boolean sameDate = isSameString(a.date, b.date);
+        boolean sameCredit = Math.abs(a.credit - b.credit) < 0.01;
+        double aDebit = a.debit != 0 ? a.debit : (a.debitWithoutSign > 0 ? -a.debitWithoutSign : 0);
+        double bDebit = b.debit != 0 ? b.debit : (b.debitWithoutSign > 0 ? -b.debitWithoutSign : 0);
+        boolean sameDebit = Math.abs(aDebit - bDebit) < 0.01;
+        boolean sameSubCat = isSameString(a.subCategory, b.subCategory);
+        boolean sameAccount = isSameString(a.account, b.account);
+        boolean sameLoans = isSameString(a.loans, b.loans);
+        return sameDate && sameCredit && sameDebit && sameSubCat && sameAccount && sameLoans;
+    }
+
+    private boolean isSameString(String s1, String s2) {
+        String str1 = s1 != null ? s1.trim() : "";
+        String str2 = s2 != null ? s2.trim() : "";
+        return str1.equalsIgnoreCase(str2);
+    }
+
+    private String executeHttpGetWithRedirect(String urlStr) throws Exception {
+
+        URL url = new URL(urlStr);
+
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+
+        conn.setInstanceFollowRedirects(true);
+
+        conn.setUseCaches(false);
+
+        conn.setDefaultUseCaches(false);
+
+        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+
+        conn.setRequestProperty("Pragma", "no-cache");
+
+        conn.setRequestProperty("Expires", "0");
+
+        conn.setConnectTimeout(20000);
+
+        conn.setReadTimeout(20000);
+
+
+
+        int status = conn.getResponseCode();
+
+        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
+
+            String redirectUrl = conn.getHeaderField("Location");
+
+            conn.disconnect();
+
+            if (redirectUrl != null) {
+
+                return executeHttpGetWithRedirect(redirectUrl);
+
+            }
+
+        }
+
+
+
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+
+            StringBuilder response = new StringBuilder();
+
+            String inputLine;
+
+            while ((inputLine = in.readLine()) != null) {
+
+                response.append(inputLine);
+
+            }
+
+            return response.toString();
+
+        } finally {
+
+            conn.disconnect();
+
+        }
+
+    }
+
+
+
+    private String executeHttpPost(String urlStr, String jsonBody) throws Exception {
+
+        URL url = new URL(urlStr);
+
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("POST");
+
+        conn.setDoOutput(true);
+
+        conn.setUseCaches(false);
+
+        conn.setDefaultUseCaches(false);
+
+        conn.setConnectTimeout(20000);
+
+        conn.setReadTimeout(20000);
+
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+
+        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+
+        conn.setRequestProperty("Pragma", "no-cache");
+
+        conn.setRequestProperty("Expires", "0");
+
+
+
+        try (OutputStream os = conn.getOutputStream()) {
+
+            byte[] input = jsonBody.getBytes(StandardCharsets.UTF_8);
+
+            os.write(input, 0, input.length);
+
+        }
+
+
+
+        int status = conn.getResponseCode();
+
+        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
+
+            String redirectUrl = conn.getHeaderField("Location");
+
+            conn.disconnect();
+
+            if (redirectUrl != null) {
+
+                String resp = executeHttpGetWithRedirect(redirectUrl);
+
+                checkJsonResponseForError(resp);
+
+                return resp;
+
+            }
+
+        }
+
+
+
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+
+            StringBuilder response = new StringBuilder();
+
+            String inputLine;
+
+            while ((inputLine = in.readLine()) != null) {
+
+                response.append(inputLine);
+
+            }
+
+            String resp = response.toString();
+
+            checkJsonResponseForError(resp);
+
+            return resp;
+
+        } finally {
+
+            conn.disconnect();
+
+        }
+
+    }
+
+}
+

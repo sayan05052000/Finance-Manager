@@ -62,24 +62,22 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         // Value in debit does NOT mean expense.
         // It is an expense only if marked as "Expense".
         // A positive debit in an expense balances out (refund/cashback).
+        double effectiveNet = tx.net;
+        if (effectiveNet == 0 && !tx.isBalancingOut()) {
+            effectiveNet = (tx.credit > 0 ? tx.credit : 0) +
+                    (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
+        }
+
         if (tx.isBalancingOut()) {
             holder.tvAmount.setText("+" + formatCurrency(tx.debit));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
-        } else if (tx.net < 0) {
-            holder.tvAmount.setText("-" + formatCurrency(Math.abs(tx.net)));
+        } else if (effectiveNet < 0) {
+            holder.tvAmount.setText("-" + formatCurrency(Math.abs(effectiveNet)));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.red_rose));
-        } else if (tx.net > 0) {
-            holder.tvAmount.setText("+" + formatCurrency(tx.net));
+        } else if (effectiveNet > 0) {
+            holder.tvAmount.setText("+" + formatCurrency(effectiveNet));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
-        } 
-        // else if (tx.debit > 0) {
-        //     holder.tvAmount.setText("+" + formatCurrency(tx.debit));
-        //     holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
-        // } else if (tx.debitWithoutSign > 0) {
-        //     holder.tvAmount.setText("-" + formatCurrency(tx.debitWithoutSign));
-        //     holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.red_rose));
-        // } 
-        else {
+        } else {
             holder.tvAmount.setText(formatCurrency(0));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.text_muted));
         }
