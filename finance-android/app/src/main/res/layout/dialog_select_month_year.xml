@@ -334,7 +334,7 @@
             android:layout_height="44dp"
             android:layout_weight="1.4"
             android:text="Set Month &amp; Year"
-            android:textColor="#0B0F19"
+            android:textColor="@color/text_on_primary"
             android:textSize="13sp"
             android:textStyle="bold"
             app:backgroundTint="@color/green_emerald"

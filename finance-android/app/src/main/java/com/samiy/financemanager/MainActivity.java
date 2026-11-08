@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
     private FinanceRepository repository;
 
     private Fragment currentFragment;
+    private int currentTabId = R.id.nav_overview;
     private OverviewFragment overviewFragment;
     private CycleFragment cycleFragment;
     private HoldingsFragment holdingsFragment;
@@ -116,6 +117,10 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         tvUnauthorizedTitle = findViewById(R.id.tvUnauthorizedTitle);
         tvUnauthorizedReason = findViewById(R.id.tvUnauthorizedReason);
         btnUnauthorizedAction = findViewById(R.id.btnUnauthorizedAction);
+
+        if (savedInstanceState != null) {
+            currentTabId = savedInstanceState.getInt("saved_tab_id", R.id.nav_overview);
+        }
 
         overviewFragment = new OverviewFragment();
         cycleFragment = new CycleFragment();
@@ -183,6 +188,10 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         super.onResume();
         if (authManager.isAuthorized()) {
             startAutoSync();
+        }
+        if (com.samiy.financemanager.util.ThemeManager.hasPendingThemeToast()) {
+            boolean isLight = com.samiy.financemanager.util.ThemeManager.consumePendingThemeToast();
+            com.samiy.financemanager.util.FinMngrToast.showInfo(this, isLight ? "☀️ Switched to Pastel Light Theme" : "🌙 Switched to Pastel Dark Theme");
         }
     }
 
@@ -259,9 +268,9 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
 
         if (btnThemeToggle != null) {
             btnThemeToggle.setOnClickListener(v -> {
-                btnThemeToggle.animate().rotationBy(360f).setDuration(400).start();
-                boolean isLight = com.samiy.financemanager.util.ThemeManager.toggleTheme(this);
-                com.samiy.financemanager.util.FinMngrToast.showInfo(this, isLight ? "☀️ Switched to Pastel Light Theme" : "🌙 Switched to Pastel Dark Theme");
+                btnThemeToggle.animate().rotationBy(360f).setDuration(300).start();
+                com.samiy.financemanager.util.ThemeManager.toggleTheme(this);
+                recreate();
             });
         }
 
@@ -321,6 +330,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
                 return false;
             }
             int id = item.getItemId();
+            currentTabId = id;
             if (id == R.id.nav_overview) {
                 switchTab(overviewFragment);
                 return true;
@@ -346,6 +356,32 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.replace(R.id.fragmentContainer, fragment);
         ft.commitAllowingStateLoss();
+    }
+
+    private void selectTabById(int tabId) {
+        currentTabId = tabId;
+        Fragment target;
+        if (tabId == R.id.nav_cycle) {
+            target = cycleFragment;
+        } else if (tabId == R.id.nav_holdings) {
+            target = holdingsFragment;
+        } else if (tabId == R.id.nav_ledger) {
+            target = ledgerFragment;
+        } else if (tabId == R.id.nav_accounts) {
+            target = accountsFragment;
+        } else {
+            target = overviewFragment;
+        }
+        switchTab(target);
+        if (bottomNav != null && bottomNav.getSelectedItemId() != tabId) {
+            bottomNav.setSelectedItemId(tabId);
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt("saved_tab_id", currentTabId);
     }
 
 
@@ -411,7 +447,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
             updateHeaderInfo();
 
             if (currentFragment == null) {
-                switchTab(overviewFragment);
+                selectTabById(currentTabId);
             } else {
                 notifyActiveFragment();
             }

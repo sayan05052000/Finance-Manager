@@ -164,7 +164,7 @@
             app:cornerRadius="24dp"
             app:backgroundTint="@color/colorPrimary"
             android:text="Save Changes"
-            android:textColor="@color/bg_dark"
+            android:textColor="@color/text_on_primary"
             android:textSize="13sp"
             android:textStyle="bold"
             android:textAllCaps="false" />

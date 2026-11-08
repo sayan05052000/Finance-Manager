@@ -33,7 +33,7 @@
                     android:background="@drawable/bg_pill_emerald"
                     android:gravity="center"
                     android:text="＋ Add Transaction"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_on_primary"
                     android:textSize="12sp"
                     android:textStyle="bold"
                     android:clickable="true"

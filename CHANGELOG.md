@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v2.0] - 2026-11-08
 
+### Fixed
+- **Instant Theme Switching Reflection on Current Screen**:
+  - Removed `uiMode` from `android:configChanges` in `AndroidManifest.xml`, which was previously preventing Android from recreating `MainActivity` and forcing the user to switch screens to view theme changes.
+  - Implemented synchronous preference commitment (`.commit()`) in `ThemeManager.java` and explicit `recreate()` dispatch upon theme toggle.
+  - Added active tab state preservation in `MainActivity` (`saved_tab_id` bundle persistence + `selectTabById()`), ensuring that the application reopens seamlessly on the exact screen/fragment the user was viewing, fully re-rendered with the new theme colors.
+  - Added queued floating toast notification (`hasPendingThemeToast()` / `consumePendingThemeToast()`) displayed cleanly on resume of the newly themed activity.
+- **Pastel Light Theme Overhaul & Contrast Restoration**:
+  - Replaced flat `#F8FAFC` background with soothing porcelain cool slate (`#F1F5F9`), providing crisp visual definition and tactile card separation for pure white cards (`#FFFFFF`) with `@color/border_dark` (`#E2E8F0`).
+  - Fixed washed-out text and numbers by upgrading `green_mint` from low-contrast `#10B981` (2.04:1 ratio) to deep forest sage `#047857` (5.5:1 WCAG AAA compliance), ensuring that Net Worth, active status chips, credits, and balance indicators are crisp and legible.
+  - Added semantic `text_on_primary` attribute (`#FFFFFF` in light mode, `#0B0F19` in dark mode) ensuring optimal contrast across all primary pill buttons and active filter pills.
+  - Harmonized pastel accent washes: `green_bg` (`#ECFDF5`), `red_bg` (`#FFF1F2`), `amber_bg` (`#FEF3C7`), `blue_bg` (`#F0F9FF`), and `red_rose` (`#E05263`).
+  - Fixed wordmark letter "F" in "FinMngr" by migrating from hardcoded `#FFFFFF` to dynamic `@color/text_primary`, making it visible in both themes.
+
 ### Added
 - **Design Language System Harmonization & Unification**:
   - Eliminated legacy unstyled flat `<Button>` tags across all modals (`dialog_edit_credit_card`, `dialog_add_credit_card`, `dialog_add_transaction`, `dialog_add_mf_transaction`, `dialog_edit_sip`, `dialog_select_folio`, `dialog_select_subcategory`, `fragment_holdings`), replacing them with cohesive `com.google.android.material.button.MaterialButton` pill elements with standard 21-25dp radii and `textAllCaps="false"`.

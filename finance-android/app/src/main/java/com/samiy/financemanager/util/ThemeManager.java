@@ -12,6 +12,9 @@ public class ThemeManager {
     public static final String THEME_DARK_PASTEL = "dark_pastel";
     public static final String THEME_LIGHT_PASTEL = "light_pastel";
 
+    private static boolean pendingThemeToast = false;
+    private static boolean pendingThemeIsLight = false;
+
     /**
      * Applies the user's saved theme mode (defaults to Dark Pastel).
      */
@@ -41,7 +44,7 @@ public class ThemeManager {
     }
 
     /**
-     * Toggles between Dark Pastel and Light Pastel, saves to preferences, and applies immediately.
+     * Toggles between Dark Pastel and Light Pastel, synchronously commits to preferences, and applies.
      * @return true if new theme is Light Pastel, false if Dark Pastel.
      */
     public static boolean toggleTheme(Context context) {
@@ -49,9 +52,21 @@ public class ThemeManager {
         boolean wasLight = isLightPastel(context);
         String newTheme = wasLight ? THEME_DARK_PASTEL : THEME_LIGHT_PASTEL;
         SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        sp.edit().putString(KEY_THEME, newTheme).apply();
+        sp.edit().putString(KEY_THEME, newTheme).commit();
         
         applyTheme(context);
-        return !wasLight;
+        boolean isNowLight = !wasLight;
+        pendingThemeToast = true;
+        pendingThemeIsLight = isNowLight;
+        return isNowLight;
+    }
+
+    public static boolean hasPendingThemeToast() {
+        return pendingThemeToast;
+    }
+
+    public static boolean consumePendingThemeToast() {
+        pendingThemeToast = false;
+        return pendingThemeIsLight;
     }
 }

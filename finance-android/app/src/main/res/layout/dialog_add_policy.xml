@@ -298,7 +298,7 @@
             android:layout_height="50dp"
             android:layout_marginTop="24dp"
             android:text="Add Policy to Google Sheet"
-            android:textColor="#0B0F19"
+            android:textColor="@color/text_on_primary"
             android:textSize="14sp"
             android:textStyle="bold"
             app:backgroundTint="@color/green_emerald"

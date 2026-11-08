@@ -4,6 +4,8 @@
     <color name="colorPrimary">#6EE7B7</color>
     <color name="colorPrimaryDark">#0B0F19</color>
     <color name="colorAccent">#6EE7B7</color>
+    <color name="colorOnPrimary">#0B0F19</color>
+    <color name="text_on_primary">#0B0F19</color>
 
     <!-- Theme & Backgrounds (Pastel Dark: Obsidian Slate & Dark Navy) -->
     <color name="bg_dark">#0B0F19</color>

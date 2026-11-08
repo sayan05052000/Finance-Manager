@@ -77,7 +77,7 @@
             app:cornerRadius="23dp"
             app:backgroundTint="@color/colorPrimary"
             android:text="Confirm"
-            android:textColor="@color/bg_dark"
+            android:textColor="@color/text_on_primary"
             android:textSize="13sp"
             android:textStyle="bold"
             android:textAllCaps="false" />

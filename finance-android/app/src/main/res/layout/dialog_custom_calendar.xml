@@ -331,7 +331,7 @@
             android:gravity="center"
             android:background="@drawable/bg_pill_emerald"
             android:text="Set Date"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_primary"
             android:textSize="13sp"
             android:textStyle="bold"
             android:clickable="true"

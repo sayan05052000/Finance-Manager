@@ -58,7 +58,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="F"
-                            android:textColor="#FFFFFF"
+                            android:textColor="@color/text_primary"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
@@ -251,7 +251,7 @@
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
                 android:text="Sign in with samiyasti@gmail.com"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_on_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 app:backgroundTint="@color/colorPrimary"

@@ -471,17 +471,20 @@ FinMngr v2.0 introduces an end-to-end **Pastel Color Design System** featuring s
    - **Info / Accounts / Cards**: Powder sky blue (`#BAE6FD` / `#38BDF8`).
 
 2. **Pastel Light Palette (`values/colors.xml`)**:
-   - **Background**: Crisp soft porcelain (`#F8FAFC`).
-   - **Card / Surface**: Pure white (`#FFFFFF`) with refined border strokes (`#E2E8F0`).
-   - **Primary / Income / Balance**: Rich forest mint (`#059669` / `#D1FAE5`).
-   - **Secondary / Expenses / Debits**: Vivid rose coral (`#E11D48` / `#FFE4E6`).
-   - **Warning / Unbilled / Loans**: Warm amber honey (`#D97706` / `#FEF3C7`).
-   - **Info / Accounts / Cards**: Deep azure sky (`#0284C7` / `#E0F2FE`).
+   - **Background**: Soothing porcelain cool slate (`#F1F5F9`) providing tactile card depth and distinct separation.
+   - **Card / Surface**: Pure white (`#FFFFFF`) with refined border strokes (`#E2E8F0`) and elevated pills (`#F8FAFC`).
+   - **Primary / Sage Teal**: Refined sage teal (`#0D9488`).
+   - **Credits / Inflows / Status (`green_mint`)**: Rich deep forest sage (`#047857`), delivering 5.5:1 WCAG AAA high-contrast clarity against white and pale mint surfaces.
+   - **Secondary / Expenses / Debits (`red_rose`)**: Warm elegant rose coral (`#E05263`) with gentle petal rose wash (`#FFF1F2`).
+   - **Warning / Unbilled / Loans (`amber_gold`)**: Rich warm honey amber (`#B45309`) with creamy honey wash (`#FEF3C7`).
+   - **Info / Accounts / Cards (`blue_sky`)**: Serene sky azure (`#0284C7`) with soft sky wash (`#F0F9FF`).
+   - **Text on Primary (`text_on_primary`)**: Solid crisp white (`#FFFFFF`) for primary action buttons.
 
-#### 1-Tap Header Theme Switcher & Persistence
+#### 1-Tap Header Theme Switcher & Seamless Instant Reflection
+* **Instant In-Place Reflection**: Tapping `btnThemeToggle` immediately re-renders every pixel on the active screen without requiring the user to navigate or switch tabs. The Activity state is preserved via `saved_tab_id` and restored via `selectTabById()`.
 * **One-Tap Header Action**: A dedicated theme switcher button (`btnThemeToggle`) with a half-filled contrast vector glyph (`ic_theme_toggle.xml`) sits directly in the top app bar beside the sync button.
-* **Haptic & Visual Feedback**: Tapping the button animates a 360° rotation and displays an immediate confirmation toast indicating the active mode (*"Switched to Pastel Light"* / *"Switched to Pastel Dark"*).
-* **Persistent Preference**: Managed by `ThemeManager.java`, which stores choices in `SharedPreferences` (`finmngr_theme_prefs`) and invokes `AppCompatDelegate.setDefaultNightMode()` on application boot and theme switches.
+* **Haptic & Visual Feedback**: Tapping the button animates a 360° rotation and displays a queued floating toast HUD upon recreation (*"☀️ Switched to Pastel Light Theme"* / *"🌙 Switched to Pastel Dark Theme"*).
+* **Persistent Preference**: Managed by `ThemeManager.java`, which synchronously commits choices in `SharedPreferences` (`finmngr_theme_prefs`) and dispatches `AppCompatDelegate.setDefaultNightMode()`. Native Activity recreation is enabled by removing `uiMode` from `android:configChanges` in `AndroidManifest.xml`.
 * **Canvas & Custom View Adaptability**: Custom components like `CycleChartView` dynamically query `ContextCompat.getColor()` for all canvas paints (budget, expense, investment, axis, and highlight cursors), ensuring flawless rendering across both themes without restarts.
 
 ---

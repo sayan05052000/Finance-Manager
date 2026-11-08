@@ -270,7 +270,7 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_pill_emerald"
                 android:text="+ Add Transaction"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_on_primary"
                 android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:paddingStart="12dp"

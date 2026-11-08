@@ -233,7 +233,7 @@ public class AccountsFragment extends Fragment {
     private void highlightPill(TextView pill) {
         if (pill == null) return;
         pill.setBackgroundResource(R.drawable.bg_pill_emerald);
-        pill.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary));
+        pill.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_on_primary));
     }
 
     private void updateToggleUI() {

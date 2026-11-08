@@ -1,43 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand / Primary (Pastel Mint) -->
-    <color name="colorPrimary">#059669</color>
-    <color name="colorPrimaryDark">#F1F5F9</color>
-    <color name="colorAccent">#059669</color>
+    <!-- Brand / Primary (Refined Sage Teal) -->
+    <color name="colorPrimary">#0D9488</color>
+    <color name="colorPrimaryDark">#E2E8F0</color>
+    <color name="colorAccent">#0D9488</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="text_on_primary">#FFFFFF</color>
 
-    <!-- Theme & Backgrounds (Pastel Light: Porcelain & Crisp White) -->
-    <color name="bg_dark">#F8FAFC</color>
+    <!-- Theme & Backgrounds (Pastel Light: Soothing Cool Slate & Pure White Cards) -->
+    <color name="bg_dark">#F1F5F9</color>
     <color name="bg_card">#FFFFFF</color>
-    <color name="bg_card_secondary">#F1F5F9</color>
+    <color name="bg_card_secondary">#F8FAFC</color>
     <color name="border_dark">#E2E8F0</color>
     <color name="nav_bottom_bg">#FFFFFF</color>
 
-    <!-- Text Colors (Deep Slate for High Legibility) -->
+    <!-- Text Colors (Deep Slate Navy for Rich High Contrast) -->
     <color name="text_primary">#0F172A</color>
     <color name="text_secondary">#475569</color>
     <color name="text_muted">#94A3B8</color>
 
-    <!-- Pastel Mint / Emerald (Credits & Inflows) -->
+    <!-- Pastel Mint / Emerald (Credits & Inflows - Rich Sage Green with High Legibility) -->
     <color name="green_emerald">#059669</color>
-    <color name="green_mint">#10B981</color>
-    <color name="green_bg">#D1FAE5</color>
-    <color name="green_chip">#A7F3D0</color>
+    <color name="green_mint">#047857</color>
+    <color name="green_bg">#ECFDF5</color>
+    <color name="green_chip">#D1FAE5</color>
 
-    <!-- Pastel Coral / Rose (Debits & Expenses) -->
-    <color name="red_rose">#E11D48</color>
-    <color name="red_bg">#FFE4E6</color>
+    <!-- Pastel Coral / Rose (Debits & Expenses - Warm Elegant Rose, Not Aggressive Red) -->
+    <color name="red_rose">#E05263</color>
+    <color name="red_bg">#FFF1F2</color>
 
-    <!-- Pastel Honey / Amber (Badges, Loans & Investments) -->
-    <color name="amber_gold">#D97706</color>
+    <!-- Pastel Honey / Amber (Badges, Loans & Investments - Warm Creamy Honey) -->
+    <color name="amber_gold">#B45309</color>
     <color name="amber_bg">#FEF3C7</color>
-    <color name="amber_badge">#FDE68A</color>
+    <color name="amber_badge">#FEF3C7</color>
 
-    <!-- Pastel Baby Sky (Remainders, Cycles & Credit Cards) -->
+    <!-- Pastel Powder Sky (Remainders, Cycles & Credit Cards - Serene Azure) -->
     <color name="blue_sky">#0284C7</color>
     <color name="blue_royal">#2563EB</color>
-    <color name="blue_bg">#E0F2FE</color>
+    <color name="blue_bg">#F0F9FF</color>
 
     <!-- Pastel Lavender / Lilac -->
     <color name="purple_royal">#7C3AED</color>
-    <color name="purple_bg">#F3E8FF</color>
+    <color name="purple_bg">#FAF5FF</color>
 </resources>

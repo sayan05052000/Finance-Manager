@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -155,13 +156,13 @@ public class CycleFragment extends Fragment {
 
     private void updateRangeButtons() {
         btnRange6M.setBackgroundResource(currentRangeMode == 0 ? R.drawable.bg_pill_emerald : 0);
-        btnRange6M.setTextColor(currentRangeMode == 0 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+        btnRange6M.setTextColor(currentRangeMode == 0 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
 
         btnRange1Y.setBackgroundResource(currentRangeMode == 1 ? R.drawable.bg_pill_emerald : 0);
-        btnRange1Y.setTextColor(currentRangeMode == 1 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+        btnRange1Y.setTextColor(currentRangeMode == 1 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
 
         btnRangeAll.setBackgroundResource(currentRangeMode == 2 ? R.drawable.bg_pill_emerald : 0);
-        btnRangeAll.setTextColor(currentRangeMode == 2 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+        btnRangeAll.setTextColor(currentRangeMode == 2 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
     }
 
     private void updateSelectedCycleCard(CycleChartView.CycleBarItem item) {
@@ -310,13 +311,13 @@ public class CycleFragment extends Fragment {
 
     private void updateTrackerFilterButtons() {
         btnTrackerFilterAll.setBackgroundResource(currentTrackerFilter == 0 ? R.drawable.bg_pill_emerald : 0);
-        btnTrackerFilterAll.setTextColor(currentTrackerFilter == 0 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+        btnTrackerFilterAll.setTextColor(currentTrackerFilter == 0 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
 
         btnTrackerFilterSavings.setBackgroundResource(currentTrackerFilter == 1 ? R.drawable.bg_pill_emerald : 0);
-        btnTrackerFilterSavings.setTextColor(currentTrackerFilter == 1 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+        btnTrackerFilterSavings.setTextColor(currentTrackerFilter == 1 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
 
         btnTrackerFilterExpenses.setBackgroundResource(currentTrackerFilter == 2 ? R.drawable.bg_pill_emerald : 0);
-        btnTrackerFilterExpenses.setTextColor(currentTrackerFilter == 2 ? 0xFFFFFFFF : getResources().getColor(R.color.text_secondary));
+        btnTrackerFilterExpenses.setTextColor(currentTrackerFilter == 2 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
     }
 
     private void populateExpenseTracker() {
