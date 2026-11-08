@@ -38,7 +38,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
+public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
     public interface OnTransactionAddedListener {
         void onTransactionAdded();
     }

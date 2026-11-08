@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class SipTracerBottomSheet extends BottomSheetDialogFragment {
+public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
     private TextView tvSipSubtitle, tvEmptySips;
     private RecyclerView rvSipList;
     private SipAdapter adapter;
@@ -40,6 +40,7 @@ public class SipTracerBottomSheet extends BottomSheetDialogFragment {
                     (com.google.android.material.bottomsheet.BottomSheetDialog) d;
             android.widget.FrameLayout bottomSheet = bsd.findViewById(com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheet != null) {
+                bottomSheet.setBackgroundResource(android.R.color.transparent);
                 com.google.android.material.bottomsheet.BottomSheetBehavior<android.widget.FrameLayout> behavior =
                         com.google.android.material.bottomsheet.BottomSheetBehavior.from(bottomSheet);
                 behavior.setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);

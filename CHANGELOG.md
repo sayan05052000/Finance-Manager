@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Structured card actions into two distinct, balanced rows (Row 1: Transactions & Add Tx; Row 2: Bill Generated, Mark as Paid, Update Bill) completely eliminating horizontal overflow.
 
 ### Fixed
+- **Bottom Sheet Modal Corner Artifacts Elimination (`BaseBottomSheetDialogFragment`)**:
+  - Resolved sharp square black/dark container corners protruding behind curved bottom sheets (`media_1794166006615_ffcbe952.png`).
+  - Created [`BaseBottomSheetDialogFragment`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/BaseBottomSheetDialogFragment.java) enforcing `android.R.color.transparent` on both the window and the internal `design_bottom_sheet` container across all 11 modal subclasses (`AccountTransactionsBottomSheet`, `AddTransactionBottomSheet`, `TransactionDetailsBottomSheet`, `AddCreditCardBottomSheet`, `EditCreditCardBottomSheet`, `AddPolicyBottomSheet`, `EditPolicyBottomSheet`, `EditSipBottomSheet`, `AddMutualFundTransactionBottomSheet`, `SipTracerBottomSheet`, `ViewMfTransactionsBottomSheet`).
+  - Updated `FinMngrBottomSheetDialogTheme` in both `values/styles.xml` and `values-night/styles.xml` with transparent backgrounds and `backgroundTint="@android:color/transparent"`.
+- **Section Filter Pills Layout & Visual Consistency**:
+  - Resolved uneven width stretching and irregular spacing in the Accounts screen filter bar (`media_1794165931574_eae7e2da.png`).
+  - Replaced stretched `layout_weight="1"` items with centered `wrap_content` pill chips (Row 1: All Sections, Banks & Debt, Credit Cards; Row 2: LIC & Tata AIA, Financial Goals).
+  - Standardized inactive state styling to subtle bordered pill (`bg_pill_dark`) instead of bare unstyled text, and active state to `@drawable/bg_pill_emerald` with `@color/text_on_primary`.
+- **Stopped & Fully Paid Policy Due Date Status**:
+  - Fixed design inconsistency where stopped/matured policies displayed active amber due date badges (`media_1794166074155_f3e8b7b8.jpg`).
+  - Added `tvPolicyDueDateLabel` to [`item_policy.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_policy.xml); when `isPolicyFullyPaidOrMatured(p)` is true, the label automatically displays "Policy Status" with a soft sage green badge (`bg_badge_good`) reading "Stopped / Fully Paid" instead of an amber future payment due prompt.
+- **Ledger Filter Spinners Alignment & Touch Target**:
+  - Updated [`item_spinner_selected.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_spinner_selected.xml) to center text vertically with `layout_height="match_parent"` and balanced internal padding, preventing text cropping.
+  - Increased Ledger filter spinner heights to 42dp in [`fragment_ledger.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_ledger.xml) for optimal touch targets and spacing.
 - **Complete Elimination of Horizontal Scrolling Across the Entire Application**:
   - Replaced all 5 legacy `HorizontalScrollView` widgets with responsive, screen-bounded multi-row grid layouts:
     1. `fragment_accounts.xml`: Converted top section filter pills into a 2-row adaptive layout (Row 1: All Sections, Banks & Debt, Credit Cards; Row 2: LIC & Tata AIA, Financial Goals) with zero horizontal scroll.

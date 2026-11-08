@@ -25,7 +25,7 @@ import com.samiy.financemanager.data.model.Transaction;
 import java.text.NumberFormat;
 import java.util.Locale;
 
-public class TransactionDetailsBottomSheet extends BottomSheetDialogFragment {
+public class TransactionDetailsBottomSheet extends BaseBottomSheetDialogFragment {
     private static final String ARG_TRANSACTION = "transaction";
     private Transaction transaction;
 
@@ -55,6 +55,7 @@ public class TransactionDetailsBottomSheet extends BottomSheetDialogFragment {
             BottomSheetDialog d = (BottomSheetDialog) dialogInterface;
             View bottomSheetInternal = d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheetInternal != null) {
+                bottomSheetInternal.setBackgroundResource(android.R.color.transparent);
                 BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheetInternal);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 behavior.setSkipCollapsed(true);

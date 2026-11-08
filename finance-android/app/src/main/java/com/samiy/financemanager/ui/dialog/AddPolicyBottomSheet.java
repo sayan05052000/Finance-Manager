@@ -30,7 +30,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
+public class AddPolicyBottomSheet extends BaseBottomSheetDialogFragment {
 
     public interface OnPolicyAddedListener {
         void onPolicyAdded();
@@ -54,6 +54,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
             BottomSheetDialog d = (BottomSheetDialog) dialogInterface;
             View bottomSheetInternal = d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheetInternal != null) {
+                bottomSheetInternal.setBackgroundResource(android.R.color.transparent);
                 BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheetInternal);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 behavior.setSkipCollapsed(true);

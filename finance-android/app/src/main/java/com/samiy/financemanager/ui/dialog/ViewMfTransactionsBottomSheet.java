@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-public class ViewMfTransactionsBottomSheet extends BottomSheetDialogFragment {
+public class ViewMfTransactionsBottomSheet extends BaseBottomSheetDialogFragment {
     public static final String ARG_INITIAL_SCHEME = "initial_scheme";
     public static final String ARG_INITIAL_CATEGORY = "initial_category";
     public static final String ARG_INITIAL_SUBCATEGORY = "initial_subcategory";

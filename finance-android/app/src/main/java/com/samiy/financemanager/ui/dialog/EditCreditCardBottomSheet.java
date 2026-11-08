@@ -24,7 +24,7 @@ import com.samiy.financemanager.util.DateTimeHelper;
 import java.text.NumberFormat;
 import java.util.Locale;
 
-public class EditCreditCardBottomSheet extends BottomSheetDialogFragment {
+public class EditCreditCardBottomSheet extends BaseBottomSheetDialogFragment {
     private static final String ARG_CREDIT_CARD = "arg_credit_card";
     private CreditCard card;
 

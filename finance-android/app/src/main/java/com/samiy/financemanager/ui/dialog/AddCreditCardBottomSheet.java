@@ -22,7 +22,7 @@ import com.samiy.financemanager.util.DateTimeHelper;
 
 import java.util.List;
 
-public class AddCreditCardBottomSheet extends BottomSheetDialogFragment {
+public class AddCreditCardBottomSheet extends BaseBottomSheetDialogFragment {
     public interface OnCreditCardAddedListener {
         void onCreditCardAdded(CreditCard newCard);
     }

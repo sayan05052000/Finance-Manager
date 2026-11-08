@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class AccountTransactionsBottomSheet extends BottomSheetDialogFragment {
+public class AccountTransactionsBottomSheet extends BaseBottomSheetDialogFragment {
 
     public static final String TYPE_ACCOUNT = "ACCOUNT";
     public static final String TYPE_LOAN = "LOAN";

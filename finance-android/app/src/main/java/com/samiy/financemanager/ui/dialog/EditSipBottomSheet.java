@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class EditSipBottomSheet extends BottomSheetDialogFragment {
+public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
     public interface OnSipUpdatedListener {
         void onSipUpdated(SipItem updatedSip);
     }
@@ -98,6 +98,7 @@ public class EditSipBottomSheet extends BottomSheetDialogFragment {
             BottomSheetDialog bsd = (BottomSheetDialog) d;
             FrameLayout bottomSheet = bsd.findViewById(com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheet != null) {
+                bottomSheet.setBackgroundResource(android.R.color.transparent);
                 BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(bottomSheet);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 behavior.setSkipCollapsed(true);

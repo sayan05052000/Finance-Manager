@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragment {
+public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFragment {
     public interface OnMfTransactionAddedListener {
         void onMfTransactionAdded();
     }

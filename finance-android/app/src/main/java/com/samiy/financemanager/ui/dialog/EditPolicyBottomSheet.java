@@ -32,7 +32,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
+public class EditPolicyBottomSheet extends BaseBottomSheetDialogFragment {
 
     private static final String ARG_POLICY = "policy";
     private static final String ARG_AUTO_MARK_PAID = "auto_mark_paid";
@@ -132,6 +132,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
             BottomSheetDialog d = (BottomSheetDialog) dialogInterface;
             View bottomSheetInternal = d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheetInternal != null) {
+                bottomSheetInternal.setBackgroundResource(android.R.color.transparent);
                 BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheetInternal);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 behavior.setSkipCollapsed(true);

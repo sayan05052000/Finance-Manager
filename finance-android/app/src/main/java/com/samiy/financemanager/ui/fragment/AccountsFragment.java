@@ -230,7 +230,7 @@ public class AccountsFragment extends Fragment {
 
     private void resetPill(TextView pill) {
         if (pill == null) return;
-        pill.setBackground(null);
+        pill.setBackgroundResource(R.drawable.bg_pill_dark);
         pill.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
     }
 
@@ -539,12 +539,30 @@ public class AccountsFragment extends Fragment {
             // Premium Amount
             tvPremium.setText(formatCurrency(p.premiumAmount));
 
-            // Due Date
-            if (p.dueDate != null && !p.dueDate.trim().isEmpty()) {
-                tvDueDate.setText(p.dueDate);
+            // Check if policy is matured / stopped / fully paid
+            boolean isMatured = com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet.isPolicyFullyPaidOrMatured(p);
+            TextView tvDueDateLabel = itemView.findViewById(R.id.tvPolicyDueDateLabel);
+
+            // Due Date / Policy Status
+            if (isMatured) {
+                if (tvDueDateLabel != null) tvDueDateLabel.setText("Policy Status");
+                tvDueDate.setText("Stopped / Fully Paid");
+                tvDueDate.setBackgroundResource(R.drawable.bg_badge_good);
+                tvDueDate.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
                 tvDueDate.setVisibility(View.VISIBLE);
             } else {
-                tvDueDate.setText("No Due Date");
+                if (tvDueDateLabel != null) tvDueDateLabel.setText("Next Due Date");
+                if (p.dueDate != null && !p.dueDate.trim().isEmpty()) {
+                    tvDueDate.setText(p.dueDate.trim());
+                    tvDueDate.setBackgroundResource(R.drawable.bg_badge_amber);
+                    tvDueDate.setTextColor(ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                    tvDueDate.setVisibility(View.VISIBLE);
+                } else {
+                    tvDueDate.setText("No Due Date");
+                    tvDueDate.setBackgroundResource(R.drawable.bg_pill_dark);
+                    tvDueDate.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+                    tvDueDate.setVisibility(View.VISIBLE);
+                }
             }
 
             // Last Paid Date
@@ -586,7 +604,6 @@ public class AccountsFragment extends Fragment {
             }
 
             // Quick Mark as Paid Button or Matured Badge
-            boolean isMatured = com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet.isPolicyFullyPaidOrMatured(p);
             View btnMarkPaidQuick = itemView.findViewById(R.id.btnMarkPolicyPaidQuick);
             View tvPolicyMaturedBadge = itemView.findViewById(R.id.tvPolicyMaturedBadge);
 
