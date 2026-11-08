@@ -309,16 +309,10 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
             CurrentCycle cycle = db.currentCycle != null ? db.currentCycle : new CurrentCycle();
             tvHeaderCycle.setText("⏳ " + cycle.cycleMonth + " • " + cycle.daysLeft + "d");
 
-            // Update bottom nav badges
+            // Clear bottom nav badges to prevent numbers from overflowing icons
             try {
-                BadgeDrawable cycleBadge = bottomNav.getOrCreateBadge(R.id.nav_cycle);
-                cycleBadge.setNumber(5);
-                cycleBadge.setBackgroundColor(getResources().getColor(R.color.green_emerald));
-
-                BadgeDrawable holdingsBadge = bottomNav.getOrCreateBadge(R.id.nav_holdings);
-                int assetsCount = db.holdings != null ? db.holdings.size() : 13;
-                holdingsBadge.setNumber(assetsCount);
-                holdingsBadge.setBackgroundColor(getResources().getColor(R.color.green_emerald));
+                bottomNav.removeBadge(R.id.nav_cycle);
+                bottomNav.removeBadge(R.id.nav_holdings);
             } catch (Exception ignored) {}
         }
     }
@@ -356,6 +350,13 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.replace(R.id.fragmentContainer, fragment);
         ft.commitAllowingStateLoss();
+    }
+
+    public void openLedgerWithFilter(String accountName, String loanName) {
+        if (ledgerFragment != null) {
+            ledgerFragment.setInitialFilter(accountName, loanName);
+        }
+        selectTabById(R.id.nav_ledger);
     }
 
     private void selectTabById(int tabId) {

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.1] - 2026-11-09
+
+### Added
+- **Account & Loan Direct Transaction Ledger & Management (`AccountTransactionsBottomSheet`)**:
+  - Added dedicated interactive bottom sheet modal accessible directly from any Bank Account, Loan Account, or Credit Card item in the **Accounts** screen.
+  - Displays filtered transaction history, entry count, total inflows (`+₹...`), total outflows (`-₹...`), and quick shortcuts.
+  - Supports all ledger capabilities: tap or long-press to view full transaction details (`TransactionDetailsBottomSheet`), delete transaction with permanent cloud removal, spend reversal confirmation, and direct "Full Ledger ↗" filter redirection.
+  - Added `[📜 Transactions]` action pill and real-time transaction count badge directly on each Bank Account and Loan item.
+- **Strictly Locked Auto-Selection in Transaction Addition**:
+  - When opening Add Transaction from a Bank Account: Loan/Account radio is pre-selected and locked to **Bank Account**, spinner is auto-selected to that specific account, disabled with touch rejection (`setOnTouchListener((v, e) -> true)`), and displays a prominent visual lock banner (`🔒 Auto-selected Account: [Name] (Cannot be changed)`).
+  - When opening Add Transaction from a Loan item: Loan/Account radio is pre-selected and locked to **Loan / Card**, spinner is auto-selected to that loan and touch-disabled, and displays `🔒 Auto-selected Loan: [Name] (Cannot be changed)`.
+  - When opening Add Transaction from a Credit Card: Loan/Account radio is locked to **Loan / Card**, spinner is locked to `CREDIT CARD`, Credit Card tag section is displayed and locked to that specific credit card with touch rejection, inline card creation is hidden, and displays `🔒 Auto-selected Loan: CREDIT CARD • Card: [CardName] (Cannot be changed)`.
+- **Tagged Credit Card Transactions & Lifecycle Restructuring**:
+  - Added `[📜 Tagged Transactions (N)]` button to every Credit Card card on the Credit Cards section, allowing immediate review of all expenses tagged to that specific card.
+  - Added direct `[＋ Add Tx]` action button on each credit card.
+  - Structured card actions into two distinct, balanced rows (Row 1: Transactions & Add Tx; Row 2: Bill Generated, Mark as Paid, Update Bill) completely eliminating horizontal overflow.
+
+### Fixed
+- **Complete Elimination of Horizontal Scrolling Across the Entire Application**:
+  - Replaced all 5 legacy `HorizontalScrollView` widgets with responsive, screen-bounded multi-row grid layouts:
+    1. `fragment_accounts.xml`: Converted top section filter pills into a 2-row adaptive layout (Row 1: All Sections, Banks & Debt, Credit Cards; Row 2: LIC & Tata AIA, Financial Goals) with zero horizontal scroll.
+    2. `item_credit_card.xml`: Converted single-row scrolling actions into a 2-tier structured action system (`weight=1`, `gravity=center`).
+    3. `fragment_ledger.xml`: Converted the horizontal filter scroll container into a neat 3-row x 2-column filter grid (Row 1: Cycle & Year; Row 2: Type & Category; Row 3: Account & Loan), displaying all 6 filters simultaneously.
+    4. `dialog_custom_calendar.xml`: Replaced scrolling date presets with a balanced 2x2 grid (Row 1: Today, Yesterday; Row 2: Cycle Start, Month Start).
+    5. `dialog_select_month_year.xml`: Replaced scrolling decade bar with an 8-decade 2-row selector grid in `CustomCalendarDialog.java`.
+- **Bottom Navigation Badge Number Overflow**:
+  - Removed overflowing `BadgeDrawable` counter indicators (`cycleBadge.setNumber(5)` and `holdingsBadge.setNumber(13)`) that previously overlapped bottom navigation icons and text labels (`media_1794164409861_76e5a574.jpg`).
+  - Added explicit badge removal on bottom navigation tabs in `MainActivity.java` (`removeBadge(R.id.nav_cycle)`, `removeBadge(R.id.nav_holdings)`), restoring clean, modern Material navigation.
+
+---
+
 ## [v2.0] - 2026-11-08
 
 ### Fixed

@@ -28,6 +28,10 @@ import com.samiy.financemanager.data.model.InsurancePolicy;
 import com.samiy.financemanager.data.model.Loan;
 import com.samiy.financemanager.ui.dialog.AddPolicyBottomSheet;
 import com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet;
+import com.samiy.financemanager.MainActivity;
+import com.samiy.financemanager.data.model.Transaction;
+import com.samiy.financemanager.ui.dialog.AccountTransactionsBottomSheet;
+import com.samiy.financemanager.ui.dialog.AddTransactionBottomSheet;
 
 import java.text.NumberFormat;
 import java.util.Locale;
@@ -299,9 +303,49 @@ public class AccountsFragment extends Fragment {
                     View itemView = inflater.inflate(R.layout.item_account, layoutBankAccountsList, false);
                     TextView tvName = itemView.findViewById(R.id.tvAccountName);
                     TextView tvBalance = itemView.findViewById(R.id.tvAccountBalance);
+                    TextView tvTxCount = itemView.findViewById(R.id.tvAccountTxCount);
+                    View btnViewTxs = itemView.findViewById(R.id.btnViewAccountTransactions);
+                    View btnAddTx = itemView.findViewById(R.id.btnAddAccountTransaction);
 
                     tvName.setText(a.name);
                     tvBalance.setText(formatCurrency(a.currentBalance));
+
+                    int txCount = 0;
+                    if (db.transactions != null) {
+                        for (Transaction t : db.transactions) {
+                            if (t != null && t.account != null && t.account.trim().equalsIgnoreCase(a.name.trim())) {
+                                txCount++;
+                            }
+                        }
+                    }
+                    if (tvTxCount != null) {
+                        tvTxCount.setText(txCount + " txs");
+                    }
+
+                    if (btnViewTxs != null) {
+                        btnViewTxs.setOnClickListener(v -> {
+                            AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForAccount(a.name);
+                            sheet.show(getChildFragmentManager(), "txs_acc_" + a.name);
+                        });
+                    }
+
+                    if (btnAddTx != null) {
+                        btnAddTx.setOnClickListener(v -> {
+                            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                                FinMngrToast.showError(getContext(), "You are not authorized");
+                                return;
+                            }
+                            AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForAccount(a.name);
+                            addDialog.setListener(() -> {
+                                if (getActivity() instanceof MainActivity) {
+                                    ((MainActivity) getActivity()).updateHeaderInfo();
+                                }
+                                refreshData();
+                            });
+                            addDialog.show(getChildFragmentManager(), "add_tx_acc_" + a.name);
+                        });
+                    }
+
                     layoutBankAccountsList.addView(itemView);
                 }
 
@@ -331,6 +375,9 @@ public class AccountsFragment extends Fragment {
                     TextView tvName = itemView.findViewById(R.id.tvLoanName);
                     TextView tvBadge = itemView.findViewById(R.id.tvLoanBadge);
                     TextView tvOutstanding = itemView.findViewById(R.id.tvLoanOutstanding);
+                    TextView tvTxCount = itemView.findViewById(R.id.tvLoanTxCount);
+                    View btnViewTxs = itemView.findViewById(R.id.btnViewLoanTransactions);
+                    View btnAddTx = itemView.findViewById(R.id.btnAddLoanTransaction);
 
                     tvName.setText(l.name);
                     if ("CREDIT CARD".equalsIgnoreCase(l.name.trim())) {
@@ -344,6 +391,43 @@ public class AccountsFragment extends Fragment {
                         tvBadge.setTextColor(ContextCompat.getColor(requireContext(), l.isDebt ? R.color.red_rose : R.color.green_mint));
                         tvOutstanding.setText(formatCurrency(Math.abs(l.outstanding)));
                     }
+
+                    int txCount = 0;
+                    if (db.transactions != null) {
+                        for (Transaction t : db.transactions) {
+                            if (t != null && t.loans != null && t.loans.trim().equalsIgnoreCase(l.name.trim())) {
+                                txCount++;
+                            }
+                        }
+                    }
+                    if (tvTxCount != null) {
+                        tvTxCount.setText(txCount + " txs");
+                    }
+
+                    if (btnViewTxs != null) {
+                        btnViewTxs.setOnClickListener(v -> {
+                            AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(l.name);
+                            sheet.show(getChildFragmentManager(), "txs_loan_" + l.name);
+                        });
+                    }
+
+                    if (btnAddTx != null) {
+                        btnAddTx.setOnClickListener(v -> {
+                            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                                FinMngrToast.showError(getContext(), "You are not authorized");
+                                return;
+                            }
+                            AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForLoan(l.name);
+                            addDialog.setListener(() -> {
+                                if (getActivity() instanceof MainActivity) {
+                                    ((MainActivity) getActivity()).updateHeaderInfo();
+                                }
+                                refreshData();
+                            });
+                            addDialog.show(getChildFragmentManager(), "add_tx_loan_" + l.name);
+                        });
+                    }
+
                     layoutLoanAccountsList.addView(itemView);
                 }
 
@@ -575,6 +659,45 @@ public class AccountsFragment extends Fragment {
             View btnMarkPaidQuick = itemView.findViewById(R.id.btnMarkCreditCardPaidQuick);
             View btnMarkBillGenerated = itemView.findViewById(R.id.btnMarkBillGenerated);
             View btnEditCard = itemView.findViewById(R.id.btnEditCreditCard);
+            View btnViewCardTxs = itemView.findViewById(R.id.btnViewCardTransactions);
+            View btnAddCardTx = itemView.findViewById(R.id.btnAddCardTransaction);
+
+            int cardTxCount = 0;
+            if (db.transactions != null) {
+                for (Transaction t : db.transactions) {
+                    if (t != null && t.taggedCreditCard != null && t.taggedCreditCard.trim().equalsIgnoreCase(card.cardName.trim())) {
+                        cardTxCount++;
+                    }
+                }
+            }
+
+            if (btnViewCardTxs instanceof TextView) {
+                ((TextView) btnViewCardTxs).setText("📜 Tagged Txs (" + cardTxCount + ")");
+            }
+
+            if (btnViewCardTxs != null) {
+                btnViewCardTxs.setOnClickListener(v -> {
+                    AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForCreditCard(card.cardName);
+                    sheet.show(getChildFragmentManager(), "txs_card_" + card.cardName);
+                });
+            }
+
+            if (btnAddCardTx != null) {
+                btnAddCardTx.setOnClickListener(v -> {
+                    if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                        FinMngrToast.showError(getContext(), "You are not authorized");
+                        return;
+                    }
+                    AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForCreditCard(card.cardName);
+                    addDialog.setListener(() -> {
+                        if (getActivity() instanceof MainActivity) {
+                            ((MainActivity) getActivity()).updateHeaderInfo();
+                        }
+                        refreshData();
+                    });
+                    addDialog.show(getChildFragmentManager(), "add_tx_card_" + card.cardName);
+                });
+            }
 
             tvName.setText(card.cardName != null ? card.cardName : "Credit Card");
             tvBilled.setText(formatCurrency(card.billedAmount));

@@ -43,87 +43,100 @@
             android:focusable="true" />
     </LinearLayout>
 
-    <!-- Quick Presets Row -->
-    <HorizontalScrollView
+    <!-- Quick Presets (2x2 Grid - Zero horizontal scroll) -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:layout_marginTop="12dp">
+        android:layout_marginTop="12dp"
+        android:orientation="vertical">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/btnPresetToday"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
                 android:background="@drawable/bg_pill_dark"
                 android:text="Today"
+                android:gravity="center"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="5dp"
-                android:paddingBottom="5dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
                 android:clickable="true"
                 android:focusable="true" />
 
             <TextView
                 android:id="@+id/btnPresetYesterday"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_weight="1"
                 android:background="@drawable/bg_pill_dark"
                 android:text="Yesterday"
+                android:gravity="center"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="5dp"
-                android:paddingBottom="5dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
                 android:clickable="true"
                 android:focusable="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/btnPresetCycleStart"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
                 android:background="@drawable/bg_pill_dark"
                 android:text="6th (Cycle Start)"
+                android:gravity="center"
                 android:textColor="@color/blue_sky"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="5dp"
-                android:paddingBottom="5dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
                 android:clickable="true"
                 android:focusable="true" />
 
             <TextView
                 android:id="@+id/btnPresetMonthStart"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_weight="1"
                 android:background="@drawable/bg_pill_dark"
                 android:text="1st of Month"
+                android:gravity="center"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="5dp"
-                android:paddingBottom="5dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
                 android:clickable="true"
                 android:focusable="true" />
         </LinearLayout>
-    </HorizontalScrollView>
+    </LinearLayout>
 
     <!-- Month & Year Navigation Row -->
     <LinearLayout

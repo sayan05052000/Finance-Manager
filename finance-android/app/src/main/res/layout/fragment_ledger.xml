@@ -13,60 +13,80 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Filters Row (Horizontal Scroll) -->
-        <HorizontalScrollView
+        <!-- Filters Grid (3 Rows x 2 Columns - Zero horizontal scroll) -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scrollbars="none">
+            android:orientation="vertical">
 
+            <!-- Row 1: Cycle & Year -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
                 <Spinner
                     android:id="@+id/spCycleFilter"
-                    android:layout_width="175dp"
+                    android:layout_width="0dp"
                     android:layout_height="38dp"
-                    android:background="@drawable/bg_spinner_dark"
-                    android:layout_marginEnd="8dp" />
-
-                <Spinner
-                    android:id="@+id/spTypeFilter"
-                    android:layout_width="145dp"
-                    android:layout_height="38dp"
-                    android:background="@drawable/bg_spinner_dark"
-                    android:layout_marginEnd="8dp" />
-
-                <Spinner
-                    android:id="@+id/spAccountFilter"
-                    android:layout_width="155dp"
-                    android:layout_height="38dp"
-                    android:background="@drawable/bg_spinner_dark"
-                    android:layout_marginEnd="8dp" />
-
-                <Spinner
-                    android:id="@+id/spLoanFilter"
-                    android:layout_width="165dp"
-                    android:layout_height="38dp"
-                    android:background="@drawable/bg_spinner_dark"
-                    android:layout_marginEnd="8dp" />
-
-                <Spinner
-                    android:id="@+id/spCategoryFilter"
-                    android:layout_width="155dp"
-                    android:layout_height="38dp"
+                    android:layout_weight="1"
                     android:background="@drawable/bg_spinner_dark"
                     android:layout_marginEnd="8dp" />
 
                 <Spinner
                     android:id="@+id/spYearFilter"
-                    android:layout_width="125dp"
+                    android:layout_width="0dp"
                     android:layout_height="38dp"
+                    android:layout_weight="1"
                     android:background="@drawable/bg_spinner_dark" />
-
             </LinearLayout>
-        </HorizontalScrollView>
+
+            <!-- Row 2: Type & Category -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <Spinner
+                    android:id="@+id/spTypeFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spCategoryFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_spinner_dark" />
+            </LinearLayout>
+
+            <!-- Row 3: Account & Loan -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <Spinner
+                    android:id="@+id/spAccountFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_spinner_dark"
+                    android:layout_marginEnd="8dp" />
+
+                <Spinner
+                    android:id="@+id/spLoanFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_spinner_dark" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- Summary Statistics Card (Screenshot 3) -->
         <LinearLayout

@@ -340,29 +340,44 @@ public class CustomCalendarDialog extends Dialog {
 
         final YearAdapter[] yearAdapterRef = new YearAdapter[1];
 
-        // Decade Quick Jump
+        // Decade Quick Jump (2 Rows x 4 Chips = 8 decades: 1990s, 2000s, 2010s, 2020s, 2025s, 2030s, 2040s, 2050s)
         LinearLayout layoutDecadeChips = pickerDialog.findViewById(R.id.layoutDecadeChips);
-        int[] decades = {1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030, 2040, 2050, 2060};
+        int[][] decadeRows = {
+                {1990, 2000, 2010, 2020},
+                {2025, 2030, 2040, 2050}
+        };
         if (layoutDecadeChips != null) {
             layoutDecadeChips.removeAllViews();
-            for (int dec : decades) {
-                TextView chip = new TextView(getContext());
-                chip.setText(dec + "s");
-                chip.setTextSize(11f);
-                chip.setTypeface(null, android.graphics.Typeface.BOLD);
-                chip.setTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
-                chip.setBackgroundResource(R.drawable.bg_pill_dark);
-                chip.setPadding(26, 12, 26, 12);
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.setMargins(0, 0, 12, 0);
-                chip.setLayoutParams(lp);
+            for (int r = 0; r < decadeRows.length; r++) {
+                LinearLayout rowLayout = new LinearLayout(getContext());
+                rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                if (r > 0) rowLp.topMargin = 12;
+                rowLayout.setLayoutParams(rowLp);
 
-                chip.setOnClickListener(v -> {
-                    int targetPos = Math.max(0, dec - START_YEAR);
-                    gridLayoutManager.scrollToPositionWithOffset(targetPos, 0);
-                });
-                layoutDecadeChips.addView(chip);
+                for (int dec : decadeRows[r]) {
+                    TextView chip = new TextView(getContext());
+                    chip.setText(dec + "s");
+                    chip.setTextSize(11f);
+                    chip.setTypeface(null, android.graphics.Typeface.BOLD);
+                    chip.setTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+                    chip.setBackgroundResource(R.drawable.bg_pill_dark);
+                    chip.setGravity(android.view.Gravity.CENTER);
+                    chip.setPadding(12, 14, 12, 14);
+
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                    lp.setMargins(6, 0, 6, 0);
+                    chip.setLayoutParams(lp);
+
+                    chip.setOnClickListener(v -> {
+                        int targetPos = Math.max(0, dec - START_YEAR);
+                        gridLayoutManager.scrollToPositionWithOffset(targetPos, 0);
+                    });
+                    rowLayout.addView(chip);
+                }
+                layoutDecadeChips.addView(rowLayout);
             }
         }
 

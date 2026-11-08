@@ -202,6 +202,19 @@ public class LedgerFragment extends Fragment {
         }
     }
 
+    public void setInitialFilter(String accountName, String loanName) {
+        if (accountName != null && !accountName.trim().isEmpty()) {
+            this.savedSelectedAccount = accountName.trim();
+            this.savedSelectedLoan = "All Loan Accounts";
+        } else if (loanName != null && !loanName.trim().isEmpty()) {
+            this.savedSelectedLoan = loanName.trim();
+            this.savedSelectedAccount = "All Accounts";
+        }
+        if (isAdded()) {
+            populateUI();
+        }
+    }
+
     public void populateUI() {
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         if (db == null) return;

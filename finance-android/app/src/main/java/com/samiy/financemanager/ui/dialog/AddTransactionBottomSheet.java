@@ -126,9 +126,43 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
         }
     }
 
+    public static final String ARG_LOCKED_TYPE = "arg_locked_type";
+    public static final String ARG_TARGET_NAME = "arg_target_name";
+
+    public static AddTransactionBottomSheet newInstanceForAccount(String accountName) {
+        AddTransactionBottomSheet sheet = new AddTransactionBottomSheet();
+        Bundle b = new Bundle();
+        b.putString(ARG_LOCKED_TYPE, "account");
+        b.putString(ARG_TARGET_NAME, accountName);
+        sheet.setArguments(b);
+        return sheet;
+    }
+
+    public static AddTransactionBottomSheet newInstanceForLoan(String loanName) {
+        AddTransactionBottomSheet sheet = new AddTransactionBottomSheet();
+        Bundle b = new Bundle();
+        b.putString(ARG_LOCKED_TYPE, "loan");
+        b.putString(ARG_TARGET_NAME, loanName);
+        sheet.setArguments(b);
+        return sheet;
+    }
+
+    public static AddTransactionBottomSheet newInstanceForCreditCard(String cardName) {
+        AddTransactionBottomSheet sheet = new AddTransactionBottomSheet();
+        Bundle b = new Bundle();
+        b.putString(ARG_LOCKED_TYPE, "credit_card");
+        b.putString(ARG_TARGET_NAME, cardName);
+        sheet.setArguments(b);
+        return sheet;
+    }
+
     private OnTransactionAddedListener listener;
 
     public void setListener(OnTransactionAddedListener listener) {
+        this.listener = listener;
+    }
+
+    public void setOnTransactionAddedListener(OnTransactionAddedListener listener) {
         this.listener = listener;
     }
 
@@ -398,6 +432,92 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
             updateCreditCardVisibility.run();
         };
         updateSourceSpinner.run();
+
+        TextView tvSourceLockHint = v.findViewById(R.id.tvSourceLockHint);
+        Bundle args = getArguments();
+        if (args != null && args.containsKey(ARG_LOCKED_TYPE)) {
+            String lockedType = args.getString(ARG_LOCKED_TYPE, "");
+            String targetName = args.getString(ARG_TARGET_NAME, "");
+
+            if ("account".equalsIgnoreCase(lockedType)) {
+                rbTagAccount.setChecked(true);
+                rbTagAccount.setEnabled(false);
+                rbTagLoan.setEnabled(false);
+                rgTagType.setEnabled(false);
+                updateSourceSpinner.run();
+
+                for (int i = 0; i < accountList.size(); i++) {
+                    if (accountList.get(i).name.equalsIgnoreCase(targetName)) {
+                        spSourceSelector.setSelection(i);
+                        break;
+                    }
+                }
+                spSourceSelector.setEnabled(false);
+                spSourceSelector.setOnTouchListener((view, event) -> true);
+
+                if (tvSourceLockHint != null) {
+                    tvSourceLockHint.setVisibility(View.VISIBLE);
+                    tvSourceLockHint.setText("🔒 Auto-selected Account: " + targetName + " (Cannot be changed)");
+                }
+            } else if ("loan".equalsIgnoreCase(lockedType)) {
+                rbTagLoan.setChecked(true);
+                rbTagAccount.setEnabled(false);
+                rbTagLoan.setEnabled(false);
+                rgTagType.setEnabled(false);
+                updateSourceSpinner.run();
+
+                for (int i = 0; i < loanList.size(); i++) {
+                    if (loanList.get(i).name.equalsIgnoreCase(targetName)) {
+                        spSourceSelector.setSelection(i);
+                        break;
+                    }
+                }
+                spSourceSelector.setEnabled(false);
+                spSourceSelector.setOnTouchListener((view, event) -> true);
+
+                if (tvSourceLockHint != null) {
+                    tvSourceLockHint.setVisibility(View.VISIBLE);
+                    tvSourceLockHint.setText("🔒 Auto-selected Loan: " + targetName + " (Cannot be changed)");
+                }
+            } else if ("credit_card".equalsIgnoreCase(lockedType)) {
+                rbTagLoan.setChecked(true);
+                rbTagAccount.setEnabled(false);
+                rbTagLoan.setEnabled(false);
+                rgTagType.setEnabled(false);
+                updateSourceSpinner.run();
+
+                for (int i = 0; i < loanList.size(); i++) {
+                    if ("CREDIT CARD".equalsIgnoreCase(loanList.get(i).name.trim())) {
+                        spSourceSelector.setSelection(i);
+                        break;
+                    }
+                }
+                spSourceSelector.setEnabled(false);
+                spSourceSelector.setOnTouchListener((view, event) -> true);
+
+                if (layoutCreditCardTagSection != null) {
+                    layoutCreditCardTagSection.setVisibility(View.VISIBLE);
+                }
+                if (spCreditCardSelector != null) {
+                    for (int i = 0; i < creditCardNames.size(); i++) {
+                        if (creditCardNames.get(i).equalsIgnoreCase(targetName)) {
+                            spCreditCardSelector.setSelection(i);
+                            break;
+                        }
+                    }
+                    spCreditCardSelector.setEnabled(false);
+                    spCreditCardSelector.setOnTouchListener((view, event) -> true);
+                }
+                if (btnAddCreditCardInline != null) {
+                    btnAddCreditCardInline.setVisibility(View.GONE);
+                }
+
+                if (tvSourceLockHint != null) {
+                    tvSourceLockHint.setVisibility(View.VISIBLE);
+                    tvSourceLockHint.setText("🔒 Auto-selected Loan: CREDIT CARD • Card: " + targetName + " (Cannot be changed)");
+                }
+            }
+        }
 
         spSourceSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override

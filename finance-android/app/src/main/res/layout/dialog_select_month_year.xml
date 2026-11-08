@@ -281,22 +281,15 @@
             android:paddingBottom="2dp" />
     </LinearLayout>
 
-    <!-- Decade Quick Jump Bar -->
-    <HorizontalScrollView
+    <!-- Decade Quick Jump Bar (Grid - Zero horizontal scroll) -->
+    <LinearLayout
+        android:id="@+id/layoutDecadeChips"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:layout_marginTop="8dp">
-
-        <LinearLayout
-            android:id="@+id/layoutDecadeChips"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <!-- Dynamically populated or static decade buttons -->
-        </LinearLayout>
-    </HorizontalScrollView>
+        android:layout_marginTop="8dp"
+        android:orientation="vertical">
+        <!-- Dynamically populated in 2 rows of 4 chips each -->
+    </LinearLayout>
 
     <!-- Scrollable 4-Column Year Grid -->
     <androidx.recyclerview.widget.RecyclerView
