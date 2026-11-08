@@ -97,29 +97,55 @@ function doPost(e) {
       const year = tx.year || (parts.length === 3 ? parts[2] : new Date().getFullYear());
       const month = tx.month || (parts.length >= 2 ? parts[1] : (new Date().getMonth() + 1));
 
+      const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
+      const colTaggedCard = findTransactionsTaggedCardColumn(transHeaders);
+
       const taggedCard = tx.taggedCreditCard || tx.creditCard || '';
 
-      if (sheet.getLastColumn() < 15 || !sheet.getRange(1, 15).getValue()) {
+      if (colTaggedCard === 15 && (sheet.getLastColumn() < 15 || !sheet.getRange(1, 15).getValue())) {
         sheet.getRange(1, 15).setValue('Tagged Credit Card');
       }
 
-      sheet.appendRow([
-        date,
-        credit,
-        '',
-        '',
-        '',
-        subCategory,
-        type,
-        loans,
-        account,
-        '',
-        '',
-        '',
-        debitWithoutSign !== '' ? debitWithoutSign : 0,
-        '',
-        taggedCard
-      ]);
+      if (colTaggedCard === 15) {
+        sheet.appendRow([
+          date,
+          credit,
+          '',
+          '',
+          '',
+          subCategory,
+          type,
+          loans,
+          account,
+          '',
+          '',
+          '',
+          debitWithoutSign !== '' ? debitWithoutSign : 0,
+          '',
+          taggedCard
+        ]);
+      } else {
+        sheet.appendRow([
+          date,
+          credit,
+          '',
+          '',
+          '',
+          subCategory,
+          type,
+          loans,
+          account,
+          '',
+          '',
+          '',
+          debitWithoutSign !== '' ? debitWithoutSign : 0,
+          ''
+        ]);
+        if (colTaggedCard > 0 && taggedCard) {
+          const newRow = sheet.getLastRow();
+          sheet.getRange(newRow, colTaggedCard).setValue(taggedCard);
+        }
+      }
 
       // If tagged to a credit card, update its Unbilled Amount in 'Credit Cards' sheet
       if (taggedCard) {
@@ -272,12 +298,15 @@ function doPost(e) {
       }
 
       // Read row values before deleting to reverse credit card effect if tagged
-      const rowValues = sheet.getRange(rowId, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
+      const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
+      const colTaggedCard = findTransactionsTaggedCardColumn(transHeaders);
+      const readCols = Math.max(colTaggedCard, sheet.getLastColumn());
+      const rowValues = sheet.getRange(rowId, 1, 1, readCols).getValues()[0];
       const rowCredit = Number(rowValues[1]) || 0;
       const rowDebitWithoutSign = Number(rowValues[12]) || 0;
       const rowDebit = Number(rowValues[2]) || 0;
       const rowLoan = String(rowValues[7] || '').trim();
-      let rowTaggedCard = (rowValues.length >= 15 && rowValues[14]) ? String(rowValues[14]).trim() : '';
+      let rowTaggedCard = (colTaggedCard > 0 && rowValues.length >= colTaggedCard && rowValues[colTaggedCard - 1]) ? String(rowValues[colTaggedCard - 1]).trim() : '';
       if (!rowTaggedCard && tx.taggedCreditCard) {
         rowTaggedCard = String(tx.taggedCreditCard).trim();
       }
@@ -809,7 +838,9 @@ function getTransactions(ss, limit, page) {
     numRows = lastRow - startRow + 1;
   }
   const lastCol = sheet.getLastColumn();
-  const readCols = Math.max(15, lastCol);
+  const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, lastCol)).getValues()[0];
+  const colTaggedCard = findTransactionsTaggedCardColumn(transHeaders);
+  const readCols = Math.max(colTaggedCard, lastCol);
   const values = sheet.getRange(startRow, 1, numRows, readCols).getValues();
   const tz = 'Asia/Kolkata';
 
@@ -884,7 +915,7 @@ function getTransactions(ss, limit, page) {
       scannedForBudgetAnalysis: row[13] ? String(row[13]) : '',
       isProcessed: row[13] === 'Done' || (row[13] !== '' && row[13] !== null && row[13] !== undefined),
       taggedCreditCard: (() => {
-        let card = (row.length >= 15 && row[14]) ? String(row[14]).trim() : '';
+        let card = (colTaggedCard > 0 && row.length >= colTaggedCard && row[colTaggedCard - 1]) ? String(row[colTaggedCard - 1]).trim() : '';
         if (!card && String(row[7] || '').trim().toUpperCase() === 'CREDIT CARD' && creditCardNamesList.length === 1) {
           card = creditCardNamesList[0];
         }
@@ -1183,6 +1214,29 @@ function advanceDateByOneMonth(dateStr) {
     return dd + '/' + mm + '/' + year;
   }
   return dateStr;
+}
+
+function findTransactionsTaggedCardColumn(headers) {
+  if (!headers || !headers.length) return 15;
+  for (let c = 0; c < headers.length; c++) {
+    const h = String(headers[c] || '').toLowerCase().trim();
+    if (h.includes('tagged') && (h.includes('credit') || h.includes('card'))) {
+      return c + 1;
+    }
+  }
+  for (let c = 0; c < headers.length; c++) {
+    const h = String(headers[c] || '').toLowerCase().trim();
+    if (h === 'tagged credit card' || h === 'tagged_credit_card' || h === 'tagged card') {
+      return c + 1;
+    }
+  }
+  for (let c = 8; c < headers.length; c++) {
+    const h = String(headers[c] || '').toLowerCase().trim();
+    if (h.includes('credit card') || h.includes('credit_card')) {
+      return c + 1;
+    }
+  }
+  return 15;
 }
 
 function findCreditCardColumnIndices(headers) {
