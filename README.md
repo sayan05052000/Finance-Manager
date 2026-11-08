@@ -1033,5 +1033,5 @@ Whenever modifying `androidscript.gs`:
 7. If the deployment URL changes, update `GAS_URL` in `FinanceRepository.java` and recompile.
 
 > [!NOTE]
-> **Dynamic Column Header Support (`tagged credit card` & `Credit Cards`)**:
-> `androidscript.gs` incorporates dynamic column finders (`findTransactionsTaggedCardColumn` and `findCreditCardColumnIndices`). Whenever columns like `tagged credit card` in `Transactions` or custom columns in `Credit Cards` are added, the script dynamically discovers and binds to their column positions automatically without hardcoded column indices.
+> **100% Dynamic Column Order Resilience (`Transactions` & `Credit Cards`)**:
+> `androidscript.gs` incorporates comprehensive dynamic column finders (`findTransactionsColumnIndices` and `findCreditCardColumnIndices`). In both `Transactions` and `Credit Cards` sheets, every column (Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Status/Scanned, Tagged Credit Card) is resolved dynamically by matching header names rather than static column numbers. Users can freely rearrange, reorder, or reposition columns in Google Sheets without breaking `getTransactions`, `addTransaction`, `updateTransaction`, `deleteTransaction`, or `calculateRemainders`.
