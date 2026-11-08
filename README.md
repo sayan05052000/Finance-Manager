@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `1.1` (`versionCode 2`)  
+**Version:** `1.2` (`versionCode 3`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -12,6 +12,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
 1. [Core Business Considerations & Domain Rules](#1-core-business-considerations--domain-rules)
    - [Google Account Authentication & Strict Authorization](#google-account-authentication--strict-authorization)
    - [Billing Cycle & The 6th-to-5th Rule](#billing-cycle--the-6th-to-5th-rule)
+   - [Zero-Latency Sync Engine & Cache-Busting Architecture](#zero-latency-sync-engine--cache-busting-architecture)
    - [Full Transaction Lifecycle: Add, Edit, Delete & Auto-Sync](#full-transaction-lifecycle-add-edit-delete--auto-sync)
    - [Running Balance (Remainder) Synchronization & Account Reconciliation](#running-balance-remainder-synchronization--account-reconciliation)
    - [Dual Sub-Category System](#dual-sub-category-system)
@@ -34,12 +35,19 @@ A robust, offline-capable native Android application paired with a **Google Shee
 3. [Google Sheets Database Schema](#3-google-sheets-database-schema)
 4. [Project File Structure](#4-project-file-structure)
 5. [Key Components & Responsibilities](#5-key-components--responsibilities)
-6. [Debugging & Troubleshooting Guide](#6-debugging--troubleshooting-guide)
-   - [Building the Project](#building-the-project)
+6. [Building & Packaging the Android APK (Step-by-Step Guide)](#6-building--packaging-the-android-apk-step-by-step-guide)
+   - [Prerequisites & Toolchain Setup](#prerequisites--toolchain-setup)
+   - [Environment Variables Configuration](#environment-variables-configuration)
+   - [Step-by-Step Build Commands (Windows PowerShell / CMD)](#step-by-step-build-commands-windows-powershell--cmd)
+   - [Step-by-Step Build Commands (macOS / Linux / Bash)](#step-by-step-build-commands-macos--linux--bash)
+   - [Understanding the Custom Build Directory Architecture](#understanding-the-custom-build-directory-architecture)
+   - [Device Installation via ADB or Direct Transfer](#device-installation-via-adb-or-direct-transfer)
+   - [Common Build Errors & Troubleshooting](#common-build-errors--troubleshooting)
+7. [Debugging & Troubleshooting Guide](#7-debugging--troubleshooting-guide)
    - [Testing Google Apps Script Endpoints](#testing-google-apps-script-endpoints)
    - [Inspecting Logcat Logs](#inspecting-logcat-logs)
    - [Common Pitfalls & Fixes](#common-pitfalls--fixes)
-7. [Google Apps Script Deployment Guide (`androidscript.gs`)](#7-google-apps-script-deployment-guide)
+8. [Google Apps Script Deployment Guide (`androidscript.gs`)](#8-google-apps-script-deployment-guide)
 
 ---
 
@@ -97,6 +105,40 @@ The application manages sensitive personal financial data, investment balances, 
 
 ---
 
+### Zero-Latency Sync Engine & Cache-Busting Architecture
+Google Apps Script Web Apps sit behind Google Front End (GFE) edge proxies, and mobile network carriers (e.g. Jio, Airtel) operate aggressive intermediate forward caching. Under default HTTP configurations, static `GET` requests (`/exec?action=all`) were cached for **5 to 10 minutes (300–600s TTL)**, causing newly entered or sheet-edited transactions to appear delayed. 
+
+To eliminate this delay completely and ensure instant sync, the following end-to-end pipeline was engineered:
+
+1. **Client-Side Dynamic Cache-Busting (`FinanceRepository.java`)**:
+   Every sync request appends both high-resolution millisecond timestamps and unique cryptographic tokens:
+   ```java
+   long ts = System.currentTimeMillis();
+   String nonce = UUID.randomUUID().toString().substring(0, 8);
+   String url = GAS_URL + "?action=all&_t=" + ts + "&_nonce=" + nonce;
+   ```
+   Because the URI is mathematically unique on every request, edge CDNs, intermediate cellular caches, and Android's internal `HttpURLConnection` cache are completely bypassed.
+
+2. **Strict HTTP Cache Control Headers**:
+   Both `executeHttpGetWithRedirect` and `executeHttpPost` explicitly inject no-cache directives:
+   ```java
+   conn.setUseCaches(false);
+   conn.setDefaultUseCaches(false);
+   conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+   conn.setRequestProperty("Pragma", "no-cache");
+   conn.setRequestProperty("Expires", "0");
+   ```
+
+3. **Optimistic In-Memory Preservation (`mergeRecentLocalTransactions`)**:
+   When a user records a transaction in the app, it is instantly inserted into memory (`database.transactions.add(0, tx)`) with a high temporary ID (`System.currentTimeMillis()`), and `notifySyncListeners()` is called immediately. If a subsequent background sync returns before the Google Sheets replica has propagated the new row, `mergeRecentLocalTransactions()` retains the in-flight local transaction so it **never flickers or disappears** from the UI.
+
+4. **Server-Side Flush Pipeline (`calculateRemainders()` & `androidscript.gs`)**:
+   - Google Sheets operates an asynchronous write-behind buffer. When `sheet.appendRow()` or `range.setValues()` is invoked, rows sit in memory before being committed to sheet storage.
+   - `SpreadsheetApp.flush()` is called at the beginning of `calculateRemainders()` so `transSheet.getLastRow()` immediately recognizes newly appended rows.
+   - `SpreadsheetApp.flush()` is called at the end of `calculateRemainders()` after batch-writing Column E, guaranteeing all data and running balances are committed to the spreadsheet before returning the HTTP 200 JSON response.
+
+---
+
 ### Full Transaction Lifecycle: Add, Edit, Delete & Auto-Sync
 The application provides complete lifecycle management for all financial transactions:
 
@@ -111,7 +153,7 @@ The application provides complete lifecycle management for all financial transac
    - Tapping any transaction item in `LedgerFragment` opens the bottom sheet with all existing transaction data pre-populated.
    - All fields are editable: Date, Transaction Type (Expense/Income/Transfer), Sub-Category, Category, Account, Loan, and Amount.
    - Dynamic real-time calculation of Net and Remainder preview as amounts or types change.
-   - Dispatches `action: 'editTransaction'` to `androidscript.gs`.
+   - Dispatches `action: 'updateTransaction'` to `androidscript.gs`.
    - **Robust Row Lookup**: Identifies the exact row in Google Sheets by ID with fallback multi-attribute matching (Date + SubCategory + Account/Loan + Debit/Credit).
 
 3. **Deleting Transactions**:
@@ -331,19 +373,21 @@ The **Expense Tracker** compares itemized spending and investments between the *
 
 ```mermaid
 flowchart TD
-    subgraph MobileApp["Android Mobile Client (Java) - v1.1"]
+    subgraph MobileApp["Android Mobile Client (Java) - v1.2"]
         Auth["GoogleAuthManager (Google Play Services OAuth 2.0)"]
         UI["UI Layer (MainActivity, Fragments, BottomSheets)"]
         Repo["FinanceRepository (Singleton Network & Cache Manager)"]
         Cache[("Local SharedPreferences Cache")]
         Engine["CalculationEngine (Budget, Cycle Remainder, Daily Limit)"]
         SyncListener["Global SyncListener Registry"]
+        Optimistic["mergeRecentLocalTransactions (In-Flight Merger)"]
 
         Auth -->|isAuthorized == true| UI
         Auth -->|isAuthorized == false| Lock["Unauthorized Lock Overlay"]
         UI -->|User Mutation: Add / Edit / Delete| Repo
         Repo -->|Cache Hit & Save| Cache
-        Repo -->|Compute Totals| Engine
+        Repo -->|Merge In-Flight Local Items| Optimistic
+        Optimistic -->|Compute Totals| Engine
         Engine -->|Updated State| UI
         Repo -->|Notify on Auto-Sync| SyncListener
         SyncListener -->|Re-render UI| UI
@@ -353,8 +397,8 @@ flowchart TD
         GAS["Google Apps Script Web App (androidscript.gs)"]
         Sheet[("Google Sheets Database")]
 
-        Repo <==>|"HTTPS (JSON payload, 302 Redirect Handling)"| GAS
-        GAS <==>|"SpreadsheetApp API"| Sheet
+        Repo <==>|"HTTPS (JSON payload, 302 Redirect, Cache-Buster & Nonce)"| GAS
+        GAS <==>|"SpreadsheetApp API (calculateRemainders with flush)"| Sheet
     end
 ```
 
@@ -384,21 +428,23 @@ sequenceDiagram
     end
 
     App->>Repo: syncWithGoogleSheets()
-    Repo->>GAS: GET ?action=all
+    Repo->>GAS: GET ?action=all&_t=1731053400000&_nonce=a1b2c3d4 (Cache-Busted)
     GAS->>GSheet: Reads sheets (Transactions, Holdings, Sips, Policies, etc.)
     GSheet-->>GAS: 2D row/column data
-    GAS-->>Repo: 302 Redirect -> 200 OK (Consolidated JSON)
-    Repo->>Repo: Save to local SharedPreferences cache
+    GAS-->>Repo: 302 Redirect -> 200 OK (Consolidated Fresh JSON)
+    Repo->>Repo: Merge recent local transactions & save cache
     Repo-->>App: Populate Overview, Ledger, Holdings, Policies & SIPs
 
-    User->>App: Edits Transaction or Taps "Mark as Paid" on Policy
-    App->>Repo: editTransaction(tx) or updatePolicy(policy)
-    Repo->>GAS: POST { action: "editTransaction", transaction: { ... } }
-    GAS->>GSheet: Matches row & updates cells, recalculates remainders
-    GSheet-->>GAS: Updated rows confirmed
+    User->>App: Records New Transaction (Amount, Account, SubCategory)
+    App->>Repo: addTransaction(tx)
+    Repo->>Repo: Optimistically add tx to memory & notifySyncListeners()
+    App-->>User: UI updates in 0ms!
+    Repo->>GAS: POST { action: "addTransaction", transaction: { ... } }
+    GAS->>GSheet: appendRow(...) -> flush() -> calculateRemainders() -> flush()
+    GSheet-->>GAS: Transaction & Column E running balances committed
     GAS-->>Repo: 302 Redirect -> 200 OK { status: "success" }
-    Repo->>Repo: Auto-triggers syncWithGoogleSheets()
-    Repo-->>App: Notify SyncListeners -> UI updates immediately!
+    Repo->>Repo: Auto-triggers fresh cache-busted syncWithGoogleSheets()
+    Repo-->>App: Notify SyncListeners -> UI confirmed with server IDs!
 ```
 
 ---
@@ -460,23 +506,23 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 ```
 Finance-Manager/
 ├── .gitignore                          # Root ignore rules (build, gradle, IDE, apk)
-├── FinanceManager.apk                  # Current ready-to-install build (v1.1)
-├── README.md                           # This architecture and developer guide
+├── FinanceManager.apk                  # Current ready-to-install build (v1.2)
+├── README.md                           # This architecture, developer & build guide
 ├── google-apps-script/
 │   └── androidscript.gs                # Google Apps Script Web App REST API gateway
 └── finance-android/
-    ├── build.gradle                    # Top-level Gradle configuration
+    ├── build.gradle                    # Top-level Gradle configuration (redirects buildDir)
     ├── gradlew / gradlew.bat           # Gradle wrapper scripts
     └── app/
-        ├── build.gradle                # App module configuration (version 1.1, versionCode 2)
+        ├── build.gradle                # App module configuration (version 1.2, versionCode 3)
         └── src/main/
             ├── AndroidManifest.xml     # App manifest (INTERNET permission, MainActivity)
             ├── java/com/samiy/financemanager/
-            │   ├── MainActivity.java   # Navigation activity (Auth Guard & Auto-Sync Listener)
+            │   ├── MainActivity.java   # Navigation activity (Auth Guard & Auto-Sync Handler)
             │   ├── auth/
             │   │   └── GoogleAuthManager.java # Google Play Services OAuth & Authorization logic
             │   ├── data/
-            │   │   ├── FinanceRepository.java  # Core network client, cache & Google API sync
+            │   │   ├── FinanceRepository.java  # Core network client, cache buster & in-flight merger
             │   │   └── model/                  # Data models (Gson serialized)
             │   │       ├── Account.java        # Bank account balance DTO
             │   │       ├── BudgetItem.java     # Budget & spend limits DTO
@@ -549,8 +595,8 @@ Finance-Manager/
 | Component | Responsibility |
 |---|---|
 | `GoogleAuthManager` | Manages Google Sign-In with Google Play Services (`GoogleSignInClient`). Validates authorization against `samiyasti@gmail.com`, notifies listeners on login/logout, and provides safe account switching. |
-| `MainActivity` | Orchestrates top-level navigation, bottom navigation tabs, manages authorization blocking overlay, and subscribes to `FinanceRepository` auto-sync notifications to refresh header KPIs and active fragments. |
-| `FinanceRepository` | Singleton network and cache manager. Implements API endpoints (`addTransaction`, `editTransaction`, `deleteTransaction`, `updatePolicy`, `addPolicy`, `updateSip`, `syncWithGoogleSheets`). Triggers automated background syncs on all mutations. |
+| `MainActivity` | Top-level navigation activity. Manages bottom navigation tabs, authorization blocking overlay, and runs the 30-second background auto-sync runner with `SyncListener` subscription. |
+| `FinanceRepository` | Singleton network, cache, and sync coordinator. Implements dynamic cache-busting on GET requests, handles 302 redirects, optimistically preserves in-flight local transactions via `mergeRecentLocalTransactions`, and manages all API mutations. |
 | `EditTransactionBottomSheet` | Pre-fills transaction details for editing (Date, Type, Category, Sub-Category, Account, Loan, Amount) and provides 1-tap Delete Transaction action with confirmation. |
 | `KeyboardHelper` | Central utility attaching IME Done/Tick action listeners to edit fields and providing instant soft keyboard dismissal. |
 | `CalculationEngine` | Computes net inflow/outflow, total debit/credit, remaining budget, days remaining in cycle, daily spend allowance, and filters interest transactions. |
@@ -567,29 +613,155 @@ Finance-Manager/
 
 ---
 
-## 6. Debugging & Troubleshooting Guide
+## 6. Building & Packaging the Android APK (Step-by-Step Guide)
 
-### Building the Project
-From the repository root or `finance-android` directory:
+Follow this guide to build the application from source code into a ready-to-install APK file.
 
-```powershell
-Set-Location "finance-android"
-./gradlew assembleDebug --no-daemon
-```
-
-The generated APK is located at:
-`C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk`
-
-*(And automatically mirrored to `FinanceManager.apk` in the repository root for immediate distribution).*
+### Prerequisites & Toolchain Setup
+Ensure the following tools are installed on your workstation:
+1. **Java Development Kit (JDK 17)**:
+   - Verify by running `java -version`. The version must be **Java 17** (e.g. OpenJDK 17 or Oracle JDK 17).
+2. **Android SDK Platform 34**:
+   - `compileSdk 34` and `targetSdk 34`.
+   - Android SDK Command-line Tools & Platform-Tools (includes `adb`).
+3. **Gradle Wrapper**:
+   - Bundled directly in `finance-android/gradlew` (Linux/macOS) and `finance-android/gradlew.bat` (Windows). No global Gradle installation required.
 
 ---
+
+### Environment Variables Configuration
+
+#### Windows (PowerShell / System Properties):
+Ensure your environment variables are configured in User/System variables:
+```powershell
+# Set JAVA_HOME (replace with your exact JDK 17 path or Android Studio bundled JBR)
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+
+# Set ANDROID_HOME (replace with your Android SDK location)
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+
+# Append platform-tools and Java to PATH
+$env:Path += ";$env:ANDROID_HOME\platform-tools;$env:JAVA_HOME\bin"
+```
+
+#### macOS / Linux (`~/.bashrc` or `~/.zshrc`):
+```bash
+export JAVA_HOME="/usr/lib/jvm/java-17-openjdk" # or /Applications/Android Studio.app/Contents/jbr/Contents/Home
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$PATH:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin"
+```
+
+---
+
+### Step-by-Step Build Commands (Windows PowerShell / CMD)
+
+Execute these commands from the project root directory:
+
+#### Step 1: Change Directory into `finance-android`
+```powershell
+Set-Location "finance-android"
+```
+
+#### Step 2 (Optional but Recommended): Clean Existing Build Caches
+```powershell
+.\gradlew.bat clean
+```
+
+#### Step 3: Compile and Assemble the Debug APK
+```powershell
+.\gradlew.bat assembleDebug --no-daemon
+```
+
+#### Step 4: Verify the Build Artifact
+```powershell
+Get-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk"
+```
+
+#### Step 5: Mirror the Built APK to the Repository Root
+For instant distribution, mirror the compiled binary to the repository root:
+```powershell
+Copy-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force
+```
+
+---
+
+### Step-by-Step Build Commands (macOS / Linux / Bash)
+
+```bash
+cd finance-android
+chmod +x gradlew
+./gradlew clean assembleDebug --no-daemon
+cp "C:/Users/samiy/AppData/Local/Temp/FinanceManagerBuild/app/outputs/apk/debug/app-debug.apk" "../FinanceManager.apk"
+```
+
+---
+
+### Understanding the Custom Build Directory Architecture
+In [`finance-android/build.gradle`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/build.gradle#L21), the build directory is explicitly relocated outside the repository:
+```groovy
+allprojects {
+    layout.buildDirectory.set(new File("C:/Users/samiy/AppData/Local/Temp/FinanceManagerBuild/${project.name}"))
+}
+```
+
+**Why this was designed:**
+* **OneDrive Sync Prevention**: Placing `build/` inside a OneDrive-synchronized folder causes OneDrive to constantly upload hundreds of thousands of ephemeral compilation files (`.class`, `.dex`, `.flat`, `.aar`), resulting in severe I/O thrashing, file locks, and build failures.
+* **Rapid Clean Builds**: Moving build artifacts to local `%TEMP%` ensures NVMe speeds and zero synchronization overhead.
+* **Root Binary Mirroring**: Every successful build is copied to `FinanceManager.apk` at the repository root, allowing users and testers to install the APK directly from Git without compiling.
+
+---
+
+### Device Installation via ADB or Direct Transfer
+
+#### 1. Over USB using ADB:
+Connect your Android phone with **USB Debugging** enabled and run:
+```bash
+adb install -r FinanceManager.apk
+```
+
+#### 2. Wireless ADB:
+```bash
+adb connect <PHONE_IP_ADDRESS>:5555
+adb install -r FinanceManager.apk
+```
+
+#### 3. Direct Transfer:
+Send `FinanceManager.apk` directly to your phone via USB cable, Google Drive, or messaging apps, tap on the APK file in your phone's File Manager, and select **Install / Update**.
+
+---
+
+### Common Build Errors & Troubleshooting
+
+1. **`Unsupported class file major version`**:
+   - *Cause*: Gradle is running with an incompatible Java version (e.g. Java 8 or Java 21+).
+   - *Fix*: Set `JAVA_HOME` to JDK 17:
+     ```powershell
+     $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+     ```
+
+2. **`Could not open create cache for class analysis / Daemon lock`**:
+   - *Cause*: A zombie Gradle daemon holds a file lock on a temporary `.jar` file.
+   - *Fix*: Kill active daemons and clear lock files:
+     ```powershell
+     .\gradlew.bat --stop
+     Remove-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild" -Recurse -Force -ErrorAction SilentlyContinue
+     .\gradlew.bat assembleDebug
+     ```
+
+3. **`Warning: SDK processing. This version only understands SDK XML versions up to 3...`**:
+   - *Cause*: A harmless informational warning from Android Gradle Plugin 8.2 encountering SDK XML v4.
+   - *Fix*: No action needed; the build will proceed and succeed normally.
+
+---
+
+## 7. Debugging & Troubleshooting Guide
 
 ### Testing Google Apps Script Endpoints
 To verify the live Google Apps Script Web App without running the Android app:
 
-#### 1. Test GET (Fetch Entire Database):
+#### 1. Test GET (Fetch Entire Database with Cache-Buster):
 ```bash
-node -e "fetch('YOUR_GAS_URL?action=all', {redirect: 'follow'}).then(r => r.json()).then(d => console.log('Keys:', Object.keys(d.data), 'Transactions count:', d.data.transactions.length))"
+node -e "fetch('YOUR_GAS_URL?action=all&_t=' + Date.now(), {redirect: 'follow'}).then(r => r.json()).then(d => console.log('Status:', d.status, 'Transactions count:', d.data.transactions.length))"
 ```
 
 #### 2. Test POST (Edit a Transaction):
@@ -598,7 +770,7 @@ fetch('YOUR_GAS_URL', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    action: 'editTransaction',
+    action: 'updateTransaction',
     transaction: {
       id: 105,
       date: '08/11/2026',
@@ -658,7 +830,7 @@ adb logcat -s FinanceRepository CalculationEngine GoogleAuthManager MainActivity
 
 ---
 
-## 7. Google Apps Script Deployment Guide
+## 8. Google Apps Script Deployment Guide
 
 Whenever modifying `androidscript.gs`:
 1. Open the [Finance Report Google Sheet](https://docs.google.com/spreadsheets/d/1IUekkxG3Au1ZBO5wOkk8Tit6ZZAuLhjiJjlKpTaUg_A/edit).
