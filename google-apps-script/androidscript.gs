@@ -82,16 +82,9 @@ function doPost(e) {
 
       const tx = data.transaction || {};
       const date = tx.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
-      const credit = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : '';
-      let debitVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0) ? Number(tx.debit) : '';
-      let debitWithoutSign = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' && Number(tx.debitWithoutSign) > 0) ? Number(tx.debitWithoutSign) : '';
-
-      if (debitVal === '' && debitWithoutSign !== '') {
-        debitVal = -debitWithoutSign;
-      } else if (debitVal !== '' && debitWithoutSign === '') {
-        debitWithoutSign = Math.abs(debitVal);
-      }
-
+      const credit = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : 0;
+      let debitWithoutSign = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' ) ? Number(tx.debitWithoutSign) : 0;
+       let debitVal = -1 * debitWithoutSign
       const net = (credit !== '' ? Number(credit) : 0) + (debitVal !== '' ? Number(debitVal) : 0);
       const remainder = '';
       const subCategory = tx.subCategory || '';
@@ -116,7 +109,7 @@ function doPost(e) {
         '',
         '',
         '',
-        debitWithoutSign !== '' ? debitWithoutSign : '',
+        debitWithoutSign !== '' ? debitWithoutSign : 0,
         ''
       ]);
 
