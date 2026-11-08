@@ -78,10 +78,10 @@ The application manages sensitive personal financial data, investment balances, 
        - Header Net Worth displays `"Protected"` and Cycle info displays `"Access Restricted"`.
        - Provides a prominent `"Switch to samiyasti@gmail.com"` / `"Sign in with samiyasti@gmail.com"` button to invoke Google Play Services account chooser.
   2. **Dialog & Form Layer**:
-     - Every bottom sheet modal (`AddTransactionBottomSheet`, `EditTransactionBottomSheet`, `AddMutualFundTransactionBottomSheet`, `EditSipBottomSheet`, `SipTracerBottomSheet`, `ViewMfTransactionsBottomSheet`, `EditPolicyBottomSheet`, `AddPolicyBottomSheet`) checks `GoogleAuthManager.isAuthorized()` in `onCreateView()`. If unauthorized, it immediately dismisses and displays a warning toast.
+     - Every bottom sheet modal (`AddTransactionBottomSheet`, `AddMutualFundTransactionBottomSheet`, `EditSipBottomSheet`, `SipTracerBottomSheet`, `ViewMfTransactionsBottomSheet`, `EditPolicyBottomSheet`, `AddPolicyBottomSheet`) checks `GoogleAuthManager.isAuthorized()` in `onCreateView()`. If unauthorized, it immediately dismisses and displays a warning toast.
   3. **Repository Layer (`FinanceRepository`)**:
      - `getDatabase()` returns `null` when unauthorized, preventing cached financial numbers from leaking into memory or views.
-     - All mutation methods (`addTransaction`, `editTransaction`, `deleteTransaction`, `addMutualFundTransaction`, `updateSip`, `updateSipStatus`, `updatePolicy`, `addPolicy`, `syncWithGoogleSheets`) reject calls immediately with an authorization error callback prior to initiating any network requests.
+     - All mutation methods (`addTransaction`, `deleteTransaction`, `addMutualFundTransaction`, `updateSip`, `updateSipStatus`, `updatePolicy`, `addPolicy`, `syncWithGoogleSheets`) reject calls immediately with an authorization error callback prior to initiating any network requests.
   4. **Authentication Manager (`GoogleAuthManager`)**:
      - Centralized singleton wrapping Google Play Services `GoogleSignInClient`.
      - Caches `GoogleSignInAccount` and notifies registered listeners (`AuthListener`) on auth state changes.
@@ -647,7 +647,6 @@ Finance-Manager/
             │   │   │   ├── CustomCalendarDialog.java                # Futuristic dark calendar dialog
             │   │   │   ├── EditPolicyBottomSheet.java               # Mark as Paid & policy editor
             │   │   │   ├── EditSipBottomSheet.java                  # Full SIP parameter editor
-            │   │   │   ├── EditTransactionBottomSheet.java          # Edit & Delete transaction modal
             │   │   │   ├── SipTracerBottomSheet.java                # SIP list & quick status toggler
             │   │   │   └── ViewMfTransactionsBottomSheet.java       # MF ledger filtered by holding
             │   │   └── fragment/
@@ -691,7 +690,6 @@ Finance-Manager/
 | `GoogleAuthManager` | Manages Google Sign-In with Google Play Services (`GoogleSignInClient`). Validates authorization against `samiyasti@gmail.com`, notifies listeners on login/logout, and provides safe account switching. |
 | `MainActivity` | Top-level navigation activity. Manages bottom navigation tabs, authorization blocking overlay, and runs the 30-second background auto-sync runner with `SyncListener` subscription. |
 | `FinanceRepository` | Singleton network, cache, and sync coordinator. Implements dynamic cache-busting on GET requests, handles 302 redirects, optimistically preserves in-flight local transactions via `mergeRecentLocalTransactions`, and manages all API mutations. |
-| `EditTransactionBottomSheet` | Pre-fills transaction details for editing (Date, Type, Category, Sub-Category, Account, Loan, Amount) and provides 1-tap Delete Transaction action with confirmation. |
 | `KeyboardHelper` | Central utility attaching IME Done/Tick action listeners to edit fields and providing instant soft keyboard dismissal. |
 | `CalculationEngine` | Computes net inflow/outflow, total debit/credit, remaining budget, days remaining in cycle, daily spend allowance, and filters interest transactions. |
 | `AccountsFragment` | Renders bank balances, liabilities/debt, section filter pills (All, Banks & Debt, LIC & Tata AIA, Financial Goals), Insurance Financing visual representation card, insurance policy list with date updates and add policy action, and view-only financial goals. |
@@ -907,22 +905,22 @@ To verify the live Google Apps Script Web App without running the Android app:
 node -e "fetch('YOUR_GAS_URL?action=all&_t=' + Date.now(), {redirect: 'follow'}).then(r => r.json()).then(d => console.log('Status:', d.status, 'Transactions count:', d.data.transactions.length))"
 ```
 
-#### 2. Test POST (Edit a Transaction):
+#### 2. Test POST (Add a Transaction):
 ```javascript
 fetch('YOUR_GAS_URL', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    action: 'updateTransaction',
+    action: 'addTransaction',
     transaction: {
-      id: 105,
       date: '08/11/2026',
-      subCategory: 'Food',
+      subCategory: 'Shopping',
       type: 'Expense',
-      account: 'Slice',
-      debitWithoutSign: 250,
-      debit: -250,
-      credit: 0
+      loans: 'CREDIT CARD',
+      account: '',
+      debitWithoutSign: 500,
+      credit: 0,
+      taggedCreditCard: 'ICICI Coral'
     }
   }),
   redirect: 'follow'
@@ -1036,7 +1034,7 @@ Whenever modifying `androidscript.gs`:
 
 > [!NOTE]
 > **100% Dynamic Column Order Resilience (`Transactions` & `Credit Cards`)**:
-> `androidscript.gs` incorporates comprehensive dynamic column finders (`findTransactionsColumnIndices` and `findCreditCardColumnIndices`). In both `Transactions` and `Credit Cards` sheets, every column (Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Status/Scanned, Tagged Credit Card) is resolved dynamically by matching header names rather than static column numbers. Users can freely rearrange, reorder, or reposition columns in Google Sheets without breaking `getTransactions`, `addTransaction`, `updateTransaction`, `deleteTransaction`, or `calculateRemainders`.
+> `androidscript.gs` incorporates comprehensive dynamic column finders (`findTransactionsColumnIndices` and `findCreditCardColumnIndices`). In both `Transactions` and `Credit Cards` sheets, every column (Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Status/Scanned, Tagged Credit Card) is resolved dynamically by matching header names rather than static column numbers. Users can freely rearrange, reorder, or reposition columns in Google Sheets without breaking `getTransactions`, `addTransaction`, `deleteTransaction`, or `calculateRemainders`.
 
 ---
 

@@ -55,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `README.md` to document dynamic column header order resilience across both `Transactions` and `Credit Cards` sheets.
 - Updated `FinanceRepository.java` to support unbilled amount mutations, credit card bill generation, due date rollovers, and transaction deletion reversals.
 
+### Removed
+- **Removed Deprecated & Dead Posting Actions (`androidscript.gs`)**:
+  - Eliminated `action === 'updateTransaction'` and `action === 'addHolding'` endpoints from the Google Apps Script Web App gateway to strictly align with the add-and-delete-only transaction accounting model and active UI capabilities.
+- **Removed Dead Code & Deprecated Components from Android Client**:
+  - Removed unused `FinanceRepository.updateTransaction()` method.
+  - Deleted orphaned `EditTransactionBottomSheet.java` dialog and `dialog_edit_transaction.xml` layout, fully standardizing transaction inspection on `TransactionDetailsBottomSheet`.
+
 ---
 
 ## [v1.8] - 2026-11-07

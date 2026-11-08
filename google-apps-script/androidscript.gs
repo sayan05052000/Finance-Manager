@@ -173,92 +173,6 @@ function doPost(e) {
       return jsonResponse({ status: 'success', message: 'Transaction added successfully' });
     }
 
-    if (action === 'updateTransaction') {
-      const sheet = ss.getSheetByName('Transactions');
-      if (!sheet) throw new Error('Transactions sheet not found');
-
-      const tx = data.transaction || {};
-      let rowId = Number(tx.id);
-
-      const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
-      const cols = findTransactionsColumnIndices(transHeaders);
-
-      // Fallback row matching if rowId is invalid or was temporary
-      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
-        const vals = sheet.getDataRange().getValues();
-        for (let i = vals.length - 1; i >= 1; i--) {
-          const rDate = cols.colDate > 0 ? (vals[i][cols.colDate - 1] instanceof Date ? Utilities.formatDate(vals[i][cols.colDate - 1], 'Asia/Kolkata', 'dd/MM/yyyy') : String(vals[i][cols.colDate - 1] || '').trim()) : '';
-          const rSub = cols.colSubCategory > 0 ? String(vals[i][cols.colSubCategory - 1] || '').trim() : '';
-          if (tx.date && rDate === String(tx.date).trim() && (!tx.subCategory || rSub === String(tx.subCategory).trim())) {
-            rowId = i + 1;
-            break;
-          }
-        }
-      }
-
-      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
-        throw new Error('Invalid transaction row ID: ' + tx.id);
-      }
-
-      // Compute consistent credit, debit, debitWithoutSign, and net
-      const creditVal = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : 0;
-      let dwsVal = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '') ? Number(tx.debitWithoutSign) : 0;
-
-      // Dynamic column writes
-      if (cols.colDate > 0 && tx.date !== undefined && tx.date !== null && String(tx.date).trim() !== '') {
-        const dStr = String(tx.date).trim();
-        sheet.getRange(rowId, cols.colDate).setValue(dStr);
-        const parts = dStr.split('/');
-        if (parts.length === 3) {
-          if (cols.colYear > 0) sheet.getRange(rowId, cols.colYear).setValue(parts[2]);
-          if (cols.colMonth > 0) sheet.getRange(rowId, cols.colMonth).setValue(parts[1]);
-        }
-      }
-
-      if (cols.colCredit > 0) {
-        sheet.getRange(rowId, cols.colCredit).setValue(creditVal > 0 ? creditVal : '');
-      }
-
-      if (cols.colSubCategory > 0 && tx.subCategory !== undefined && tx.subCategory !== null) {
-        sheet.getRange(rowId, cols.colSubCategory).setValue(String(tx.subCategory).trim());
-      }
-
-      if (cols.colType > 0 && tx.type !== undefined && tx.type !== null) {
-        sheet.getRange(rowId, cols.colType).setValue(String(tx.type).trim());
-      }
-
-      if (cols.colLoans > 0) {
-        sheet.getRange(rowId, cols.colLoans).setValue(tx.loans ? String(tx.loans).trim() : '');
-      }
-
-      if (cols.colAccount > 0) {
-        sheet.getRange(rowId, cols.colAccount).setValue(tx.account ? String(tx.account).trim() : '');
-      }
-
-      if (cols.colCategory > 0 && tx.category !== undefined && tx.category !== null && String(tx.category).trim() !== '') {
-        sheet.getRange(rowId, cols.colCategory).setValue(String(tx.category).trim());
-      }
-
-      if (cols.colDebitWithoutSign > 0) {
-        sheet.getRange(rowId, cols.colDebitWithoutSign).setValue(dwsVal);
-      }
-
-      const taggedCard = tx.taggedCreditCard || tx.creditCard;
-      if (cols.colTaggedCard > 0 && taggedCard !== undefined) {
-        sheet.getRange(rowId, cols.colTaggedCard).setValue(String(taggedCard).trim());
-      }
-
-      if (typeof calculateRemainders === 'function') {
-        try {
-          calculateRemainders();
-        } catch (err) {
-          console.warn('calculateRemainders error: ' + err);
-        }
-      }
-
-      return jsonResponse({ status: 'success', message: 'Transaction updated successfully' });
-    }
-
     if (action === 'deleteTransaction') {
       const sheet = ss.getSheetByName('Transactions');
       if (!sheet) throw new Error('Transactions sheet not found');
@@ -550,35 +464,6 @@ function doPost(e) {
       ]);
 
       return jsonResponse({ status: 'success', message: 'Mutual Fund transaction recorded successfully' });
-    }
-
-    if (action === 'addHolding') {
-      const sheet = ss.getSheetByName('Mutual Investment Holdings');
-      if (!sheet) throw new Error('Mutual Investment Holdings sheet not found');
-
-      const h = data.holding || {};
-      const schemeName = h.schemeName || '';
-      const schemeCode = h.schemeCode || '';
-      const schemeId = h.schemeId || '';
-      const category = h.category || 'Equity';
-      const subCategory = h.subCategory || 'Small Cap';
-      const savingsType = h.savingsType || 'Mutual Fund';
-      const savingsCategory = h.savingsCategory || 'Savings';
-      const source = h.source || 'Groww';
-      const units = Number(h.units) || 0;
-      const avgBuyingNav = Number(h.avgBuyingNav) || 0;
-      const investedValue = Number(h.investedValue) || (units * avgBuyingNav);
-      const nav = Number(h.nav) || avgBuyingNav;
-      const navDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
-      const currentValue = Number(h.currentValue) || (units * nav);
-
-      sheet.appendRow([
-        schemeName, schemeCode, schemeId, category, subCategory, savingsType,
-        savingsCategory, source, units, avgBuyingNav, investedValue, nav,
-        navDate, currentValue, 0, 0, 0, investedValue, 0
-      ]);
-
-      return jsonResponse({ status: 'success', message: 'Mutual Fund holding added successfully' });
     }
 
     if (action === 'addCreditCard') {
