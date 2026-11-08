@@ -35,10 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Resolved sharp square black/dark container corners protruding behind curved bottom sheets (`media_1794166006615_ffcbe952.png`).
   - Created [`BaseBottomSheetDialogFragment`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/BaseBottomSheetDialogFragment.java) enforcing `android.R.color.transparent` on both the window and the internal `design_bottom_sheet` container across all 11 modal subclasses (`AccountTransactionsBottomSheet`, `AddTransactionBottomSheet`, `TransactionDetailsBottomSheet`, `AddCreditCardBottomSheet`, `EditCreditCardBottomSheet`, `AddPolicyBottomSheet`, `EditPolicyBottomSheet`, `EditSipBottomSheet`, `AddMutualFundTransactionBottomSheet`, `SipTracerBottomSheet`, `ViewMfTransactionsBottomSheet`).
   - Updated `FinMngrBottomSheetDialogTheme` in both `values/styles.xml` and `values-night/styles.xml` with transparent backgrounds and `backgroundTint="@android:color/transparent"`.
-- **Section Filter Pills Layout & Visual Consistency**:
-  - Resolved uneven width stretching and irregular spacing in the Accounts screen filter bar (`media_1794165931574_eae7e2da.png`).
-  - Replaced stretched `layout_weight="1"` items with centered `wrap_content` pill chips (Row 1: All Sections, Banks & Debt, Credit Cards; Row 2: LIC & Tata AIA, Financial Goals).
-  - Standardized inactive state styling to subtle bordered pill (`bg_pill_dark`) instead of bare unstyled text, and active state to `@drawable/bg_pill_emerald` with `@color/text_on_primary`.
+- **Single-Row Edge-to-Edge Segmented Section Filter Bar**:
+  - Completely eliminated excessive empty white/dark space and awkward multi-row wrapping (`media_1794167232755_70c0037f.png`).
+  - Engineered a sleek, modern single-line segmented control spanning 100% of the screen width (`match_parent`, 38dp height) with 5 concise, weighted tabs: `All` | `Banks` | `Cards` | `Insurance` | `Goals`.
+  - Housed inside a unified rounded track container (`bg_pill_dark`), active filters smoothly transition into an emerald pill (`bg_pill_emerald`) with high-contrast text (`text_on_primary`), saving over 60dp of vertical space for account balances while completely eliminating horizontal scrolling.
 - **Stopped & Fully Paid Policy Due Date Status**:
   - Fixed design inconsistency where stopped/matured policies displayed active amber due date badges (`media_1794166074155_f3e8b7b8.jpg`).
   - Added `tvPolicyDueDateLabel` to [`item_policy.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_policy.xml); when `isPolicyFullyPaidOrMatured(p)` is true, the label automatically displays "Policy Status" with a soft sage green badge (`bg_badge_good`) reading "Stopped / Fully Paid" instead of an amber future payment due prompt.

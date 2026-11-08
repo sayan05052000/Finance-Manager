@@ -230,7 +230,7 @@ public class AccountsFragment extends Fragment {
 
     private void resetPill(TextView pill) {
         if (pill == null) return;
-        pill.setBackgroundResource(R.drawable.bg_pill_dark);
+        pill.setBackground(null);
         pill.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
     }
 
