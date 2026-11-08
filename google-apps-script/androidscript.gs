@@ -11,7 +11,6 @@
 
 function doGet(e) {
   try {
-    SpreadsheetApp.flush();
     const action = (e && e.parameter && e.parameter.action) || 'all';
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -120,7 +119,6 @@ function doPost(e) {
         debitWithoutSign !== '' ? debitWithoutSign : '',
         ''
       ]);
-      SpreadsheetApp.flush();
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -200,7 +198,6 @@ function doPost(e) {
 
       // Col 13: Debit Without Sign
       sheet.getRange(rowId, 13).setValue(dwsVal);
-      SpreadsheetApp.flush();
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -238,7 +235,6 @@ function doPost(e) {
       }
 
       sheet.deleteRow(rowId);
-      SpreadsheetApp.flush();
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -472,15 +468,6 @@ function doPost(e) {
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
-  } finally {
-    if (typeof calculateRemainders === 'function') {
-      try {
-        calculateRemainders();
-        SpreadsheetApp.flush();
-      } catch (err) {
-        console.warn('calculateRemainders error: ' + err);
-      }
-    }
   }
 }
 
