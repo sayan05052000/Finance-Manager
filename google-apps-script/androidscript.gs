@@ -106,16 +106,16 @@ function doPost(e) {
       sheet.appendRow([
         date,
         credit,
-        debitVal !== '' ? debitVal : '',
-        net !== 0 ? net : (credit !== '' ? credit : ''),
-        remainder,
+        '',
+        '',
+        '',
         subCategory,
         type,
         loans,
         account,
-        category,
-        year,
-        month,
+        '',
+        '',
+        '',
         debitWithoutSign !== '' ? debitWithoutSign : '',
         ''
       ]);
