@@ -1,5 +1,6 @@
 package com.samiy.financemanager.ui.adapter;
 
+import android.graphics.Paint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,9 +11,10 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.data.FinanceRepository;
+import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.Transaction;
 
-import android.graphics.Paint;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -29,6 +31,16 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
 
     public void setOnTransactionClickListener(OnTransactionClickListener listener) {
         this.listener = listener;
+    }
+
+    public interface OnTransactionDeleteClickListener {
+        void onTransactionDelete(Transaction transaction);
+    }
+
+    private OnTransactionDeleteClickListener deleteClickListener;
+
+    public void setOnTransactionDeleteClickListener(OnTransactionDeleteClickListener listener) {
+        this.deleteClickListener = listener;
     }
 
     public interface OnTransactionLongClickListener {
@@ -88,6 +100,24 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         holder.tvSourceBadge.setText(tx.getDisplaySource().toUpperCase(Locale.ROOT));
         holder.tvDate.setText(tx.getFormattedDate());
 
+        // Resolve tagged credit card with fallback if only 1 card exists
+        String taggedCard = tx.taggedCreditCard != null ? tx.taggedCreditCard.trim() : "";
+        if (taggedCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(tx.loans != null ? tx.loans.trim() : "")) {
+            FinanceDatabase db = FinanceRepository.getInstance(holder.itemView.getContext()).getDatabase();
+            if (db != null && db.creditCards != null && db.creditCards.size() == 1) {
+                taggedCard = db.creditCards.get(0).cardName;
+            }
+        }
+
+        if (holder.tvCardBadge != null) {
+            if (!taggedCard.isEmpty()) {
+                holder.tvCardBadge.setText("💳 " + taggedCard);
+                holder.tvCardBadge.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvCardBadge.setVisibility(View.GONE);
+            }
+        }
+
         // Value in debit does NOT mean expense.
         // It is an expense only if marked as "Expense".
         // A positive debit in an expense balances out (refund/cashback).
@@ -113,6 +143,9 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
 
         String catDesc = (tx.subCategory != null && !tx.subCategory.isEmpty() ? tx.subCategory : "General") +
                 (tx.category != null && !tx.category.isEmpty() ? " • " + tx.category : "");
+        if (!taggedCard.isEmpty()) {
+            catDesc += " • 💳 " + taggedCard;
+        }
         if (tx.isBalancingOut()) {
             catDesc += " (Balancing Out)";
         }
@@ -144,15 +177,24 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
             holder.itemView.setEnabled(true);
         }
 
-        View.OnClickListener clickListener = v -> {
+        // Clicking the card body opens transaction details modal
+        holder.itemView.setOnClickListener(v -> {
             if (isDeleting) return;
             if (listener != null) {
                 listener.onTransactionClick(tx);
             }
-        };
-        holder.itemView.setOnClickListener(clickListener);
+        });
+
+        // Clicking the delete button directly triggers delete confirmation
         if (holder.btnDelete != null) {
-            holder.btnDelete.setOnClickListener(clickListener);
+            holder.btnDelete.setOnClickListener(v -> {
+                if (isDeleting) return;
+                if (deleteClickListener != null) {
+                    deleteClickListener.onTransactionDelete(tx);
+                } else if (listener != null) {
+                    listener.onTransactionClick(tx);
+                }
+            });
         }
 
         holder.itemView.setOnLongClickListener(v -> {
@@ -175,11 +217,12 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvSourceBadge, tvDate, tvAmount, tvCategoryDesc, tvRemainder, btnDelete;
+        TextView tvSourceBadge, tvCardBadge, tvDate, tvAmount, tvCategoryDesc, tvRemainder, btnDelete;
 
         ViewHolder(View itemView) {
             super(itemView);
             tvSourceBadge = itemView.findViewById(R.id.tvTxSourceBadge);
+            tvCardBadge = itemView.findViewById(R.id.tvTxCardBadge);
             tvDate = itemView.findViewById(R.id.tvTxDate);
             tvAmount = itemView.findViewById(R.id.tvTxAmount);
             tvCategoryDesc = itemView.findViewById(R.id.tvTxCategoryDesc);

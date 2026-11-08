@@ -3,6 +3,7 @@ package com.samiy.financemanager.ui.fragment;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.MainActivity;
 import com.samiy.financemanager.ui.dialog.AddTransactionBottomSheet;
+import com.samiy.financemanager.ui.dialog.TransactionDetailsBottomSheet;
 import android.widget.Toast;
 import android.os.Bundle;
 import android.os.Parcelable;
@@ -80,8 +81,9 @@ public class LedgerFragment extends Fragment {
         rvLedger = v.findViewById(R.id.rvLedger);
         rvLedger.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new TransactionsAdapter();
-        adapter.setOnTransactionClickListener(this::confirmDeleteTransaction);
-        adapter.setOnTransactionLongClickListener(this::confirmDeleteTransaction);
+        adapter.setOnTransactionClickListener(this::showTransactionDetailsModal);
+        adapter.setOnTransactionDeleteClickListener(this::confirmDeleteTransaction);
+        adapter.setOnTransactionLongClickListener(this::showTransactionDetailsModal);
         rvLedger.setAdapter(adapter);
 
         View btnAddTx = v.findViewById(R.id.btnAddTransactionLedger);
@@ -373,17 +375,45 @@ public class LedgerFragment extends Fragment {
         });
     }
 
+    private void showTransactionDetailsModal(Transaction tx) {
+        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        TransactionDetailsBottomSheet dialog = TransactionDetailsBottomSheet.newInstance(tx);
+        dialog.setOnTransactionDeleteRequestedListener(this::confirmDeleteTransaction);
+        dialog.show(getChildFragmentManager(), "TxDetailsModal");
+    }
+
     private void confirmDeleteTransaction(Transaction tx) {
         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
             Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // Tagged Credit Card resolution
+        String taggedCard = tx.taggedCreditCard != null ? tx.taggedCreditCard.trim() : "";
+        if (taggedCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(tx.loans != null ? tx.loans.trim() : "")) {
+            FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+            if (db != null && db.creditCards != null && db.creditCards.size() == 1) {
+                taggedCard = db.creditCards.get(0).cardName;
+            }
+        }
+
         String details = (tx.getDisplaySource() != null ? tx.getDisplaySource() : "") +
                 (tx.date != null ? " • " + tx.date : "") +
                 (tx.subCategory != null ? "\n" + tx.subCategory : "");
+
+        String message = "Are you sure you want to permanently delete this transaction from your Google Sheet?\n\n" + details;
+        if (!taggedCard.isEmpty()) {
+            double delta = (tx.debitWithoutSign > 0) ? (tx.debitWithoutSign - tx.credit) : -tx.credit;
+            if (delta == 0 && tx.net != 0) delta = Math.abs(tx.net);
+            message += "\n\n💳 " + taggedCard + " unbilled spend (" + formatCurrency(delta) + ") will be reversed.";
+        }
+
         new androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
                 .setTitle("Delete Transaction")
-                .setMessage("Are you sure you want to permanently delete this transaction from your Google Sheet?\n\n" + details)
+                .setMessage(message)
                 .setPositiveButton("Delete", (dialog, which) -> {
                     if (adapter != null) {
                         adapter.markDeleting(tx.id);

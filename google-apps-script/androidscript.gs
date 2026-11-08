@@ -97,6 +97,12 @@ function doPost(e) {
       const year = tx.year || (parts.length === 3 ? parts[2] : new Date().getFullYear());
       const month = tx.month || (parts.length >= 2 ? parts[1] : (new Date().getMonth() + 1));
 
+      const taggedCard = tx.taggedCreditCard || tx.creditCard || '';
+
+      if (sheet.getLastColumn() < 15 || !sheet.getRange(1, 15).getValue()) {
+        sheet.getRange(1, 15).setValue('Tagged Credit Card');
+      }
+
       sheet.appendRow([
         date,
         credit,
@@ -111,11 +117,11 @@ function doPost(e) {
         '',
         '',
         debitWithoutSign !== '' ? debitWithoutSign : 0,
-        ''
+        '',
+        taggedCard
       ]);
 
       // If tagged to a credit card, update its Unbilled Amount in 'Credit Cards' sheet
-      const taggedCard = tx.taggedCreditCard || tx.creditCard;
       if (taggedCard) {
         try {
           const ccSheet = ss.getSheetByName('Credit Cards');
@@ -263,6 +269,68 @@ function doPost(e) {
 
       if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
         throw new Error('Invalid transaction row ID: ' + (data.id || tx.id));
+      }
+
+      // Read row values before deleting to reverse credit card effect if tagged
+      const rowValues = sheet.getRange(rowId, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
+      const rowCredit = Number(rowValues[1]) || 0;
+      const rowDebitWithoutSign = Number(rowValues[12]) || 0;
+      const rowDebit = Number(rowValues[2]) || 0;
+      const rowLoan = String(rowValues[7] || '').trim();
+      let rowTaggedCard = (rowValues.length >= 15 && rowValues[14]) ? String(rowValues[14]).trim() : '';
+      if (!rowTaggedCard && tx.taggedCreditCard) {
+        rowTaggedCard = String(tx.taggedCreditCard).trim();
+      }
+      if (!rowTaggedCard && (data.taggedCreditCard || data.creditCard)) {
+        rowTaggedCard = String(data.taggedCreditCard || data.creditCard).trim();
+      }
+      if (!rowTaggedCard && rowLoan.toUpperCase() === 'CREDIT CARD') {
+        const ccSheet = ss.getSheetByName('Credit Cards');
+        if (ccSheet && ccSheet.getLastRow() >= 2) {
+          const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
+          const cols = findCreditCardColumnIndices(ccHeaders);
+          const ccValues = ccSheet.getDataRange().getValues();
+          if (ccValues.length === 2) {
+            rowTaggedCard = String(ccValues[1][cols.colCardName - 1] || '').trim();
+          }
+        }
+      }
+
+      let dws = rowDebitWithoutSign;
+      if (dws === 0 && tx.debitWithoutSign) dws = Number(tx.debitWithoutSign) || 0;
+      let cr = rowCredit;
+      if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
+      let delta = 0;
+      if (dws > 0) delta += dws;
+      if (cr > 0) delta -= cr;
+      if (delta === 0 && (rowDebit !== 0 || tx.debit || tx.net)) {
+        delta = Math.abs(Number(rowDebit || tx.debit || tx.net) || 0);
+      }
+
+      // Reverse effect on target Credit Card unbilled balance
+      if (rowTaggedCard && delta !== 0) {
+        try {
+          const ccSheet = ss.getSheetByName('Credit Cards');
+          if (ccSheet && ccSheet.getLastRow() >= 2) {
+            const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
+            const cols = findCreditCardColumnIndices(ccHeaders);
+            const ccValues = ccSheet.getDataRange().getValues();
+            const targetName = rowTaggedCard.toLowerCase().trim();
+            for (let i = 1; i < ccValues.length; i++) {
+              const rowCardName = String(ccValues[i][cols.colCardName - 1] || '').toLowerCase().trim();
+              if (rowCardName === targetName) {
+                const currUnbilled = Number(ccValues[i][cols.colUnbilled - 1]) || 0;
+                let newUnbilled = currUnbilled - delta;
+                if (newUnbilled < 0) newUnbilled = 0;
+                newUnbilled = Math.round(newUnbilled * 100) / 100;
+                ccSheet.getRange(i + 1, cols.colUnbilled).setValue(newUnbilled);
+                break;
+              }
+            }
+          }
+        } catch (ccErr) {
+          console.warn('Error reversing credit card unbilled amount on delete: ' + ccErr);
+        }
       }
 
       sheet.deleteRow(rowId);
@@ -740,8 +808,25 @@ function getTransactions(ss, limit, page) {
     startRow = Math.max(2, lastRow - Number(limit) + 1);
     numRows = lastRow - startRow + 1;
   }
-  const values = sheet.getRange(startRow, 1, numRows, 14).getValues();
+  const lastCol = sheet.getLastColumn();
+  const readCols = Math.max(15, lastCol);
+  const values = sheet.getRange(startRow, 1, numRows, readCols).getValues();
   const tz = 'Asia/Kolkata';
+
+  // Read credit cards list for single-card fallback
+  let creditCardNamesList = [];
+  try {
+    const ccSheet = ss.getSheetByName('Credit Cards');
+    if (ccSheet && ccSheet.getLastRow() >= 2) {
+      const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
+      const ccCols = findCreditCardColumnIndices(ccHeaders);
+      const ccVals = ccSheet.getDataRange().getValues();
+      for (let cIdx = 1; cIdx < ccVals.length; cIdx++) {
+        const cName = String(ccVals[cIdx][ccCols.colCardName - 1] || '').trim();
+        if (cName) creditCardNamesList.push(cName);
+      }
+    }
+  } catch (ignored) {}
 
   return values.map((row, idx) => {
     let dateVal = row[0];
@@ -797,7 +882,14 @@ function getTransactions(ss, limit, page) {
       month: month,
       debitWithoutSign: dws,
       scannedForBudgetAnalysis: row[13] ? String(row[13]) : '',
-      isProcessed: row[13] === 'Done' || (row[13] !== '' && row[13] !== null && row[13] !== undefined)
+      isProcessed: row[13] === 'Done' || (row[13] !== '' && row[13] !== null && row[13] !== undefined),
+      taggedCreditCard: (() => {
+        let card = (row.length >= 15 && row[14]) ? String(row[14]).trim() : '';
+        if (!card && String(row[7] || '').trim().toUpperCase() === 'CREDIT CARD' && creditCardNamesList.length === 1) {
+          card = creditCardNamesList[0];
+        }
+        return card;
+      })()
     };
   }).reverse();
 }

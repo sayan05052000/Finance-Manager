@@ -160,16 +160,24 @@ To safeguard financial audit integrity, prevent historical balance corruption, a
    - Automatically populates Year and Month columns as numeric integers matching the 6th-to-5th cycle rule.
    - Immediate optimistic local insertion into `FinanceRepository` for zero perceived latency.
 
-2. **Deleting Transactions (`LedgerFragment`) with Real-Time Visual Feedback**:
-   - Each transaction card in the ledger features an immediate **🗑️ Delete** button (styled in `@color/red_rose`).
-   - Clicking or long-pressing anywhere on a transaction card prompts a custom dark confirmation dialog (`"Are you sure you want to permanently delete this transaction from your Google Sheet?"`).
+2. **Viewing Details & Deleting Transactions (`LedgerFragment` & `TransactionDetailsBottomSheet`)**:
+   - **Transaction Details Modal on Card Click**:
+     - Tapping any transaction card displays its complete metadata in a futuristic dark bottom sheet modal (`TransactionDetailsBottomSheet.java` & `dialog_transaction_details.xml`).
+     - Details include: Hero amount with signed color coding, transaction type badge, balancing out flag, date & cycle label, source account/loan, tagged credit card badge, full category/sub-category breakdown, running remainder, and Google Sheets row ID.
+   - **Deletion via Dedicated Delete Button**:
+     - To delete a transaction, the user must explicitly click the **"🗑️ Delete Transaction"** button in the details modal or the **"🗑️ Delete"** button on the card.
+     - Tapping the card body solely opens the details view, preventing unintended deletions.
+   - **Automatic Credit Card Spend Reversal**:
+     - If the deleted transaction was tagged to a credit card, FinMngr automatically and accurately reverses its effect on the card's unbilled statement:
+       $$\text{Unbilled Amount}_{\text{new}} = \max(0, \text{Unbilled Amount}_{\text{current}} - \text{Spend Delta})$$
+     - Reversal applies instantly in local in-memory state and synchronizes to Google Sheets `Credit Cards` tab.
    - **Instant In-Progress Visual Feedback**:
      - The target transaction card's opacity immediately dims to **35% alpha**.
      - A strike-through is drawn across the transaction amount (`Paint.STRIKE_THRU_TEXT_FLAG`).
      - The button changes from `"🗑️ Delete"` to `"⏳ Deleting..."` with clicks disabled.
      - The swipe-to-refresh sync spinner activates at the top (`swipeRefresh.setRefreshing(true)`).
      - A Toast displays `"Deleting transaction from Google Sheet..."`.
-   - The server deletes the specified row, invokes `calculateRemainders()`, executes `SpreadsheetApp.flush()`, and returns confirmation.
+   - The server deletes the specified row, reverses credit card unbilled spends, invokes `calculateRemainders()`, executes `SpreadsheetApp.flush()`, and returns confirmation.
    - Upon confirmation, the card smoothly disappears from the list, the spinner stops, and a success Toast confirms deletion.
 
 3. **Resilient Deserialization & Zero-Latency Sync Engine**:
@@ -554,7 +562,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 
 | Sheet Name | Key Columns | Purpose |
 |---|---|---|
-| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Processed Flag | General ledger of all income and expenses (14 columns) |
+| **Transactions** | Date, Credit, Debit, Net, Remainder, Sub Category, Type, Loans, Account, Category, Year, Month, Debit Without Sign, Processed Flag, Tagged Credit Card | General ledger of all income, expenses, and tagged credit card spends (15 columns) |
 | **Account Opening Balance** | Account Name, Opening Balance | Initial liquid account baseline for running balance calculations |
 | **Loans Opening Balance** | Loan Name, Opening Balance | Initial liability baseline for running balance calculations |
 | **Mutual Investment Holdings** | Scheme Name, Scheme Code, Scheme Id, Category, Sub-category, Savings Type, Units, Avg Buying NAV, Invested Value, NAV, Current Value, 1D Change | Current portfolio valuation and live NAV tracking |
@@ -622,6 +630,7 @@ Finance-Manager/
             │   │   │   ├── AddCreditCardBottomSheet.java            # Mandatory unique name & optional due date
             │   │   │   ├── AddPolicyBottomSheet.java                # New policy with date pickers
             │   │   │   ├── EditCreditCardBottomSheet.java           # Update due date and billed amount only
+            │   │   │   ├── TransactionDetailsBottomSheet.java       # Transaction inspector modal with delete action
             │   │   │   ├── AddTransactionBottomSheet.java           # Auth-guarded transaction entry
             │   │   │   ├── CustomCalendarDialog.java                # Futuristic dark calendar dialog
             │   │   │   ├── EditPolicyBottomSheet.java               # Mark as Paid & policy editor
@@ -646,6 +655,7 @@ Finance-Manager/
                 ├── layout/                     # XML layout resources
                 │   ├── activity_main.xml       # Main layout with Unauthorized blocking overlay
                 │   ├── dialog_custom_calendar.xml # Custom dark-themed calendar layout
+                │   ├── dialog_transaction_details.xml # Transaction details modal with delete action
                 │   ├── dialog_edit_policy.xml  # Policy editor with 'Mark as Paid'
                 │   ├── dialog_edit_sip.xml     # Clean edit dialog with touch interceptor
                 │   ├── dialog_edit_transaction.xml # Edit & Delete transaction bottom sheet
@@ -677,6 +687,7 @@ Finance-Manager/
 | `AddCreditCardBottomSheet` | Bottom sheet for registering new credit cards with unique name validation, optional due date picker, optional billed amount, and zero unbilled balance. |
 | `AddPolicyBottomSheet` | Allows adding new insurance policies to Google Sheets with calendar pickers for Birth Date, Due Date, Last Paid Date, and Maturity Date (installments calculated by sheet formula). |
 | `EditCreditCardBottomSheet` | Bottom sheet for updating credit card due date and billed amount. Explicitly prevents marking as paid to protect workflow integrity. |
+| `TransactionDetailsBottomSheet` | Bottom sheet displaying comprehensive transaction details (amount, type, date, cycle, source, tagged credit card, category, remainder) with a dedicated delete action. |
 | `ReminderNotificationManager` | Posts daily status bar notifications for LIC/Tata AIA and credit card due dates within 14 days. Implements daily `SharedPreferences` rate limiting ensuring strictly 1 notification per day per item with dynamic countdown. |
 | `CustomCalendarDialog` | Custom dark-themed calendar dialog featuring 1-tap presets (Today, Yesterday, 6th Cycle Start, 1st of Month), decade quick-jumps (1940-2070), and month/year grid modal adhering to FinMngr design language. |
 | `DateTimeHelper` | Central utility managing calendar date picker dialogs, date string parsing/formatting in `dd/MM/yyyy`, and min/max date boundary validators (`setupPastDatePicker`, `setupFutureDatePicker`, `setupDueDatePicker`). |

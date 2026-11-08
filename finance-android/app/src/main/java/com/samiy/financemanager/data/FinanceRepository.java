@@ -576,6 +576,8 @@ public class FinanceRepository {
         }
 
         // Remove from local database immediately and adjust remainders
+        final Transaction removedTx;
+        final String cardNameForReversal;
         if (database != null && database.transactions != null) {
             Transaction toRemove = null;
             int foundIdx = -1;
@@ -588,6 +590,7 @@ public class FinanceRepository {
             }
 
             if (foundIdx != -1 && toRemove != null) {
+                removedTx = toRemove;
                 double net = (toRemove.credit > 0 ? toRemove.credit : 0) + 
                         (toRemove.debit != 0 ? toRemove.debit : (toRemove.debitWithoutSign > 0 ? -toRemove.debitWithoutSign : 0));
                 String entity = toRemove.account != null && !toRemove.account.trim().isEmpty() 
@@ -601,10 +604,38 @@ public class FinanceRepository {
                     }
                     updateEntityBalance(entity, -net);
                 }
+
+                // Reverse credit card unbilled amount if tagged
+                String targetCard = toRemove.taggedCreditCard != null ? toRemove.taggedCreditCard.trim() : "";
+                if (targetCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(toRemove.loans != null ? toRemove.loans.trim() : "")) {
+                    if (database.creditCards != null && database.creditCards.size() == 1) {
+                        targetCard = database.creditCards.get(0).cardName;
+                    }
+                }
+                cardNameForReversal = targetCard;
+
+                if (!targetCard.isEmpty() && database.creditCards != null) {
+                    double delta = (toRemove.debitWithoutSign > 0) ? (toRemove.debitWithoutSign - toRemove.credit) : -toRemove.credit;
+                    if (delta == 0 && toRemove.net != 0) delta = Math.abs(toRemove.net);
+                    for (com.samiy.financemanager.data.model.CreditCard cc : database.creditCards) {
+                        if (cc != null && cc.cardName != null && cc.cardName.trim().equalsIgnoreCase(targetCard)) {
+                            cc.unbilledAmount = Math.max(0, Math.round((cc.unbilledAmount - delta) * 100.0) / 100.0);
+                            break;
+                        }
+                    }
+                }
+
                 database.transactions.remove(foundIdx);
+            } else {
+                removedTx = null;
+                cardNameForReversal = "";
             }
             CalculationEngine.recalculate(database);
             saveLocalCache();
+            notifySyncListeners();
+        } else {
+            removedTx = null;
+            cardNameForReversal = "";
         }
 
         executor.execute(() -> {
@@ -612,6 +643,23 @@ public class FinanceRepository {
                 JsonObject payload = new JsonObject();
                 payload.addProperty("action", "deleteTransaction");
                 payload.addProperty("id", transactionId);
+
+                if (removedTx != null) {
+                    JsonObject txObj = new JsonObject();
+                    txObj.addProperty("id", transactionId);
+                    txObj.addProperty("date", removedTx.date);
+                    txObj.addProperty("subCategory", removedTx.subCategory);
+                    txObj.addProperty("loans", removedTx.loans);
+                    txObj.addProperty("account", removedTx.account);
+                    txObj.addProperty("debitWithoutSign", removedTx.debitWithoutSign);
+                    txObj.addProperty("credit", removedTx.credit);
+                    txObj.addProperty("debit", removedTx.debit);
+                    txObj.addProperty("net", removedTx.net);
+                    if (!cardNameForReversal.isEmpty()) {
+                        txObj.addProperty("taggedCreditCard", cardNameForReversal);
+                    }
+                    payload.add("transaction", txObj);
+                }
 
                 String postBody = gson.toJson(payload);
                 executeHttpPost(GAS_URL, postBody.toString());
@@ -1169,6 +1217,10 @@ public class FinanceRepository {
                         }
                         if (newTx.remainder == 0 && oldTx.remainder != 0) {
                             newTx.remainder = oldTx.remainder;
+                        }
+                        if ((newTx.taggedCreditCard == null || newTx.taggedCreditCard.trim().isEmpty()) &&
+                                oldTx.taggedCreditCard != null && !oldTx.taggedCreditCard.trim().isEmpty()) {
+                            newTx.taggedCreditCard = oldTx.taggedCreditCard;
                         }
                         break;
                     }
