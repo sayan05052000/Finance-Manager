@@ -158,15 +158,9 @@ function doPost(e) {
       // Compute consistent credit, debit, debitWithoutSign, and net
       const creditVal = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : 0;
       let debitVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '' && Number(tx.debit) !== 0) ? Number(tx.debit) : 0;
-      let dwsVal = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' && Number(tx.debitWithoutSign) > 0) ? Number(tx.debitWithoutSign) : 0;
+      let dwsVal = (tx.debit !== undefined && tx.debit !== null && tx.debit !== '')? Number(tx.debit) : 0;
 
-      if (debitVal === 0 && dwsVal > 0) {
-        debitVal = -dwsVal;
-      } else if (debitVal !== 0 && dwsVal === 0) {
-        dwsVal = Math.abs(debitVal);
-      }
-
-      const netVal = creditVal + debitVal;
+    
 
       // Col 1: Date
       if (tx.date !== undefined && tx.date !== null && String(tx.date).trim() !== '') {
@@ -181,12 +175,6 @@ function doPost(e) {
 
       // Col 2: Credit
       sheet.getRange(rowId, 2).setValue(creditVal > 0 ? creditVal : '');
-
-      // Col 3: Debit (with sign)
-      sheet.getRange(rowId, 3).setValue(debitVal !== 0 ? debitVal : '');
-
-      // Col 4: NET (CRITICAL: ALWAYS UPDATED)
-      sheet.getRange(rowId, 4).setValue(netVal !== 0 ? netVal : (creditVal > 0 ? creditVal : ''));
 
       // Col 6: Sub Category
       if (tx.subCategory !== undefined && tx.subCategory !== null) {
@@ -210,7 +198,7 @@ function doPost(e) {
       }
 
       // Col 13: Debit Without Sign
-      sheet.getRange(rowId, 13).setValue(dwsVal > 0 ? dwsVal : '');
+      sheet.getRange(rowId, 13).setValue(dwsVal);
 
       if (typeof calculateRemainders === 'function') {
         try {
@@ -847,31 +835,4 @@ function calculateRemainders() {
 
   // Batch-write directly into Column E (starting at row 2)
   transSheet.getRange(2, 5, remainderOutput.length, 1).setValues(remainderOutput);
-
-  // Sync latest running balances into Current Account Balance and Current Loan OutStanding
-  try {
-    var currAccSheet = ss.getSheetByName('Current Account Balance');
-    if (currAccSheet) {
-      var currAccData = currAccSheet.getDataRange().getValues();
-      for (var a = 1; a < currAccData.length; a++) {
-        var aName = currAccData[a][0] ? String(currAccData[a][0]).trim() : "";
-        if (aName in runningBalances) {
-          currAccSheet.getRange(a + 1, 2).setValue(runningBalances[aName]);
-        }
-      }
-    }
-
-    var currLoanSheet = ss.getSheetByName('Current Loan OutStanding');
-    if (currLoanSheet) {
-      var currLoanData = currLoanSheet.getDataRange().getValues();
-      for (var l = 1; l < currLoanData.length; l++) {
-        var lName = currLoanData[l][0] ? String(currLoanData[l][0]).trim() : "";
-        if (lName in runningBalances) {
-          currLoanSheet.getRange(l + 1, 2).setValue(runningBalances[lName]);
-        }
-      }
-    }
-  } catch (syncErr) {
-    console.warn('Sync balance error: ' + syncErr);
-  }
 }

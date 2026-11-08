@@ -207,7 +207,7 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
         }
 
         // Pre-fill Debit & Credit
-        double dVal = transaction.debitWithoutSign > 0 ? transaction.debitWithoutSign : Math.abs(transaction.debit);
+        double dVal = transaction.debitWithoutSign;
         if (dVal > 0) {
             String dStr = String.format(Locale.US, "%.2f", dVal);
             if (dStr.endsWith(".00")) dStr = dStr.substring(0, dStr.length() - 3);

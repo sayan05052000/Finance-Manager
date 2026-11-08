@@ -65,19 +65,21 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         if (tx.isBalancingOut()) {
             holder.tvAmount.setText("+" + formatCurrency(tx.debit));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
-        } else if (tx.debit < 0) {
-            holder.tvAmount.setText("-" + formatCurrency(Math.abs(tx.debit)));
+        } else if (tx.net < 0) {
+            holder.tvAmount.setText("-" + formatCurrency(Math.abs(tx.net)));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.red_rose));
-        } else if (tx.credit > 0) {
-            holder.tvAmount.setText("+" + formatCurrency(tx.credit));
+        } else if (tx.net > 0) {
+            holder.tvAmount.setText("+" + formatCurrency(tx.net));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
-        } else if (tx.debit > 0) {
-            holder.tvAmount.setText("+" + formatCurrency(tx.debit));
-            holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
-        } else if (tx.debitWithoutSign > 0) {
-            holder.tvAmount.setText("-" + formatCurrency(tx.debitWithoutSign));
-            holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.red_rose));
-        } else {
+        } 
+        // else if (tx.debit > 0) {
+        //     holder.tvAmount.setText("+" + formatCurrency(tx.debit));
+        //     holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green_mint));
+        // } else if (tx.debitWithoutSign > 0) {
+        //     holder.tvAmount.setText("-" + formatCurrency(tx.debitWithoutSign));
+        //     holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.red_rose));
+        // } 
+        else {
             holder.tvAmount.setText(formatCurrency(0));
             holder.tvAmount.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.text_muted));
         }
