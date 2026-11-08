@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.Account;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -135,7 +136,7 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!com.samiy.financemanager.auth.GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            android.widget.Toast.makeText(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT).show();
+            com.samiy.financemanager.util.FinMngrToast.show(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT);
             dismissAllowingStateLoss();
             return null;
         }
@@ -449,29 +450,29 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
 
             if ("Expense".equals(selectedType)) {
                 if (debitStr.isEmpty()) {
-                    Toast.makeText(getContext(), "Please enter debit amount", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Please enter debit amount", Toast.LENGTH_SHORT);
                     return;
                 }
                 try {
                     debitVal = Double.parseDouble(debitStr);
                 } catch (Exception e) {
-                    Toast.makeText(getContext(), "Invalid debit amount", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Invalid debit amount", Toast.LENGTH_SHORT);
                     return;
                 }
             } else if ("Income".equals(selectedType)) {
                 if (creditStr.isEmpty()) {
-                    Toast.makeText(getContext(), "Please enter credit amount", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Please enter credit amount", Toast.LENGTH_SHORT);
                     return;
                 }
                 try {
                     creditVal = Double.parseDouble(creditStr);
                 } catch (Exception e) {
-                    Toast.makeText(getContext(), "Invalid credit amount", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Invalid credit amount", Toast.LENGTH_SHORT);
                     return;
                 }
             } else { // Do not Consider
                 if (debitStr.isEmpty() && creditStr.isEmpty()) {
-                    Toast.makeText(getContext(), "Please enter at least debit or credit amount", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Please enter at least debit or credit amount", Toast.LENGTH_SHORT);
                     return;
                 }
                 if (!debitStr.isEmpty()) {
@@ -556,7 +557,7 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
                 @Override
                 public void onLoaded(FinanceDatabase updatedDb) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "Transaction added to Google Sheet!", Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), "Transaction added to Google Sheet!", Toast.LENGTH_LONG);
                         if (listener != null) listener.onTransactionAdded();
                         dismiss();
                     }
@@ -565,7 +566,7 @@ public class AddTransactionBottomSheet extends BottomSheetDialogFragment {
                 @Override
                 public void onError(String error) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), error, Toast.LENGTH_LONG);
                         if (listener != null) listener.onTransactionAdded();
                         dismiss();
                     }

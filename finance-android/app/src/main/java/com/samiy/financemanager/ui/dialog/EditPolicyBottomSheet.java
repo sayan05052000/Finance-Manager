@@ -19,6 +19,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -146,7 +147,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            Toast.makeText(getContext(), "You are not authorized to update policies.", Toast.LENGTH_SHORT).show();
+            FinMngrToast.show(getContext(), "You are not authorized to update policies.", Toast.LENGTH_SHORT);
             dismiss();
             return null;
         }
@@ -256,7 +257,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
             cardMarkPaid.setOnClickListener(view -> {
                 if (!cbMarkPaid.isChecked()) {
                     applyMarkAsPaid.run();
-                    Toast.makeText(getContext(), "Payment date set to Today! Due date auto-shifted to " + calculatedDue, Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Payment date set to Today! Due date auto-shifted to " + calculatedDue, Toast.LENGTH_SHORT);
                 } else {
                     revertMarkAsPaid.run();
                 }
@@ -275,7 +276,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
             String newLastPaid = etLastPaid.getText().toString().trim();
 
             if (newDue.isEmpty()) {
-                Toast.makeText(getContext(), "Please select a due date", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please select a due date", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -301,7 +302,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
                 @Override
                 public void onLoaded(FinanceDatabase updatedDb) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "Policy dates updated successfully!", Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), "Policy dates updated successfully!", Toast.LENGTH_SHORT);
                         if (listener != null) listener.onPolicyUpdated();
                         dismiss();
                     }
@@ -312,7 +313,7 @@ public class EditPolicyBottomSheet extends BottomSheetDialogFragment {
                     if (isAdded()) {
                         btnUpdate.setEnabled(true);
                         btnUpdate.setText("Update Policy Dates");
-                        Toast.makeText(getContext(), "Failed to update: " + error, Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), "Failed to update: " + error, Toast.LENGTH_LONG);
                     }
                 }
             });

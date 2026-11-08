@@ -25,6 +25,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
+import com.samiy.financemanager.ui.dialog.FinMngrDialog;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.Account;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -90,7 +92,7 @@ public class LedgerFragment extends Fragment {
         if (btnAddTx != null) {
             btnAddTx.setOnClickListener(view -> {
                 if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                    Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "You are not authorized");
                     return;
                 }
                 AddTransactionBottomSheet dialog = new AddTransactionBottomSheet();
@@ -361,7 +363,7 @@ public class LedgerFragment extends Fragment {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
                     populateUI();
-                    Toast.makeText(getContext(), "Synced with Google Sheet", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showSuccess(getContext(), "Synced with Google Sheet");
                 }
             }
 
@@ -369,7 +371,7 @@ public class LedgerFragment extends Fragment {
             public void onError(String error) {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
-                    Toast.makeText(getContext(), "Sync failed: " + error, Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "Sync failed: " + error);
                 }
             }
         });
@@ -377,7 +379,7 @@ public class LedgerFragment extends Fragment {
 
     private void showTransactionDetailsModal(Transaction tx) {
         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+            FinMngrToast.showError(getContext(), "You are not authorized");
             return;
         }
         TransactionDetailsBottomSheet dialog = TransactionDetailsBottomSheet.newInstance(tx);
@@ -387,7 +389,7 @@ public class LedgerFragment extends Fragment {
 
     private void confirmDeleteTransaction(Transaction tx) {
         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+            FinMngrToast.showError(getContext(), "You are not authorized");
             return;
         }
 
@@ -411,17 +413,17 @@ public class LedgerFragment extends Fragment {
             message += "\n\n💳 " + taggedCard + " unbilled spend (" + formatCurrency(delta) + ") will be reversed.";
         }
 
-        new androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
-                .setTitle("Delete Transaction")
-                .setMessage(message)
-                .setPositiveButton("Delete", (dialog, which) -> {
+        FinMngrDialog.showDestructiveConfirmation(requireContext(),
+                "Delete Transaction",
+                message,
+                "Delete",
+                () -> {
                     if (adapter != null) {
                         adapter.markDeleting(tx.id);
                     }
                     if (swipeRefresh != null) {
                         swipeRefresh.setRefreshing(true);
                     }
-                    Toast.makeText(getContext(), "Deleting transaction from Google Sheet...", Toast.LENGTH_SHORT).show();
 
                     FinanceRepository.getInstance(requireContext()).deleteTransaction(tx.id, new FinanceRepository.DataCallback() {
                         @Override
@@ -433,7 +435,6 @@ public class LedgerFragment extends Fragment {
                                 if (swipeRefresh != null) {
                                     swipeRefresh.setRefreshing(false);
                                 }
-                                Toast.makeText(getContext(), "Transaction deleted successfully!", Toast.LENGTH_SHORT).show();
                                 if (getActivity() instanceof MainActivity) {
                                     ((MainActivity) getActivity()).updateHeaderInfo();
                                 }
@@ -451,13 +452,10 @@ public class LedgerFragment extends Fragment {
                                 if (swipeRefresh != null) {
                                     swipeRefresh.setRefreshing(false);
                                 }
-                                Toast.makeText(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG).show();
                             }
                         }
                     });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                });
     }
 
     private String formatCurrency(double amount) {

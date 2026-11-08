@@ -19,6 +19,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -68,7 +69,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            Toast.makeText(getContext(), "You are not authorized to add policies.", Toast.LENGTH_SHORT).show();
+            FinMngrToast.show(getContext(), "You are not authorized to add policies.", Toast.LENGTH_SHORT);
             dismiss();
             return null;
         }
@@ -113,7 +114,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
                     .setItems(subCategoryOptions, (dialog, which) -> {
                         tvSubCategory.setText(subCategoryOptions[which]);
                     })
-                    .show();
+                    ;
         });
 
         btnSubmit.setOnClickListener(view -> {
@@ -129,11 +130,11 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
             String notes = etNotes.getText().toString().trim();
 
             if (policyNum.isEmpty()) {
-                Toast.makeText(getContext(), "Please enter policy number", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please enter policy number", Toast.LENGTH_SHORT);
                 return;
             }
             if (amountStr.isEmpty()) {
-                Toast.makeText(getContext(), "Please enter premium amount", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please enter premium amount", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -143,13 +144,13 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
                     java.util.Date dDate = dateCmp.parse(DateTimeHelper.formatDisplayDate(due));
                     java.util.Date mDate = dateCmp.parse(DateTimeHelper.formatDisplayDate(maturityDate));
                     if (dDate != null && mDate != null && dDate.after(mDate)) {
-                        Toast.makeText(getContext(), "Due date cannot be greater than maturity date", Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), "Due date cannot be greater than maturity date", Toast.LENGTH_SHORT);
                         return;
                     }
                 } catch (Exception ignored) {}
             }
             if (due.isEmpty()) {
-                Toast.makeText(getContext(), "Please select due date from calendar", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please select due date from calendar", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -157,7 +158,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
             try {
                 premium = Double.parseDouble(amountStr);
             } catch (Exception e) {
-                Toast.makeText(getContext(), "Invalid premium amount", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Invalid premium amount", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -194,7 +195,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
                 @Override
                 public void onLoaded(FinanceDatabase updatedDb) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "Policy added successfully!", Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), "Policy added successfully!", Toast.LENGTH_SHORT);
                         if (listener != null) listener.onPolicyAdded();
                         dismiss();
                     }
@@ -205,7 +206,7 @@ public class AddPolicyBottomSheet extends BottomSheetDialogFragment {
                     if (isAdded()) {
                         btnSubmit.setEnabled(true);
                         btnSubmit.setText("Add Policy to Google Sheet");
-                        Toast.makeText(getContext(), "Failed to add policy: " + error, Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), "Failed to add policy: " + error, Toast.LENGTH_LONG);
                     }
                 }
             });

@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dedicated `@drawable/bg_bottom_sheet` (24dp top corner radius with clean subtle borders) paired with `FinMngrBottomSheetDialogTheme` in `styles.xml` to eliminate harsh square container edges and background clipping.
   - Standardized all modal date inputs with calendar pickers (`@drawable/ic_calendar` tinted with `@color/colorPrimary`).
   - Removed inconsistent emoji headers ("✏️ Update Credit Card", "💳 Add Credit Card", "💳 Credit Cards") in favor of clean typography and unified subtitle hierarchy across the entire app.
+- **Instant Optimistic UI Updates & Global Sync Feedback Engine**:
+  - Local state in `FinanceRepository` (such as Credit Card bill generation, payment recording, and transaction mutations) updates in-memory immediately with zero wait time ($0\text{ ms}$ UI latency) and invokes `notifySyncListeners()`. The UI recalculates balances and renders updated cards instantly without waiting for Google Apps Script roundtrips (which take 8–15 seconds).
+  - Added global visual syncing indicators to keep user informed of ongoing cloud background sync:
+    - A slim indeterminate progress bar (`progressBarGlobalSync`) docked at the top of the screen in `activity_main.xml`.
+    - Continuous smooth 360-degree rotational animation on the header refresh button (`btnRefresh`) while any background sync or mutation is active.
+  - Added `SyncStatusListener` in `FinanceRepository` so any network operation triggers global syncing indicators and reports completion or errors reliably.
+- **Universal In-App Floating Toaster HUD (`FinMngrToast`)**:
+  - Replaced native unstyled Android OS toasts across all fragments and dialogs with `FinMngrToast`.
+  - Floating pill HUD (`layoutInAppToast`) anchored gracefully above the bottom navigation bar with pastel styling (Sage Mint for success, Honey Amber for warnings, Rose Coral for errors/destructive actions).
+  - Smooth slide-up fade animations with auto-dismissal.
+- **Universal Modal & Confirmation Dialog Engine (`FinMngrDialog`)**:
+  - Replaced unstyled system `AlertDialog` dialogs (Bill Generated, Mark Paid, Delete Transaction, Google Account switcher) with unified `FinMngrDialog` modal engine (`dialog_finmngr_modal.xml`).
+  - Features 24dp rounded corners, app branding icon, distinct titles and descriptions, and matching `MaterialButton` action pills (Cancel and Pastel Accent Confirm/Delete).
+- **Bug Fix in Bill Generated Amount**:
+  - Fixed credit card bill generation toast display bug: previously evaluated post-mutation `card.unbilledAmount` showing "₹0 billed"; now accurately caches `amountToBill` before mutation and reports the exact billed amount (e.g., "₹6,102.33 billed").
 - **Pastel Color Design System & Dynamic Theme Switcher**:
   - Implemented cohesive pastel visual design with dual palettes:
     - **Pastel Dark (Obsidian / Sage)**: Soothing desaturated pastel tones engineered for low light and OLED displays.

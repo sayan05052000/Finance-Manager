@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.CreditCard;
@@ -40,7 +41,7 @@ public class AddCreditCardBottomSheet extends BottomSheetDialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+            FinMngrToast.show(getContext(), "You are not authorized", Toast.LENGTH_SHORT);
             dismissAllowingStateLoss();
             return null;
         }
@@ -59,7 +60,7 @@ public class AddCreditCardBottomSheet extends BottomSheetDialogFragment {
 
         btnSubmit.setOnClickListener(view -> {
             if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "You are not authorized", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -78,7 +79,7 @@ public class AddCreditCardBottomSheet extends BottomSheetDialogFragment {
                             existing.cardName.trim().equalsIgnoreCase(cardName)) {
                         etCardName.setError("A card with this name already exists");
                         etCardName.requestFocus();
-                        Toast.makeText(getContext(), "Card '" + cardName + "' already exists! Card names must be unique.", Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), "Card '" + cardName + "' already exists! Card names must be unique.", Toast.LENGTH_LONG);
                         return;
                     }
                 }
@@ -111,7 +112,7 @@ public class AddCreditCardBottomSheet extends BottomSheetDialogFragment {
                 @Override
                 public void onLoaded(FinanceDatabase updatedDb) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "Credit Card " + newCard.cardName + " added!", Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), "Credit Card " + newCard.cardName + " added!", Toast.LENGTH_SHORT);
                         if (listener != null) listener.onCreditCardAdded(newCard);
                         dismiss();
                     }
@@ -122,7 +123,7 @@ public class AddCreditCardBottomSheet extends BottomSheetDialogFragment {
                     if (isAdded()) {
                         btnSubmit.setEnabled(true);
                         btnSubmit.setText("+ Add Card");
-                        Toast.makeText(getContext(), "Failed to add card: " + error, Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), "Failed to add card: " + error, Toast.LENGTH_SHORT);
                     }
                 }
             });

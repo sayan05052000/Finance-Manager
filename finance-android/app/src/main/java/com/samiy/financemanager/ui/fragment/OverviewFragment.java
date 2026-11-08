@@ -19,6 +19,7 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -74,7 +75,7 @@ public class OverviewFragment extends Fragment {
         if (btnAddTx != null) {
             btnAddTx.setOnClickListener(view -> {
                 if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                    Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "You are not authorized");
                     return;
                 }
                 AddTransactionBottomSheet dialog = new AddTransactionBottomSheet();
@@ -92,7 +93,7 @@ public class OverviewFragment extends Fragment {
         if (btnAddMf != null) {
             btnAddMf.setOnClickListener(view -> {
                 if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                    Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "You are not authorized");
                     return;
                 }
                 AddMutualFundTransactionBottomSheet dialog = new AddMutualFundTransactionBottomSheet();
@@ -196,7 +197,7 @@ public class OverviewFragment extends Fragment {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
                     populateUI();
-                    Toast.makeText(getContext(), "Synced with Google Sheet", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showSuccess(getContext(), "Synced with Google Sheet");
                 }
             }
 
@@ -204,7 +205,7 @@ public class OverviewFragment extends Fragment {
             public void onError(String error) {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
-                    Toast.makeText(getContext(), "Sync failed: " + error, Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "Sync failed: " + error);
                 }
             }
         });
@@ -265,7 +266,7 @@ public class OverviewFragment extends Fragment {
 
                     item.setOnClickListener(view -> {
                         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            FinMngrToast.showError(getContext(), "You are not authorized");
                             return;
                         }
                         com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet dialog = com.samiy.financemanager.ui.dialog.EditPolicyBottomSheet.newInstance(p);
@@ -320,7 +321,7 @@ public class OverviewFragment extends Fragment {
 
                     item.setOnClickListener(view -> {
                         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            FinMngrToast.showError(getContext(), "You are not authorized");
                             return;
                         }
                         com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet dialog = com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet.newInstance(c);

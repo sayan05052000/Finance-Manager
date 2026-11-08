@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.CalculationEngine;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.BudgetItem;
@@ -560,7 +561,7 @@ public class CycleFragment extends Fragment {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
                     populateUI();
-                    Toast.makeText(getContext(), "Synced with Google Sheet", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showSuccess(getContext(), "Synced with Google Sheet");
                 }
             }
 
@@ -568,7 +569,7 @@ public class CycleFragment extends Fragment {
             public void onError(String error) {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
-                    Toast.makeText(getContext(), "Sync failed: " + error, Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "Sync failed: " + error);
                 }
             }
         });

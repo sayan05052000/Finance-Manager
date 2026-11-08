@@ -38,6 +38,9 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Cycle Expense Tracker (Past vs Current Cycle Comparison)](#cycle-expense-tracker-past-vs-current-cycle-comparison)
    - [App Branding & UX Modernization (Contextual Actions & Keyboard Handling)](#app-branding--ux-modernization)
    - [Pastel Color Design System & Dynamic Theme Toggle (Dark & Light Pastel)](#pastel-color-design-system--dynamic-theme-toggle)
+   - [Instant Optimistic Updates & Global Visual Sync Feedback Engine](#instant-optimistic-updates--global-visual-sync-feedback-engine)
+   - [Unified Modal & Dialog Design Language (FinMngrDialog & Pill Buttons)](#unified-modal--dialog-design-language)
+   - [Universal In-App Floating Toaster HUD (FinMngrToast)](#universal-in-app-floating-toaster-hud)
 2. [System Architecture & Data Flow](#2-system-architecture--data-flow)
    - [High-Level Architecture](#high-level-architecture)
    - [End-to-End Data Flow](#end-to-end-data-flow)
@@ -480,6 +483,50 @@ FinMngr v2.0 introduces an end-to-end **Pastel Color Design System** featuring s
 * **Haptic & Visual Feedback**: Tapping the button animates a 360° rotation and displays an immediate confirmation toast indicating the active mode (*"Switched to Pastel Light"* / *"Switched to Pastel Dark"*).
 * **Persistent Preference**: Managed by `ThemeManager.java`, which stores choices in `SharedPreferences` (`finmngr_theme_prefs`) and invokes `AppCompatDelegate.setDefaultNightMode()` on application boot and theme switches.
 * **Canvas & Custom View Adaptability**: Custom components like `CycleChartView` dynamically query `ContextCompat.getColor()` for all canvas paints (budget, expense, investment, axis, and highlight cursors), ensuring flawless rendering across both themes without restarts.
+
+---
+
+### Instant Optimistic Updates & Global Visual Sync Feedback Engine
+FinMngr masks the 8–15 second network latency of Google Apps Script server executions through instantaneous optimistic cache mutations coupled with real-time global background sync indicators:
+
+1. **Instant Zero-Latency In-Memory Mutations ($0\text{ ms}$ Perception)**:
+   - When a user performs state mutations—such as **Mark as Paid**, **Bill Generated**, adding or deleting transactions—the in-memory database in `FinanceRepository` updates immediately.
+   - Balances, cycle totals, and credit card figures are recalculated instantaneously via `CalculationEngine.recalculate()`, persisted to local cache, and emitted via `notifySyncListeners()`. The UI reflects changes instantly with zero screen freezing or hesitation.
+
+2. **Global Visual Updating Indicators**:
+   - **Top Indeterminate Progress Bar (`progressBarGlobalSync`)**: A 3dp horizontal accent bar anchored at the very top of `activity_main.xml` animates smoothly while any network mutation or full sync is active.
+   - **Continuous Rotational Sync Button (`btnRefresh`)**: The header refresh button spins continuously in a smooth 360° loop from the exact moment an action is triggered until the Google Apps Script endpoint returns confirmation.
+   - **`SyncStatusListener` Interface**: Decoupled listener registry notifying all application components when background sync begins and ends (`onSyncStarted` / `onSyncFinished`).
+
+---
+
+### Unified Modal & Dialog Design Language
+To maintain a strict, cohesive pastel aesthetic, all bottom sheets, dialogs, and alerts adhere to a standardized visual specification:
+
+* **Pill Buttons Everywhere**:
+  - All `<Button>` elements throughout the app have been upgraded to `<com.google.android.material.button.MaterialButton>` with corner radii of `21dp` to `25dp` (`bg_pill_primary`, `bg_pill_dark`), `textAllCaps="false"`, and proper pastel background tints (`@color/colorPrimary` / `@color/bg_card`).
+  - No legacy flat, sharp-cornered unstyled text buttons exist anywhere in the application.
+* **Smooth 24dp Rounded Bottom Sheets (`bg_bottom_sheet`)**:
+  - All bottom sheets utilize `@drawable/bg_bottom_sheet` featuring 24dp rounded top corners, `@color/bg_card` fill, and a subtle `@color/border_dark` border.
+  - Paired with `FinMngrBottomSheetDialogTheme` (`android:background="@android:color/transparent"`), eliminating dark square container clipping.
+* **Standardized Clean Typography**:
+  - Modal headers feature clean bold typography and explanatory subtitle text without visual emoji clutter.
+  - Date inputs feature calendar vector indicators (`@drawable/ic_calendar` tinted with `@color/colorPrimary`).
+* **Universal Confirmation Engine (`FinMngrDialog`)**:
+  - Replaces raw Android OS `AlertDialog` instances with `FinMngrDialog.java` and `dialog_finmngr_modal.xml`.
+  - Supports standard confirmations (`showConfirmation`), destructive actions (`showDestructiveConfirmation` with coral rose styling), and account management (`showAccountDialog`).
+
+---
+
+### Universal In-App Floating Toaster HUD
+FinMngr replaces native unstyled OS-level toasts with a centralized floating HUD (`FinMngrToast.java`):
+
+* **Floating Pill Layout (`layoutInAppToast`)**: Anchored gracefully above the bottom navigation bar with a subtle blur effect and drop shadow.
+* **Semantic Pastel Tints**:
+  - **Success / Info**: Sage Mint (`@color/colorPrimary`).
+  - **Warning**: Honey Amber (`@color/colorWarning`).
+  - **Destructive / Error**: Rose Coral (`@color/colorExpense`).
+* **Smooth Spring Motion**: Animates into view with smooth slide-up and fade transitions, auto-dismissing after 2.8 seconds or immediately upon consecutive updates.
 
 ---
 

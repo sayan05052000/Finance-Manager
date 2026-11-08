@@ -24,6 +24,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.Account;
 import com.samiy.financemanager.data.model.FinanceDatabase;
@@ -112,7 +113,7 @@ public class EditSipBottomSheet extends BottomSheetDialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!com.samiy.financemanager.auth.GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            android.widget.Toast.makeText(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT).show();
+            com.samiy.financemanager.util.FinMngrToast.show(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT);
             dismissAllowingStateLoss();
             return null;
         }
@@ -296,7 +297,7 @@ public class EditSipBottomSheet extends BottomSheetDialogFragment {
                     dialog.dismiss();
                 })
                 .setNegativeButton("Cancel", null)
-                .show();
+                ;
     }
 
     private void setCurrentStatus(String status) {
@@ -414,7 +415,7 @@ public class EditSipBottomSheet extends BottomSheetDialogFragment {
             @Override
             public void onLoaded(FinanceDatabase db) {
                 if (isAdded()) {
-                    Toast.makeText(getContext(), "SIP updated successfully", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "SIP updated successfully", Toast.LENGTH_SHORT);
                     if (listener != null) {
                         listener.onSipUpdated(updated);
                     }
@@ -427,7 +428,7 @@ public class EditSipBottomSheet extends BottomSheetDialogFragment {
                 if (isAdded()) {
                     btnSave.setEnabled(true);
                     btnSave.setText("Save Changes");
-                    Toast.makeText(getContext(), "Failed to save: " + error, Toast.LENGTH_LONG).show();
+                    FinMngrToast.show(getContext(), "Failed to save: " + error, Toast.LENGTH_LONG);
                 }
             }
         });

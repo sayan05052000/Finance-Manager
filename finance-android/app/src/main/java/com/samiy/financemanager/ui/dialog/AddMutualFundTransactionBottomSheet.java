@@ -25,6 +25,7 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.Holding;
@@ -74,7 +75,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!com.samiy.financemanager.auth.GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            android.widget.Toast.makeText(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT).show();
+            com.samiy.financemanager.util.FinMngrToast.show(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT);
             dismissAllowingStateLoss();
             return null;
         }
@@ -353,7 +354,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
 
                 dialog.show();
             } else {
-                Toast.makeText(getContext(), "No previously used folios for this scheme. Please type your folio number.", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "No previously used folios for this scheme. Please type your folio number.", Toast.LENGTH_SHORT);
             }
         });
 
@@ -445,7 +446,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
                         }
                     }
 
-                    Toast.makeText(getContext(), "Form reset for " + selected.schemeName, Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Form reset for " + selected.schemeName, Toast.LENGTH_SHORT);
                 } else {
                     // Initial load defaults
                     if (selected.lastNav > 0 && etMfNav.getText().toString().trim().isEmpty()) {
@@ -523,13 +524,13 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
             double amount = 0.0;
             if (isBuy) {
                 if (amtStr.isEmpty()) {
-                    Toast.makeText(getContext(), "Please enter an amount for Buy transaction", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Please enter an amount for Buy transaction", Toast.LENGTH_SHORT);
                     return;
                 }
                 try {
                     amount = Double.parseDouble(amtStr);
                 } catch (Exception e) {
-                    Toast.makeText(getContext(), "Invalid amount", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.show(getContext(), "Invalid amount", Toast.LENGTH_SHORT);
                     return;
                 }
             } else {
@@ -542,26 +543,26 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
             }
 
             if (navStr.isEmpty()) {
-                Toast.makeText(getContext(), "Please enter NAV", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please enter NAV", Toast.LENGTH_SHORT);
                 return;
             }
             double nav;
             try {
                 nav = Double.parseDouble(navStr);
             } catch (Exception e) {
-                Toast.makeText(getContext(), "Invalid NAV", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Invalid NAV", Toast.LENGTH_SHORT);
                 return;
             }
 
             if (unitsStr.isEmpty()) {
-                Toast.makeText(getContext(), "Please enter Units", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please enter Units", Toast.LENGTH_SHORT);
                 return;
             }
             double units;
             try {
                 units = Double.parseDouble(unitsStr);
             } catch (Exception e) {
-                Toast.makeText(getContext(), "Invalid Units", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Invalid Units", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -612,7 +613,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
                 @Override
                 public void onLoaded(FinanceDatabase updatedDb) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "Mutual Fund transaction recorded in Google Sheet!", Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), "Mutual Fund transaction recorded in Google Sheet!", Toast.LENGTH_LONG);
                         if (listener != null) listener.onMfTransactionAdded();
                         dismiss();
                     }
@@ -621,7 +622,7 @@ public class AddMutualFundTransactionBottomSheet extends BottomSheetDialogFragme
                 @Override
                 public void onError(String error) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                        FinMngrToast.show(getContext(), error, Toast.LENGTH_LONG);
                         if (listener != null) listener.onMfTransactionAdded();
                         dismiss();
                     }

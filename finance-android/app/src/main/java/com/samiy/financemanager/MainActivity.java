@@ -37,11 +37,26 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements GoogleAuthManager.AuthListener {
+    private static MainActivity instance;
     private TextView tvHeaderNetWorth, tvHeaderCycle, tvGoogleAuthText;
     private ImageButton btnRefresh, btnThemeToggle;
     private View btnGoogleAuth;
     private BottomNavigationView bottomNav;
     private FrameLayout fragmentContainer;
+
+    // Global Syncing HUD & In-App Toast
+    private android.widget.ProgressBar progressBarGlobalSync;
+    private android.view.View layoutInAppToast;
+    private android.widget.ProgressBar pbToastSpinner;
+    private android.widget.ImageView ivToastIcon;
+    private android.widget.TextView tvToastMessage;
+    private android.animation.ObjectAnimator refreshAnimator;
+    private final Handler toastHandler = new Handler(Looper.getMainLooper());
+    private Runnable hideToastRunnable;
+
+    public static MainActivity getInstance() {
+        return instance;
+    }
 
     // Unauthorized Overlay Views
     private View layoutUnauthorized;
@@ -86,9 +101,16 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         tvGoogleAuthText = findViewById(R.id.tvGoogleAuthText);
         btnRefresh = findViewById(R.id.btnRefresh);
         btnThemeToggle = findViewById(R.id.btnThemeToggle);
+        instance = this;
         btnGoogleAuth = findViewById(R.id.btnGoogleAuth);
         bottomNav = findViewById(R.id.bottomNavigation);
         fragmentContainer = findViewById(R.id.fragmentContainer);
+
+        progressBarGlobalSync = findViewById(R.id.progressBarGlobalSync);
+        layoutInAppToast = findViewById(R.id.layoutInAppToast);
+        pbToastSpinner = findViewById(R.id.pbToastSpinner);
+        ivToastIcon = findViewById(R.id.ivToastIcon);
+        tvToastMessage = findViewById(R.id.tvToastMessage);
 
         layoutUnauthorized = findViewById(R.id.layoutUnauthorized);
         tvUnauthorizedTitle = findViewById(R.id.tvUnauthorizedTitle);
@@ -110,6 +132,18 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
                 updateHeaderInfo();
                 notifyActiveFragment();
                 com.samiy.financemanager.util.ReminderNotificationManager.checkAndSendReminders(this, db);
+            }
+        });
+
+        repository.addSyncStatusListener(new FinanceRepository.SyncStatusListener() {
+            @Override
+            public void onSyncStarted(String message) {
+                showGlobalSyncing(message);
+            }
+
+            @Override
+            public void onSyncFinished(String message, boolean isError) {
+                hideGlobalSyncing(message, isError);
             }
         });
 
@@ -227,29 +261,25 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
             btnThemeToggle.setOnClickListener(v -> {
                 btnThemeToggle.animate().rotationBy(360f).setDuration(400).start();
                 boolean isLight = com.samiy.financemanager.util.ThemeManager.toggleTheme(this);
-                Toast.makeText(this, isLight ? "☀️ Switched to Pastel Light Theme" : "🌙 Switched to Pastel Dark Theme", Toast.LENGTH_SHORT).show();
+                com.samiy.financemanager.util.FinMngrToast.showInfo(this, isLight ? "☀️ Switched to Pastel Light Theme" : "🌙 Switched to Pastel Dark Theme");
             });
         }
 
         btnRefresh.setOnClickListener(v -> {
             if (!authManager.isAuthorized()) {
-                Toast.makeText(this, "You are not authorized", Toast.LENGTH_SHORT).show();
+                com.samiy.financemanager.util.FinMngrToast.showError(this, "You are not authorized");
                 return;
             }
-            btnRefresh.animate().rotationBy(360f).setDuration(600).start();
-            Toast.makeText(this, "Syncing with live Google Sheet...", Toast.LENGTH_SHORT).show();
             startAutoSync();
             repository.syncWithGoogleSheets(new FinanceRepository.DataCallback() {
                 @Override
                 public void onLoaded(FinanceDatabase db) {
                     updateHeaderInfo();
                     notifyActiveFragment();
-                    Toast.makeText(MainActivity.this, "Google Sheet sync complete!", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onError(String error) {
-                    Toast.makeText(MainActivity.this, "Sync error: " + error, Toast.LENGTH_LONG).show();
                 }
             });
         });
@@ -336,21 +366,9 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
                 String email = account != null && account.getEmail() != null ? account.getEmail() : "";
                 boolean authorized = authManager.isAuthorized();
 
-                String status = authorized ? "\nStatus: Authorized (Full Access)" : "\nStatus: Not Authorized (samiyasti@gmail.com required)";
-
-                new AlertDialog.Builder(this)
-                        .setTitle("Google Account")
-                        .setMessage("Signed in as:\n" + name + "\n" + email + "\n" + status)
-                        .setPositiveButton("Switch Account", (dialog, which) -> {
-                            authManager.switchAccount(this);
-                        })
-                        .setNeutralButton("Sign Out", (dialog, which) -> {
-                            authManager.signOut(() -> {
-                                Toast.makeText(this, "Signed out of Google", Toast.LENGTH_SHORT).show();
-                            });
-                        })
-                        .setNegativeButton("Close", null)
-                        .show();
+                com.samiy.financemanager.ui.dialog.FinMngrDialog.showAccountDialog(this, name, email, authorized,
+                        () -> authManager.switchAccount(this),
+                        () -> authManager.signOut(() -> com.samiy.financemanager.util.FinMngrToast.showInfo(this, "Signed out of Google")));
             } else {
                 Toast.makeText(this, "Connecting with Google OAuth 2.0...", Toast.LENGTH_SHORT).show();
                 authManager.signIn(this);
@@ -424,6 +442,112 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
                 btnUnauthorizedAction.setText("Sign in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
             }
         }
+    }
+
+    public void showGlobalSyncing(String message) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (progressBarGlobalSync != null) {
+                progressBarGlobalSync.setVisibility(View.VISIBLE);
+            }
+            if (btnRefresh != null) {
+                if (refreshAnimator == null) {
+                    refreshAnimator = android.animation.ObjectAnimator.ofFloat(btnRefresh, "rotation", 0f, 360f);
+                    refreshAnimator.setDuration(900);
+                    refreshAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+                    refreshAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+                }
+                if (!refreshAnimator.isRunning()) {
+                    refreshAnimator.start();
+                }
+            }
+            if (message != null && !message.trim().isEmpty()) {
+                showInAppToast(message, com.samiy.financemanager.util.FinMngrToast.Type.UPDATING);
+            }
+        });
+    }
+
+    public void hideGlobalSyncing(String message, boolean isError) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (progressBarGlobalSync != null) {
+                progressBarGlobalSync.setVisibility(View.GONE);
+            }
+            if (refreshAnimator != null && refreshAnimator.isRunning()) {
+                refreshAnimator.cancel();
+            }
+            if (btnRefresh != null) {
+                btnRefresh.setRotation(0f);
+            }
+            if (message != null && !message.trim().isEmpty()) {
+                showInAppToast(message, isError ? com.samiy.financemanager.util.FinMngrToast.Type.ERROR : com.samiy.financemanager.util.FinMngrToast.Type.SUCCESS);
+            }
+        });
+    }
+
+    public void showInAppToast(String message, com.samiy.financemanager.util.FinMngrToast.Type type) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed() || layoutInAppToast == null) return;
+
+            if (hideToastRunnable != null) {
+                toastHandler.removeCallbacks(hideToastRunnable);
+            }
+
+            if (tvToastMessage != null) tvToastMessage.setText(message);
+
+            if (type == com.samiy.financemanager.util.FinMngrToast.Type.UPDATING) {
+                if (pbToastSpinner != null) pbToastSpinner.setVisibility(View.VISIBLE);
+                if (ivToastIcon != null) ivToastIcon.setVisibility(View.GONE);
+                if (tvToastMessage != null) {
+                    tvToastMessage.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_primary));
+                }
+            } else if (type == com.samiy.financemanager.util.FinMngrToast.Type.SUCCESS) {
+                if (pbToastSpinner != null) pbToastSpinner.setVisibility(View.GONE);
+                if (ivToastIcon != null) {
+                    ivToastIcon.setVisibility(View.VISIBLE);
+                    ivToastIcon.setImageResource(R.drawable.ic_finmngr_piggy);
+                }
+                if (tvToastMessage != null) {
+                    tvToastMessage.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.green_mint));
+                }
+            } else if (type == com.samiy.financemanager.util.FinMngrToast.Type.ERROR) {
+                if (pbToastSpinner != null) pbToastSpinner.setVisibility(View.GONE);
+                if (ivToastIcon != null) {
+                    ivToastIcon.setVisibility(View.VISIBLE);
+                    ivToastIcon.setImageResource(R.drawable.ic_finmngr_piggy);
+                }
+                if (tvToastMessage != null) {
+                    tvToastMessage.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.red_rose));
+                }
+            } else {
+                if (pbToastSpinner != null) pbToastSpinner.setVisibility(View.GONE);
+                if (ivToastIcon != null) {
+                    ivToastIcon.setVisibility(View.VISIBLE);
+                    ivToastIcon.setImageResource(R.drawable.ic_finmngr_piggy);
+                }
+                if (tvToastMessage != null) {
+                    tvToastMessage.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_primary));
+                }
+            }
+
+            if (layoutInAppToast.getVisibility() != View.VISIBLE) {
+                layoutInAppToast.setAlpha(0f);
+                layoutInAppToast.setTranslationY(20f);
+                layoutInAppToast.setVisibility(View.VISIBLE);
+                layoutInAppToast.animate().alpha(1f).translationY(0f).setDuration(220).start();
+            }
+
+            // Only auto-hide if not in UPDATING state
+            if (type != com.samiy.financemanager.util.FinMngrToast.Type.UPDATING) {
+                hideToastRunnable = () -> {
+                    if (layoutInAppToast != null && !isFinishing() && !isDestroyed()) {
+                        layoutInAppToast.animate().alpha(0f).translationY(20f).setDuration(220)
+                                .withEndAction(() -> layoutInAppToast.setVisibility(View.GONE)).start();
+                    }
+                };
+                toastHandler.postDelayed(hideToastRunnable, 3200);
+            }
+        });
     }
 
     public void notifyActiveFragment() {

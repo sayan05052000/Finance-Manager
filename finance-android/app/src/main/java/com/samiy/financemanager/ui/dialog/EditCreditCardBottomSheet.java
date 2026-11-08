@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.CreditCard;
@@ -91,7 +92,7 @@ public class EditCreditCardBottomSheet extends BottomSheetDialogFragment {
 
         btnSubmit.setOnClickListener(view -> {
             if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "You are not authorized", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -99,7 +100,7 @@ public class EditCreditCardBottomSheet extends BottomSheetDialogFragment {
             String dueStr = etDueDate.getText().toString().trim();
 
             if (billedStr.isEmpty()) {
-                Toast.makeText(getContext(), "Please enter billed amount", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please enter billed amount", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -107,12 +108,12 @@ public class EditCreditCardBottomSheet extends BottomSheetDialogFragment {
             try {
                 billedAmount = Double.parseDouble(billedStr);
             } catch (Exception e) {
-                Toast.makeText(getContext(), "Invalid billed amount", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Invalid billed amount", Toast.LENGTH_SHORT);
                 return;
             }
 
             if (dueStr.isEmpty()) {
-                Toast.makeText(getContext(), "Please select or enter due date", Toast.LENGTH_SHORT).show();
+                FinMngrToast.show(getContext(), "Please select or enter due date", Toast.LENGTH_SHORT);
                 return;
             }
 
@@ -129,7 +130,7 @@ public class EditCreditCardBottomSheet extends BottomSheetDialogFragment {
                 @Override
                 public void onLoaded(FinanceDatabase db) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), card.cardName + " updated successfully!", Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), card.cardName + " updated successfully!", Toast.LENGTH_SHORT);
                         if (listener != null) listener.onCreditCardUpdated();
                         dismiss();
                     }
@@ -140,7 +141,7 @@ public class EditCreditCardBottomSheet extends BottomSheetDialogFragment {
                     if (isAdded()) {
                         btnSubmit.setEnabled(true);
                         btnSubmit.setText("Save Changes");
-                        Toast.makeText(getContext(), "Update failed: " + error, Toast.LENGTH_SHORT).show();
+                        FinMngrToast.show(getContext(), "Update failed: " + error, Toast.LENGTH_SHORT);
                     }
                 }
             });

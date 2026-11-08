@@ -180,7 +180,13 @@ public class FinanceRepository {
         void onDatabaseSynced(FinanceDatabase db);
     }
 
+    public interface SyncStatusListener {
+        void onSyncStarted(String message);
+        void onSyncFinished(String message, boolean isError);
+    }
+
     private final java.util.List<SyncListener> syncListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SyncStatusListener> syncStatusListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public void addSyncListener(SyncListener listener) {
         if (listener != null && !syncListeners.contains(listener)) {
@@ -192,6 +198,38 @@ public class FinanceRepository {
         if (listener != null) {
             syncListeners.remove(listener);
         }
+    }
+
+    public void addSyncStatusListener(SyncStatusListener listener) {
+        if (listener != null && !syncStatusListeners.contains(listener)) {
+            syncStatusListeners.add(listener);
+        }
+    }
+
+    public void removeSyncStatusListener(SyncStatusListener listener) {
+        if (listener != null) {
+            syncStatusListeners.remove(listener);
+        }
+    }
+
+    public void notifySyncStarted(String message) {
+        mainHandler.post(() -> {
+            for (SyncStatusListener l : syncStatusListeners) {
+                try {
+                    l.onSyncStarted(message);
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    public void notifySyncFinished(String message, boolean isError) {
+        mainHandler.post(() -> {
+            for (SyncStatusListener l : syncStatusListeners) {
+                try {
+                    l.onSyncFinished(message, isError);
+                } catch (Exception ignored) {}
+            }
+        });
     }
 
     private void notifySyncListeners() {
@@ -265,14 +303,17 @@ public class FinanceRepository {
             return;
         }
 
+        notifySyncStarted("Syncing with live Google Sheet...");
         executor.execute(() -> {
             try {
                 FinanceDatabase fresh = performSyncInternal();
+                notifySyncFinished("Google Sheet sync complete!", false);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onLoaded(fresh != null ? fresh : this.database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error syncing with Google Sheets", e);
+                notifySyncFinished("Sync error: " + e.getMessage(), true);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError(e.getMessage());
                 });
@@ -910,6 +951,7 @@ public class FinanceRepository {
             return;
         }
 
+        final double billedAmountCaptured = card.unbilledAmount;
         // Update in-memory database immediately:
         // billedAmount = unbilledAmount, unbilledAmount = 0
         if (database != null && database.creditCards != null) {
@@ -923,8 +965,12 @@ public class FinanceRepository {
                     break;
                 }
             }
+            CalculationEngine.recalculate(database);
             saveLocalCache();
+            notifySyncListeners();
         }
+
+        notifySyncStarted("Generating bill for " + card.cardName + " in Google Sheets...");
 
         executor.execute(() -> {
             try {
@@ -933,19 +979,21 @@ public class FinanceRepository {
 
                 JsonObject cardObj = new JsonObject();
                 cardObj.addProperty("cardName", card.cardName);
-                cardObj.addProperty("unbilledAmount", card.unbilledAmount);
+                cardObj.addProperty("unbilledAmount", billedAmountCaptured);
                 postBody.add("card", cardObj);
 
                 String jsonStr = gson.toJson(postBody);
                 executeHttpPost(GAS_URL, jsonStr);
 
                 FinanceDatabase syncedDb = performSyncInternal();
+                notifySyncFinished(card.cardName + " bill generated successfully!", false);
 
                 mainHandler.post(() -> {
                     if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error generating credit card bill in Google Sheets", e);
+                notifySyncFinished("Failed to generate bill: " + e.getMessage(), true);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError("Failed to generate bill: " + e.getMessage());
                 });
@@ -977,9 +1025,12 @@ public class FinanceRepository {
                     break;
                 }
             }
+            CalculationEngine.recalculate(database);
             saveLocalCache();
+            notifySyncListeners();
         }
 
+        notifySyncStarted("Recording payment for " + cardToPay.cardName + " in Google Sheets...");
         final String finalNextDueDate = advancedDueDate;
 
         executor.execute(() -> {
@@ -995,12 +1046,14 @@ public class FinanceRepository {
                 executeHttpPost(GAS_URL, jsonStr);
 
                 FinanceDatabase syncedDb = performSyncInternal();
+                notifySyncFinished(cardToPay.cardName + " marked as paid!", false);
 
                 mainHandler.post(() -> {
                     if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error marking credit card paid in Google Sheets", e);
+                notifySyncFinished("Failed to mark card paid: " + e.getMessage(), true);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError("Failed to mark card paid: " + e.getMessage());
                 });

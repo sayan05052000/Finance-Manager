@@ -17,6 +17,8 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.samiy.financemanager.R;
+import com.samiy.financemanager.ui.dialog.FinMngrDialog;
+import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.Account;
@@ -625,21 +627,20 @@ public class AccountsFragment extends Fragment {
                     btnMarkPaidQuick.setVisibility(View.VISIBLE);
                     btnMarkPaidQuick.setOnClickListener(view -> {
                         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            FinMngrToast.showError(getContext(), "You are not authorized");
                             return;
                         }
 
-                        // Confirmation dialog: once mark as paid the due date will move 1 month automatically
-                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                                .setTitle("Mark " + card.cardName + " as Paid?")
-                                .setMessage("This will set the billed amount to ₹0, automatically advance the due date by 1 month, and record today as the paid date in Google Sheets.")
-                                .setPositiveButton("Yes, Mark Paid", (dialog, which) -> {
-                                    Toast.makeText(getContext(), "Marking " + card.cardName + " as paid...", Toast.LENGTH_SHORT).show();
+                        final double billedPaid = card.billedAmount;
+                        FinMngrDialog.showConfirmation(requireContext(),
+                                "Mark " + card.cardName + " as Paid?",
+                                "This will set the billed amount (" + formatCurrency(billedPaid) + ") to ₹0, automatically advance the due date by 1 month, and record today as the paid date in Google Sheets.",
+                                "Yes, Mark Paid",
+                                () -> {
                                     FinanceRepository.getInstance(requireContext()).markCreditCardPaid(card, new FinanceRepository.DataCallback() {
                                         @Override
                                         public void onLoaded(FinanceDatabase updatedDb) {
                                             if (isAdded()) {
-                                                Toast.makeText(getContext(), card.cardName + " marked as paid! Due date moved 1 month.", Toast.LENGTH_LONG).show();
                                                 refreshData();
                                             }
                                         }
@@ -647,13 +648,11 @@ public class AccountsFragment extends Fragment {
                                         @Override
                                         public void onError(String error) {
                                             if (isAdded()) {
-                                                Toast.makeText(getContext(), "Failed to mark paid: " + error, Toast.LENGTH_SHORT).show();
+                                                refreshData();
                                             }
                                         }
                                     });
-                                })
-                                .setNegativeButton("Cancel", null)
-                                .show();
+                                });
                     });
                 }
             } else {
@@ -673,22 +672,21 @@ public class AccountsFragment extends Fragment {
                     btnMarkBillGenerated.setVisibility(View.VISIBLE);
                     btnMarkBillGenerated.setOnClickListener(view -> {
                         if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                            Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                            FinMngrToast.showError(getContext(), "You are not authorized");
                             return;
                         }
 
-                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                                .setTitle("Mark Bill Generated for " + card.cardName + "?")
-                                .setMessage("This will set the Billed Amount to " + formatCurrency(card.unbilledAmount) +
-                                        " (the current unbilled spending), and reset Unbilled Spends to ₹0.")
-                                .setPositiveButton("Yes, Generate Bill", (dialog, which) -> {
-                                    Toast.makeText(getContext(), "Generating bill for " + card.cardName + "...", Toast.LENGTH_SHORT).show();
+                        final double amountToBill = card.unbilledAmount;
+                        FinMngrDialog.showConfirmation(requireContext(),
+                                "Mark Bill Generated for " + card.cardName + "?",
+                                "This will set the Billed Amount to " + formatCurrency(amountToBill) +
+                                        " (the current unbilled spending), and reset Unbilled Spends to ₹0.",
+                                "Yes, Generate Bill",
+                                () -> {
                                     FinanceRepository.getInstance(requireContext()).markCreditCardBillGenerated(card, new FinanceRepository.DataCallback() {
                                         @Override
                                         public void onLoaded(FinanceDatabase updatedDb) {
                                             if (isAdded()) {
-                                                Toast.makeText(getContext(), card.cardName + " bill generated: " +
-                                                        formatCurrency(card.unbilledAmount) + " billed, unbilled reset to ₹0.", Toast.LENGTH_LONG).show();
                                                 refreshData();
                                             }
                                         }
@@ -696,13 +694,11 @@ public class AccountsFragment extends Fragment {
                                         @Override
                                         public void onError(String error) {
                                             if (isAdded()) {
-                                                Toast.makeText(getContext(), "Failed to generate bill: " + error, Toast.LENGTH_SHORT).show();
+                                                refreshData();
                                             }
                                         }
                                     });
-                                })
-                                .setNegativeButton("Cancel", null)
-                                .show();
+                                });
                     });
                 } else {
                     btnMarkBillGenerated.setVisibility(View.GONE);
@@ -713,7 +709,7 @@ public class AccountsFragment extends Fragment {
             if (btnEditCard != null) {
                 btnEditCard.setOnClickListener(view -> {
                     if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                        Toast.makeText(getContext(), "You are not authorized", Toast.LENGTH_SHORT).show();
+                        FinMngrToast.showError(getContext(), "You are not authorized");
                         return;
                     }
                     com.samiy.financemanager.ui.dialog.EditCreditCardBottomSheet sheet =
@@ -775,7 +771,7 @@ public class AccountsFragment extends Fragment {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
                     populateUI();
-                    Toast.makeText(getContext(), "Synced with Google Sheet", Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showSuccess(getContext(), "Synced with Google Sheet");
                 }
             }
 
@@ -783,7 +779,7 @@ public class AccountsFragment extends Fragment {
             public void onError(String error) {
                 if (isAdded()) {
                     swipeRefresh.setRefreshing(false);
-                    Toast.makeText(getContext(), "Sync failed: " + error, Toast.LENGTH_SHORT).show();
+                    FinMngrToast.showError(getContext(), "Sync failed: " + error);
                 }
             }
         });
