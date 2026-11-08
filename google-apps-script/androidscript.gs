@@ -1383,8 +1383,8 @@ function findTransactionsColumnIndices(headers) {
   if (colYear === -1) colYear = 11;
   if (colMonth === -1) colMonth = 12;
   if (colDebitWithoutSign === -1) colDebitWithoutSign = 13;
-  if (colProcessed === -1) colProcessed = 14;
-  if (colTaggedCard === -1) colTaggedCard = 15;
+  if (colTaggedCard === -1) colTaggedCard = 14;
+  if (colProcessed === -1) colProcessed = 15;
 
   return {
     colDate,
@@ -1400,8 +1400,8 @@ function findTransactionsColumnIndices(headers) {
     colYear,
     colMonth,
     colDebitWithoutSign,
+    colTaggedCard,
     colProcessed,
-    colTaggedCard
   };
 }
 
