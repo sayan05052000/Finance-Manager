@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Structured card actions into two distinct, balanced rows (Row 1: Transactions & Add Tx; Row 2: Bill Generated, Mark as Paid, Update Bill) completely eliminating horizontal overflow.
 
 ### Fixed
+- **10-Minute Periodic Foreground & Standing Background Sync Engine**:
+  - Reconfigured auto-sync cadence to exactly 10 minutes (`AUTO_SYNC_INTERVAL_MS = 600,000 ms`).
+  - Added standing background synchronization capability using [`BackgroundSyncManager`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/util/BackgroundSyncManager.java) and [`AutoSyncReceiver`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/receiver/AutoSyncReceiver.java).
+  - Utilizes `AlarmManager.setExactAndAllowWhileIdle` (RTC_WAKEUP) to reliably sync data with Google Sheets in the background even during Doze mode and when the application is closed or in the background.
+  - Automatically reschedules periodic background sync upon device reboot via `RECEIVE_BOOT_COMPLETED`.
+  - Automatically evaluates and posts upcoming due date notifications upon background data updates.
 - **Bottom Sheet Modal Corner Artifacts Elimination (`BaseBottomSheetDialogFragment`)**:
   - Resolved sharp square black/dark container corners protruding behind curved bottom sheets (`media_1794166006615_ffcbe952.png`).
   - Created [`BaseBottomSheetDialogFragment`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/BaseBottomSheetDialogFragment.java) enforcing `android.R.color.transparent` on both the window and the internal `design_bottom_sheet` container across all 11 modal subclasses (`AccountTransactionsBottomSheet`, `AddTransactionBottomSheet`, `TransactionDetailsBottomSheet`, `AddCreditCardBottomSheet`, `EditCreditCardBottomSheet`, `AddPolicyBottomSheet`, `EditPolicyBottomSheet`, `EditSipBottomSheet`, `AddMutualFundTransactionBottomSheet`, `SipTracerBottomSheet`, `ViewMfTransactionsBottomSheet`).

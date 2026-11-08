@@ -77,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
     private final Handler autoSyncHandler = new Handler(Looper.getMainLooper());
-    private static final long AUTO_SYNC_INTERVAL_MS = 30000; // 30 seconds auto-resync
+    private static final long AUTO_SYNC_INTERVAL_MS = 10 * 60 * 1000L; // 10 minutes auto-resync (600,000 ms)
     private boolean isSyncing = false;
 
     private final Runnable autoSyncRunnable = new Runnable() {
@@ -199,6 +199,9 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
     protected void onPause() {
         super.onPause();
         stopAutoSync();
+        if (authManager != null && authManager.isAuthorized()) {
+            com.samiy.financemanager.util.BackgroundSyncManager.scheduleNextSync(this);
+        }
     }
 
     @Override
@@ -454,8 +457,10 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
             }
 
             startAutoSync();
+            com.samiy.financemanager.util.BackgroundSyncManager.scheduleNextSync(this);
         } else {
             stopAutoSync();
+            com.samiy.financemanager.util.BackgroundSyncManager.cancelSync(this);
             layoutUnauthorized.setVisibility(View.VISIBLE);
             fragmentContainer.setVisibility(View.GONE);
             btnRefresh.setEnabled(false);
