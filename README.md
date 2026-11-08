@@ -595,7 +595,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 Finance-Manager/
 ├── .gitignore                          # Root ignore rules (build, gradle, IDE, apk)
 ├── CHANGELOG.md                        # Comprehensive release notes & historical change log
-├── FinanceManager.apk                  # Current ready-to-install build (v1.8)
+├── FinanceManager.apk                  # Current ready-to-install build (v1.9)
 ├── README.md                           # This architecture, developer & build guide
 ├── google-apps-script/
 │   └── androidscript.gs                # Google Apps Script Web App REST API gateway

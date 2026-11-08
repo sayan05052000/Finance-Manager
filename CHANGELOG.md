@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] - 2026-11-08
+## [v1.9] - 2026-11-08
 
 ### Added
 - **100% Dynamic Column Order Resilience in Google Apps Script (`androidscript.gs`)**:
