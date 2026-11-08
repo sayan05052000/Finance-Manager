@@ -133,6 +133,74 @@ public class FinanceRepository {
         }
     }
 
+    public interface SyncListener {
+        void onDatabaseSynced(FinanceDatabase db);
+    }
+
+    private final java.util.List<SyncListener> syncListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public void addSyncListener(SyncListener listener) {
+        if (listener != null && !syncListeners.contains(listener)) {
+            syncListeners.add(listener);
+        }
+    }
+
+    public void removeSyncListener(SyncListener listener) {
+        if (listener != null) {
+            syncListeners.remove(listener);
+        }
+    }
+
+    private void notifySyncListeners() {
+        mainHandler.post(() -> {
+            for (SyncListener l : syncListeners) {
+                try {
+                    l.onDatabaseSynced(this.database);
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    /**
+     * Executes internal full sync with Google Sheets on the current background thread.
+     * Updates this.database, recalculates with CalculationEngine, saves to local cache,
+     * and notifies listeners.
+     */
+    public FinanceDatabase performSyncInternal() {
+        try {
+            String resultJson = executeHttpGetWithRedirect(GAS_URL + "?action=all");
+            if (resultJson != null && !resultJson.isEmpty()) {
+                JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
+                if (root.has("data") && root.get("data").isJsonObject()) {
+                    JsonObject dataObj = root.getAsJsonObject("data");
+                    FinanceDatabase freshDb = gson.fromJson(dataObj, FinanceDatabase.class);
+                    if (freshDb != null) {
+                        if (this.database != null) {
+                            if ((freshDb.budget == null || freshDb.budget.isEmpty()) && this.database.budget != null) {
+                                freshDb.budget = this.database.budget;
+                            }
+                            if (this.database.currentCycle != null) {
+                                if (freshDb.currentCycle == null) freshDb.currentCycle = new CurrentCycle();
+                                if (this.database.currentCycle.receivables != null && (freshDb.currentCycle.receivables == null || freshDb.currentCycle.receivables.isEmpty())) {
+                                    freshDb.currentCycle.receivables = this.database.currentCycle.receivables;
+                                    freshDb.currentCycle.totalReceivables = this.database.currentCycle.totalReceivables;
+                                }
+                            }
+                        }
+                        CalculationEngine.recalculate(freshDb);
+                        this.database = freshDb;
+                        saveLocalCache();
+                        notifySyncListeners();
+                        return this.database;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in performSyncInternal", e);
+        }
+        return this.database;
+    }
+
     public void syncWithGoogleSheets(DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
@@ -143,37 +211,9 @@ public class FinanceRepository {
 
         executor.execute(() -> {
             try {
-                String resultJson = executeHttpGetWithRedirect(GAS_URL + "?action=all");
-                if (resultJson != null && !resultJson.isEmpty()) {
-                    JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
-                    if (root.has("data") && root.get("data").isJsonObject()) {
-                        JsonObject dataObj = root.getAsJsonObject("data");
-                        FinanceDatabase freshDb = gson.fromJson(dataObj, FinanceDatabase.class);
-                        if (freshDb != null) {
-                            if (this.database != null) {
-                                if ((freshDb.budget == null || freshDb.budget.isEmpty()) && this.database.budget != null) {
-                                    freshDb.budget = this.database.budget;
-                                }
-                                if (this.database.currentCycle != null) {
-                                    if (freshDb.currentCycle == null) freshDb.currentCycle = new CurrentCycle();
-                                    if (this.database.currentCycle.receivables != null && (freshDb.currentCycle.receivables == null || freshDb.currentCycle.receivables.isEmpty())) {
-                                        freshDb.currentCycle.receivables = this.database.currentCycle.receivables;
-                                        freshDb.currentCycle.totalReceivables = this.database.currentCycle.totalReceivables;
-                                    }
-                                }
-                            }
-                            CalculationEngine.recalculate(freshDb);
-                            this.database = freshDb;
-                            saveLocalCache();
-                            mainHandler.post(() -> {
-                                if (callback != null) callback.onLoaded(this.database);
-                            });
-                            return;
-                        }
-                    }
-                }
+                FinanceDatabase fresh = performSyncInternal();
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(this.database);
+                    if (callback != null) callback.onLoaded(fresh != null ? fresh : this.database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error syncing with Google Sheets", e);
@@ -232,8 +272,11 @@ public class FinanceRepository {
                 String postBody = gson.toJson(payload);
                 executeHttpPost(GAS_URL, postBody.toString());
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error posting transaction to Google Sheets", e);
@@ -374,8 +417,11 @@ public class FinanceRepository {
                 String postBody = gson.toJson(payload);
                 executeHttpPost(GAS_URL, postBody.toString());
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error updating transaction in Google Sheets", e);
@@ -435,8 +481,11 @@ public class FinanceRepository {
                 String postBody = gson.toJson(payload);
                 executeHttpPost(GAS_URL, postBody.toString());
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error deleting transaction from Google Sheets", e);
@@ -480,8 +529,11 @@ public class FinanceRepository {
                     saveLocalCache();
                 }
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(this.database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error updating SIP status", e);
@@ -531,8 +583,11 @@ public class FinanceRepository {
                     saveLocalCache();
                 }
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(this.database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error updating SIP", e);
@@ -617,8 +672,11 @@ public class FinanceRepository {
                 String postBody = gson.toJson(payload);
                 executeHttpPost(GAS_URL, postBody);
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error posting mutual fund transaction to Google Sheets", e);
@@ -665,8 +723,11 @@ public class FinanceRepository {
                 String jsonStr = gson.toJson(postBody);
                 executeHttpPost(GAS_URL, jsonStr);
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error updating policy in Google Sheets", e);
@@ -717,8 +778,11 @@ public class FinanceRepository {
                 String jsonStr = gson.toJson(postBody);
                 executeHttpPost(GAS_URL, jsonStr);
 
+                // Auto-sync from Google Sheets after update
+                FinanceDatabase syncedDb = performSyncInternal();
+
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(database);
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Error adding policy in Google Sheets", e);

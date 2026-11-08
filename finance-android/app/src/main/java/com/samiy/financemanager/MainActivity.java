@@ -103,6 +103,13 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         setupNavigation();
         setupAuth();
 
+        repository.addSyncListener(db -> {
+            if (!isFinishing() && !isDestroyed()) {
+                updateHeaderInfo();
+                notifyActiveFragment();
+            }
+        });
+
         // Apply initial authorization state
         applyAuthorizationState();
 

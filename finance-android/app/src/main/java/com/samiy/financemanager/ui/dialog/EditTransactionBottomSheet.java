@@ -208,11 +208,9 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
 
         // Pre-fill Debit & Credit
         double dVal = transaction.debitWithoutSign;
-        if (dVal > 0) {
             String dStr = String.format(Locale.US, "%.2f", dVal);
             if (dStr.endsWith(".00")) dStr = dStr.substring(0, dStr.length() - 3);
             etDebit.setText(dStr);
-        }
         if (transaction.credit > 0) {
             String cStr = String.format(Locale.US, "%.2f", transaction.credit);
             if (cStr.endsWith(".00")) cStr = cStr.substring(0, cStr.length() - 3);
@@ -424,6 +422,9 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
                 }
                 try {
                     creditVal = Double.parseDouble(creditStr);
+                    if(creditVal < 0){
+                        
+                    }
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "Invalid credit amount", Toast.LENGTH_SHORT).show();
                     return;
@@ -486,13 +487,6 @@ public class EditTransactionBottomSheet extends BottomSheetDialogFragment {
                     transaction.year = y;
                 } catch (Exception ignored) {}
             }
-
-            if (debitVal != 0) {
-                transaction.debit = -Math.abs(debitVal);
-            } else {
-                transaction.debit = 0;
-            }
-            transaction.net = (transaction.credit > 0 ? transaction.credit : 0) + (transaction.debit != 0 ? transaction.debit : 0);
 
             if (isLoan) {
                 transaction.loans = selectedSource;
