@@ -206,6 +206,15 @@
                 android:inputType="numberDecimal"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp" />
+
+            <TextView
+                android:id="@+id/tvAccountAllocationInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="Available to allocate: 100%"
+                android:textColor="@color/green_mint"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <!-- Container: Link Mutual Fund -->
@@ -259,6 +268,15 @@
                 android:inputType="numberDecimal"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp" />
+
+            <TextView
+                android:id="@+id/tvMfAllocationInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="Available to allocate: 100%"
+                android:textColor="@color/green_mint"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <!-- Action Buttons -->

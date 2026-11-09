@@ -251,6 +251,13 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
     - **Link to Bank Account**: Dynamically selects an active bank account (100% balance allocation).
     - **Link to Mutual Fund Category**: Selects a mutual fund savings category with a configurable contribution percentage (e.g. 30%).
   - Appends the new goal directly to the `Goals` sheet in Google Sheets via `action === 'addGoal'`.
+* **Strict Multi-Goal Source Allocation Cap (x + y ≤ 100% Rule)**:
+  - Across all active goals, no single asset source (Bank Account or Mutual Fund Category) can have a cumulative allocation exceeding 100% ($$\sum_{g} \text{percentage}(g, \text{source}) \le 100\%$$).
+  - For example, if Goal A consumes 30% of `Mutual Fund`, any subsequent goal may consume at most the remaining 70% of `Mutual Fund`.
+  - When selecting an account or mutual fund category in the Add Goal modal, the app dynamically inspects all existing goals and displays real-time allocation status:
+    - If allocation is available: Displays a mint green badge with available percentage (e.g. `Available to allocate: 70.0% (30.0% allocated across other goals)`) and caps input defaults.
+    - If 100% is already exhausted: Displays a high-contrast amber/rose warning badge (`⚠️ Fully Allocated: 100.0% already allocated across goals (0% remaining)`), clears percentage input to 0, and disables the input field.
+  - Multi-tier validation enforces the rule across the UI form, `FinanceRepository`, and `androidscript.gs` backend.
 * **Remove Goal Option**:
   - Every goal card now provides a dedicated `[🗑️ Remove]` button.
   - Displays a safety confirmation dialog before permanently removing the goal from both the local cache and Google Sheets via `action === 'deleteGoal'`.

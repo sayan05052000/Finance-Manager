@@ -68,10 +68,12 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         LinearLayout layoutLinkAccount = v.findViewById(R.id.layoutLinkAccount);
         Spinner spGoalAccount = v.findViewById(R.id.spGoalAccount);
         EditText etGoalAccountPercent = v.findViewById(R.id.etGoalAccountPercent);
+        android.widget.TextView tvAccountAllocationInfo = v.findViewById(R.id.tvAccountAllocationInfo);
 
         LinearLayout layoutLinkMutualFund = v.findViewById(R.id.layoutLinkMutualFund);
         Spinner spGoalMfType = v.findViewById(R.id.spGoalMfType);
         EditText etGoalMfPercent = v.findViewById(R.id.etGoalMfPercent);
+        android.widget.TextView tvMfAllocationInfo = v.findViewById(R.id.tvMfAllocationInfo);
 
         Button btnCancel = v.findViewById(R.id.btnCancelGoal);
         Button btnSubmit = v.findViewById(R.id.btnSubmitGoal);
@@ -119,14 +121,88 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         mfAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         spGoalMfType.setAdapter(mfAdapter);
 
+        Runnable updateAccountAllocationInfo = () -> {
+            String selectedAcc = spGoalAccount.getSelectedItem() != null ? spGoalAccount.getSelectedItem().toString() : "";
+            if (selectedAcc.isEmpty() || db == null || db.goals == null) {
+                if (tvAccountAllocationInfo != null) {
+                    tvAccountAllocationInfo.setText("Available to allocate: 100%");
+                    tvAccountAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
+                }
+                etGoalAccountPercent.setEnabled(true);
+                return;
+            }
+            double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getAccountAllocatedPercentage(selectedAcc, db.goals, null);
+            double available = Math.max(0.0, 100.0 - alreadyUsed);
+            if (tvAccountAllocationInfo != null) {
+                if (alreadyUsed >= 100.0) {
+                    tvAccountAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% already allocated across goals (0% remaining)");
+                    tvAccountAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    etGoalAccountPercent.setText("0");
+                    etGoalAccountPercent.setEnabled(false);
+                } else {
+                    tvAccountAllocationInfo.setText("Available to allocate: " + String.format(java.util.Locale.US, "%.1f", available) + "% (" + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% allocated across other goals)");
+                    tvAccountAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
+                    etGoalAccountPercent.setEnabled(true);
+                    etGoalAccountPercent.setText(String.format(java.util.Locale.US, "%d", (int) Math.floor(available)));
+                }
+            }
+        };
+
+        Runnable updateMfAllocationInfo = () -> {
+            String selectedMf = spGoalMfType.getSelectedItem() != null ? spGoalMfType.getSelectedItem().toString() : "";
+            if (selectedMf.isEmpty() || db == null || db.goals == null) {
+                if (tvMfAllocationInfo != null) {
+                    tvMfAllocationInfo.setText("Available to allocate: 100%");
+                    tvMfAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
+                }
+                etGoalMfPercent.setEnabled(true);
+                return;
+            }
+            double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getMutualFundAllocatedPercentage(selectedMf, db.goals, null);
+            double available = Math.max(0.0, 100.0 - alreadyUsed);
+            if (tvMfAllocationInfo != null) {
+                if (alreadyUsed >= 100.0) {
+                    tvMfAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% already allocated across goals (0% remaining)");
+                    tvMfAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    etGoalMfPercent.setText("0");
+                    etGoalMfPercent.setEnabled(false);
+                } else {
+                    tvMfAllocationInfo.setText("Available to allocate: " + String.format(java.util.Locale.US, "%.1f", available) + "% (" + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% allocated across other goals)");
+                    tvMfAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
+                    etGoalMfPercent.setEnabled(true);
+                    etGoalMfPercent.setText(String.format(java.util.Locale.US, "%d", (int) Math.floor(available)));
+                }
+            }
+        };
+
+        spGoalAccount.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateAccountAllocationInfo.run();
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        spGoalMfType.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateMfAllocationInfo.run();
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
         // Toggle linking visibility
         rgGoalLinkType.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == R.id.rbLinkAccount) {
                 layoutLinkAccount.setVisibility(View.VISIBLE);
                 layoutLinkMutualFund.setVisibility(View.GONE);
+                updateAccountAllocationInfo.run();
             } else if (checkedId == R.id.rbLinkMutualFund) {
                 layoutLinkAccount.setVisibility(View.GONE);
                 layoutLinkMutualFund.setVisibility(View.VISIBLE);
+                updateMfAllocationInfo.run();
             } else {
                 layoutLinkAccount.setVisibility(View.GONE);
                 layoutLinkMutualFund.setVisibility(View.GONE);
@@ -188,6 +264,61 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                 } catch (Exception ignored) {}
             }
 
+            // Validate source allocations (sum <= 100%)
+            if (rbLinkAccount.isChecked()) {
+                String selectedAcc = spGoalAccount.getSelectedItem() != null ? spGoalAccount.getSelectedItem().toString() : "";
+                String pctStr = etGoalAccountPercent.getText().toString().trim();
+                double requestedPct = 100.0;
+                if (!pctStr.isEmpty()) {
+                    try {
+                        requestedPct = Double.parseDouble(pctStr);
+                    } catch (Exception e) {
+                        etGoalAccountPercent.setError("Invalid percentage");
+                        etGoalAccountPercent.requestFocus();
+                        return;
+                    }
+                }
+                if (requestedPct <= 0) {
+                    etGoalAccountPercent.setError("Percentage must be greater than 0%");
+                    etGoalAccountPercent.requestFocus();
+                    return;
+                }
+                double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getAccountAllocatedPercentage(selectedAcc, db != null ? db.goals : null, null);
+                if (alreadyUsed + requestedPct > 100.0001) {
+                    double maxAllowed = Math.max(0.0, 100.0 - alreadyUsed);
+                    etGoalAccountPercent.setError("Total allocation cannot exceed 100%. Max available: " + String.format(java.util.Locale.US, "%.1f", maxAllowed) + "%");
+                    etGoalAccountPercent.requestFocus();
+                    FinMngrToast.showError(getContext(), "Total allocation for " + selectedAcc + " would be " + String.format(java.util.Locale.US, "%.1f", (alreadyUsed + requestedPct)) + "%. Must be <= 100%!");
+                    return;
+                }
+            } else if (rbLinkMutualFund.isChecked()) {
+                String selectedMfType = spGoalMfType.getSelectedItem() != null ? spGoalMfType.getSelectedItem().toString() : "";
+                String pctStr = etGoalMfPercent.getText().toString().trim();
+                double requestedPct = 100.0;
+                if (!pctStr.isEmpty()) {
+                    try {
+                        requestedPct = Double.parseDouble(pctStr);
+                    } catch (Exception e) {
+                        etGoalMfPercent.setError("Invalid percentage");
+                        etGoalMfPercent.requestFocus();
+                        return;
+                    }
+                }
+                if (requestedPct <= 0) {
+                    etGoalMfPercent.setError("Percentage must be greater than 0%");
+                    etGoalMfPercent.requestFocus();
+                    return;
+                }
+                double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getMutualFundAllocatedPercentage(selectedMfType, db != null ? db.goals : null, null);
+                if (alreadyUsed + requestedPct > 100.0001) {
+                    double maxAllowed = Math.max(0.0, 100.0 - alreadyUsed);
+                    etGoalMfPercent.setError("Total allocation cannot exceed 100%. Max available: " + String.format(java.util.Locale.US, "%.1f", maxAllowed) + "%");
+                    etGoalMfPercent.requestFocus();
+                    FinMngrToast.showError(getContext(), "Total allocation for " + selectedMfType + " would be " + String.format(java.util.Locale.US, "%.1f", (alreadyUsed + requestedPct)) + "%. Must be <= 100%!");
+                    return;
+                }
+            }
+
             // Build Contribution JSON
             JsonObject contribObj = new JsonObject();
             JsonObject accountsObj = new JsonObject();
@@ -230,6 +361,15 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
             double achievedPercent = targetAmount > 0 ? (currentAmount / targetAmount) * 100.0 : 0.0;
 
             GoalItem newGoal = new GoalItem(goalName, targetAmount, currentAmount, achievedPercent, 0.0, contributionJson);
+
+            // Cross-check all allocations across existing goals
+            if (db != null && db.goals != null) {
+                String allocErr = com.samiy.financemanager.data.CalculationEngine.validateGoalAllocations(newGoal, db.goals);
+                if (allocErr != null) {
+                    FinMngrToast.showError(getContext(), allocErr);
+                    return;
+                }
+            }
 
             btnSubmit.setEnabled(false);
             btnSubmit.setText("Adding Goal...");

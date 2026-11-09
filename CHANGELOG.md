@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.2] - 2026-11-09
 
 ### Added
+- **Strict Multi-Goal Source Allocation Cap (x + y ≤ 100% Rule)**:
+  - Enforced mathematical constraint across all goals: the sum of allocation percentages for any individual Bank Account or Mutual Fund Category across multiple goals must always be $\le 100\%$.
+  - Added `getAccountAllocatedPercentage` and `getMutualFundAllocatedPercentage` in [`CalculationEngine.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/CalculationEngine.java) calculating live consumption across existing goals.
+  - Integrated dynamic real-time status banners (`tvAccountAllocationInfo`, `tvMfAllocationInfo`) in [`AddGoalBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddGoalBottomSheet.java) displaying exact remaining available percentage, pre-filling the ceiling value, and disabling input if 100% is already consumed.
+  - Added pre-submission validation in `AddGoalBottomSheet`, optimistic write validation in `FinanceRepository.addGoal()`, and backend enforcement in `androidscript.gs` (`action === 'addGoal'`).
 - **Financial Goals Dynamic Schema & Contribution JSON Integration**:
   - Adapted to the user's updated Google Sheet `Goals` schema: `[Goals Name, Goal Amount, Occured Till Date, Achived Till Date, Contribution JSON]`.
   - Added JSON contribution mapping in [`GoalItem.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/model/GoalItem.java) linking goals to specific Bank Accounts (`HDFC SAVINGS`, `PNB`, `SBI`, etc.) and Mutual Fund categories (`Mutual Fund`, `Family Savings`, etc.) with individual allocation weights.

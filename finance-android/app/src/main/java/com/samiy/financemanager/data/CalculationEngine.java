@@ -430,6 +430,133 @@ public class CalculationEngine {
         }
     }
 
+    /**
+     * Calculates the total percentage (0 to 100) allocated to a specific bank account across all existing goals.
+     */
+    public static double getAccountAllocatedPercentage(String accountName, List<GoalItem> goals, String excludeGoalName) {
+        if (accountName == null || goals == null) return 0.0;
+        String cleanName = accountName.trim().toUpperCase(Locale.US);
+        double totalPct = 0.0;
+        for (GoalItem g : goals) {
+            if (g == null || g.contributionJson == null || g.contributionJson.trim().isEmpty()) continue;
+            if (excludeGoalName != null && g.name != null && g.name.trim().equalsIgnoreCase(excludeGoalName.trim())) {
+                continue;
+            }
+            try {
+                JsonObject obj = JsonParser.parseString(g.contributionJson).getAsJsonObject();
+                if (obj.has("accounts") && obj.get("accounts").isJsonObject()) {
+                    JsonObject accs = obj.getAsJsonObject("accounts");
+                    for (String key : accs.keySet()) {
+                        if (key.trim().toUpperCase(Locale.US).equals(cleanName)) {
+                            double pct = accs.get(key).getAsDouble();
+                            if (pct <= 1.0) {
+                                totalPct += pct * 100.0;
+                            } else {
+                                totalPct += pct;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return Math.round(totalPct * 10.0) / 10.0;
+    }
+
+    /**
+     * Calculates the total percentage (0 to 100) allocated to a specific mutual fund category/type across all existing goals.
+     */
+    public static double getMutualFundAllocatedPercentage(String mfType, List<GoalItem> goals, String excludeGoalName) {
+        if (mfType == null || goals == null) return 0.0;
+        String cleanType = mfType.trim().toLowerCase(Locale.US);
+        double totalPct = 0.0;
+        for (GoalItem g : goals) {
+            if (g == null || g.contributionJson == null || g.contributionJson.trim().isEmpty()) continue;
+            if (excludeGoalName != null && g.name != null && g.name.trim().equalsIgnoreCase(excludeGoalName.trim())) {
+                continue;
+            }
+            try {
+                JsonObject obj = JsonParser.parseString(g.contributionJson).getAsJsonObject();
+                if (obj.has("mutual_funds") && obj.get("mutual_funds").isJsonArray()) {
+                    JsonArray mfs = obj.getAsJsonArray("mutual_funds");
+                    for (JsonElement el : mfs) {
+                        if (!el.isJsonObject()) continue;
+                        JsonObject rule = el.getAsJsonObject();
+                        String val = rule.has("value") ? rule.get("value").getAsString().trim().toLowerCase(Locale.US) : "";
+                        if (val.equals(cleanType)) {
+                            double pct = 1.0;
+                            if (rule.has("percentage")) {
+                                try {
+                                    pct = rule.get("percentage").getAsDouble();
+                                } catch (Exception ignored) {}
+                            }
+                            if (pct <= 1.0) {
+                                totalPct += pct * 100.0;
+                            } else {
+                                totalPct += pct;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return Math.round(totalPct * 10.0) / 10.0;
+    }
+
+    /**
+     * Validates that no single source (bank account or mutual fund) will exceed 100% total allocation
+     * when newGoal is added to existingGoals.
+     * @return null if valid, or an error message detailing which source exceeds 100%.
+     */
+    public static String validateGoalAllocations(GoalItem newGoal, List<GoalItem> existingGoals) {
+        if (newGoal == null || newGoal.contributionJson == null || newGoal.contributionJson.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            JsonObject obj = JsonParser.parseString(newGoal.contributionJson).getAsJsonObject();
+
+            // Validate Accounts
+            if (obj.has("accounts") && obj.get("accounts").isJsonObject()) {
+                JsonObject accs = obj.getAsJsonObject("accounts");
+                for (String key : accs.keySet()) {
+                    double incomingPct = accs.get(key).getAsDouble();
+                    if (incomingPct <= 1.0) incomingPct *= 100.0;
+                    double existingPct = getAccountAllocatedPercentage(key, existingGoals, newGoal.name);
+                    if (existingPct + incomingPct > 100.0001) {
+                        return "Total allocation for bank account '" + key + "' would be " +
+                                String.format(Locale.US, "%.1f", (existingPct + incomingPct)) + "% (already " +
+                                String.format(Locale.US, "%.1f", existingPct) + "% allocated across goals). Allocation must be <= 100%!";
+                    }
+                }
+            }
+
+            // Validate Mutual Funds
+            if (obj.has("mutual_funds") && obj.get("mutual_funds").isJsonArray()) {
+                JsonArray mfs = obj.getAsJsonArray("mutual_funds");
+                for (JsonElement el : mfs) {
+                    if (!el.isJsonObject()) continue;
+                    JsonObject rule = el.getAsJsonObject();
+                    String val = rule.has("value") ? rule.get("value").getAsString().trim() : "";
+                    double incomingPct = 100.0;
+                    if (rule.has("percentage")) {
+                        try {
+                            incomingPct = rule.get("percentage").getAsDouble();
+                            if (incomingPct <= 1.0) incomingPct *= 100.0;
+                        } catch (Exception ignored) {}
+                    }
+                    double existingPct = getMutualFundAllocatedPercentage(val, existingGoals, newGoal.name);
+                    if (existingPct + incomingPct > 100.0001) {
+                        return "Total allocation for mutual fund '" + val + "' would be " +
+                                String.format(Locale.US, "%.1f", (existingPct + incomingPct)) + "% (already " +
+                                String.format(Locale.US, "%.1f", existingPct) + "% allocated across goals). Allocation must be <= 100%!";
+                    }
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
     private static List<GoalItem> createDefaultGoals() {
         List<GoalItem> list = new ArrayList<>();
         list.add(new GoalItem("Health And Life Insurance", 60000.0, 15193.01, 25.3, 0.0,

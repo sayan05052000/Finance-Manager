@@ -670,6 +670,68 @@ function doPost(e) {
       const achieved = goalAmount > 0 ? (currentAmount / goalAmount) : 0;
       const contributionJson = typeof g.contributionJson === 'object' ? JSON.stringify(g.contributionJson, null, 2) : String(g.contributionJson || '{}').trim();
 
+      // Check allocation rule: for each source (account or mutual fund), sum of allocations across all goals must be <= 1.0 (100%)
+      try {
+        const incomingContrib = JSON.parse(contributionJson);
+        const rows = sheet.getDataRange().getValues();
+        const accAllocations = {};
+        const mfAllocations = {};
+
+        for (let i = 1; i < rows.length; i++) {
+          const rowJsonStr = String(rows[i][4] || '').trim();
+          if (!rowJsonStr || rowJsonStr === '{}') continue;
+          try {
+            const exObj = JSON.parse(rowJsonStr);
+            if (exObj.accounts && typeof exObj.accounts === 'object') {
+              for (const acc in exObj.accounts) {
+                const cleanAcc = acc.trim().toUpperCase();
+                let p = Number(exObj.accounts[acc]) || 0;
+                if (p > 1.0) p = p / 100.0;
+                accAllocations[cleanAcc] = (accAllocations[cleanAcc] || 0) + p;
+              }
+            }
+            if (Array.isArray(exObj.mutual_funds)) {
+              for (const mf of exObj.mutual_funds) {
+                const mfVal = String(mf.value || '').trim().toLowerCase();
+                let p = Number(mf.percentage) || 1.0;
+                if (p > 1.0) p = p / 100.0;
+                mfAllocations[mfVal] = (mfAllocations[mfVal] || 0) + p;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // Validate incoming accounts
+        if (incomingContrib.accounts && typeof incomingContrib.accounts === 'object') {
+          for (const acc in incomingContrib.accounts) {
+            const cleanAcc = acc.trim().toUpperCase();
+            let p = Number(incomingContrib.accounts[acc]) || 0;
+            if (p > 1.0) p = p / 100.0;
+            const total = (accAllocations[cleanAcc] || 0) + p;
+            if (total > 1.0001) {
+              throw new Error('Total allocation for account "' + acc + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
+            }
+          }
+        }
+
+        // Validate incoming mutual funds
+        if (Array.isArray(incomingContrib.mutual_funds)) {
+          for (const mf of incomingContrib.mutual_funds) {
+            const mfVal = String(mf.value || '').trim().toLowerCase();
+            let p = Number(mf.percentage) || 1.0;
+            if (p > 1.0) p = p / 100.0;
+            const total = (mfAllocations[mfVal] || 0) + p;
+            if (total > 1.0001) {
+              throw new Error('Total allocation for mutual fund "' + (mf.value || '') + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
+            }
+          }
+        }
+      } catch (err) {
+        if (err.message && err.message.indexOf('Total allocation') !== -1) {
+          throw err;
+        }
+      }
+
       sheet.appendRow([
         goalName,
         goalAmount,

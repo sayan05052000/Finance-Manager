@@ -1080,6 +1080,16 @@ public class FinanceRepository {
                     return;
                 }
             }
+
+            // Allocation <= 100% check across existing goals
+            String allocError = CalculationEngine.validateGoalAllocations(newGoal, database.goals);
+            if (allocError != null) {
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(allocError);
+                });
+                return;
+            }
+
             database.goals.add(newGoal);
             CalculationEngine.recalculate(database);
             saveLocalCache();
