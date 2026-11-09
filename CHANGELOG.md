@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.2] - 2026-11-09
 
 ### Added
+- **Simultaneous Multi-Account & Multi-Holding Goal Contribution Architecture**:
+  - Re-architected both [`EditGoalBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/EditGoalBottomSheet.java) and [`AddGoalBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddGoalBottomSheet.java) to allow a single financial goal to be simultaneously funded by **multiple bank accounts** (e.g. `PNB 100%`, `HDFC SAVINGS 100%`, `PURSE 100%`) and **multiple mutual fund categories/holdings** (e.g. `Emergency Mutual Fund 100%`, `Mutual Fund 30%`).
+  - Implemented dynamic row builders [`item_goal_account_row.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal_account_row.xml) and [`item_goal_mf_row.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal_mf_row.xml) enabling users to add, configure, and remove individual asset rows on the fly with live capacity status badges.
+- **Auto-Config Pre-population on Edit Goal**:
+  - Opening `EditGoalBottomSheet` automatically inspects `currentGoal.contributionJson`, parses all contributing accounts and mutual funds, and populates the dynamic rows with their exact configured allocation percentages.
+  - Users can seamlessly adjust percentages, add new accounts or holdings, or delete existing rows.
+- **Strict Mutual Exclusivity (Manual Tracking vs. Linked Assets)**:
+  - When **Manual Tracking** is selected, the linked assets section (both bank accounts and mutual funds) is completely disabled and collapsed, and the initial/manual saved amount field is enabled.
+  - When **Link Assets** is selected, manual saved amount input is disabled/cleared, and multi-asset account & holding configuration rows are activated.
+- **Google Sheet Column 4 Formula Preservation (`androidscript.gs`)**:
+  - Refined `addGoal` and `updateGoal` in `google-apps-script/androidscript.gs` to prevent overwriting Google Sheet Column 4 (`Achived Till Date`), keeping automated `=MAP(...)` sheet formulas intact.
 - **Interactive Goal Contribution Breakdown Modal (`GoalContributionBottomSheet`)**:
   - Added full-width interactive `[📊 View Contribution Breakdown]` action button to every financial goal card in [`item_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal.xml) and made `tvGoalSavingAllocation` clickable.
   - Implemented [`GoalContributionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/GoalContributionBottomSheet.java) and [`dialog_goal_contribution.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_goal_contribution.xml) displaying:

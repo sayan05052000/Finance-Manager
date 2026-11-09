@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    android:background="@drawable/bg_card"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Top Row: Account Spinner + Alloc % EditText + Remove Button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <Spinner
+            android:id="@+id/spRowAccount"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_spinner_dark"
+            android:popupBackground="@color/bg_card_secondary"
+            android:dropDownVerticalOffset="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
+            android:text="Alloc %:"
+            android:textColor="@color/text_secondary"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etRowAccountPercent"
+            android:layout_width="65dp"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_pill_dark"
+            android:gravity="center"
+            android:hint="100"
+            android:text="100"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:inputType="numberDecimal"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp" />
+
+        <ImageView
+            android:id="@+id/btnRemoveAccountRow"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_pill_dark"
+            android:padding="7dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/red_rose"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Bottom Status Text -->
+    <TextView
+        android:id="@+id/tvRowAccountInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Available to allocate: 100%"
+        android:textColor="@color/green_mint"
+        android:textSize="11sp" />
+
+</LinearLayout>

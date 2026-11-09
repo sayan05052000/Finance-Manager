@@ -240,7 +240,18 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
 ### Financial Goals Management & Dynamic Allocations
 * **Dynamic Multi-Asset Schema (`Goals` Sheet)**:
   - Columns: `Goals Name`, `Goal Amount`, `Occured Till Date`, `Achived Till Date`, `Contribution JSON`.
-  - Replaces legacy hardcoded savings percentages with a flexible `Contribution JSON` mapping architecture that links each goal to specific Bank Accounts (e.g. `HDFC SAVINGS`, `PNB`, `SBI`) and Mutual Funds (e.g. `Mutual Fund`, `Family Savings`, `Emergency Mutual Fund`) along with their respective contribution weighting percentages (e.g. `1.0`, `0.3`).
+  - Replaces legacy hardcoded savings percentages with a flexible `Contribution JSON` mapping architecture that links each goal to specific Bank Accounts (e.g. `HDFC SAVINGS`, `PNB`, `SBI`, `PURSE`) and Mutual Funds (e.g. `Mutual Fund`, `Family Savings`, `Emergency Mutual Fund`) along with their respective contribution weighting percentages (e.g. `1.0`, `0.3`).
+* **Simultaneous Multi-Account & Multi-Holding Contribution Architecture**:
+  - A single financial goal can now be contributed by **multiple bank accounts** AND **multiple mutual fund holdings / categories** at the exact same time (e.g. `Emergency Fund` funded by `PNB (100%)`, `HDFC SAVINGS (100%)`, `PURSE (100%)`, and `Emergency Mutual Fund (100%)`).
+  - Both `AddGoalBottomSheet` and `EditGoalBottomSheet` feature dynamic row builders (`[＋ Add Account]` and `[＋ Add Holding]`), allowing users to dynamically add, configure percentages, and remove linked assets.
+* **Auto-Set Configuration Pre-population on Edit**:
+  - Tapping `[✏️ Edit]` on any goal automatically inspects `contributionJson`, parses all contributing accounts and mutual funds, and populates the dynamic rows with their exact percentages.
+  - The goal's own consumed percentages are dynamically exempted (`excludeGoalName = goal.name`), freeing up its capacity so the user can easily adjust percentages or switch sources.
+* **Strict Mutual Exclusivity (Manual Tracking vs. Linked Assets)**:
+  - **Manual Tracking**: When selected, all linked asset sections (both bank accounts and mutual funds) are disabled and collapsed, and the initial/manual saved amount field is enabled.
+  - **Link Assets**: When selected, manual saved amount input is disabled/cleared, and multi-asset account & holding configuration rows are activated.
+* **Google Sheet Column 4 Formula Preservation (`androidscript.gs`)**:
+  - `addGoal` appends an empty string `''` to Column 4, and `updateGoal` excludes Column 4 from updates, allowing Google Sheet array formulas (such as `=MAP(...)` calculating achieved amounts) to execute without being overwritten by the API.
 * **Dynamic Recalculation Engine (`CalculationEngine`)**:
   - Replicates Google Sheets `MAP` / `LAMBDA` array formulas in local Android logic, evaluating live account balances and current mutual fund valuations in real time to calculate accumulated funds and percentage achieved even when operating offline.
   - Linked Asset Summary: Automatically resolves and displays human-readable contribution sources on each goal card (e.g. `Linked: HDFC SAVINGS, PNB • MF (30%)`).

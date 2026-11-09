@@ -406,16 +406,9 @@ public class CalculationEngine {
                     for (Holding h : db.holdings) {
                         if (h == null) continue;
                         boolean match = false;
-                        if (col.contains("catgory") || col.contains("category")) {
-                            if (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val)) match = true;
-                        } else if (col.contains("type")) {
-                            if (h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) match = true;
-                        } else {
-                            if ((h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) ||
-                                (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val))) {
-                                match = true;
-                            }
-                        }
+                        if (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val)) match = true;
+                        if (!match && h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) match = true;
+                        if (!match && h.schemeName != null && h.schemeName.trim().equalsIgnoreCase(val)) match = true;
 
                         if (match) {
                             total += h.currentValue * pct;
@@ -519,16 +512,9 @@ public class CalculationEngine {
                     for (Holding h : db.holdings) {
                         if (h == null) continue;
                         boolean match = false;
-                        if (col.contains("catgory") || col.contains("category")) {
-                            if (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val)) match = true;
-                        } else if (col.contains("type")) {
-                            if (h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) match = true;
-                        } else {
-                            if ((h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) ||
-                                (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val))) {
-                                match = true;
-                            }
-                        }
+                        if (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val)) match = true;
+                        if (!match && h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) match = true;
+                        if (!match && h.schemeName != null && h.schemeName.trim().equalsIgnoreCase(val)) match = true;
 
                         if (match) {
                             categoryTotal += h.currentValue;

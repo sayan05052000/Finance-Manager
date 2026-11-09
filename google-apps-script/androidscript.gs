@@ -736,7 +736,7 @@ function doPost(e) {
         goalName,
         goalAmount,
         currentAmount,
-        achieved,
+        '',
         contributionJson
       ]);
       SpreadsheetApp.flush();
@@ -840,7 +840,6 @@ function doPost(e) {
       sheet.getRange(matchedRow, 1).setValue(newName);
       sheet.getRange(matchedRow, 2).setValue(goalAmount);
       sheet.getRange(matchedRow, 3).setValue(currentAmount);
-      sheet.getRange(matchedRow, 4).setValue(achieved);
       sheet.getRange(matchedRow, 5).setValue(contributionJson);
       SpreadsheetApp.flush();
 

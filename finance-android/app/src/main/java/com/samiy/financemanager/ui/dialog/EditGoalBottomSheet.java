@@ -1,12 +1,15 @@
 package com.samiy.financemanager.ui.dialog;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -34,8 +37,10 @@ import com.samiy.financemanager.ui.adapter.AllocationSourceAdapter;
 import com.samiy.financemanager.util.FinMngrToast;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
@@ -53,6 +58,9 @@ public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
     private double initialTargetAmount;
     private double initialCurrentAmount;
     private String initialContribJson;
+
+    private List<AllocationSourceAdapter.SourceItem> baseAccountItems = new ArrayList<>();
+    private List<AllocationSourceAdapter.SourceItem> baseMfItems = new ArrayList<>();
 
     public static EditGoalBottomSheet newInstance(GoalItem goal) {
         EditGoalBottomSheet sheet = new EditGoalBottomSheet();
@@ -99,18 +107,16 @@ public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
         RadioGroup rgGoalLinkType = v.findViewById(R.id.rgGoalLinkType);
         RadioButton rbLinkNone = v.findViewById(R.id.rbLinkNone);
-        RadioButton rbLinkAccount = v.findViewById(R.id.rbLinkAccount);
-        RadioButton rbLinkMutualFund = v.findViewById(R.id.rbLinkMutualFund);
+        RadioButton rbLinkAssets = v.findViewById(R.id.rbLinkAssets);
 
-        LinearLayout layoutLinkAccount = v.findViewById(R.id.layoutLinkAccount);
-        Spinner spGoalAccount = v.findViewById(R.id.spGoalAccount);
-        EditText etGoalAccountPercent = v.findViewById(R.id.etGoalAccountPercent);
-        TextView tvAccountAllocationInfo = v.findViewById(R.id.tvAccountAllocationInfo);
+        LinearLayout layoutLinkedAssetsContainer = v.findViewById(R.id.layoutLinkedAssetsContainer);
+        LinearLayout layoutAccountsContainer = v.findViewById(R.id.layoutAccountsContainer);
+        TextView tvEmptyAccounts = v.findViewById(R.id.tvEmptyAccounts);
+        TextView btnAddAccountRow = v.findViewById(R.id.btnAddAccountRow);
 
-        LinearLayout layoutLinkMutualFund = v.findViewById(R.id.layoutLinkMutualFund);
-        Spinner spGoalMfType = v.findViewById(R.id.spGoalMfType);
-        EditText etGoalMfPercent = v.findViewById(R.id.etGoalMfPercent);
-        TextView tvMfAllocationInfo = v.findViewById(R.id.tvMfAllocationInfo);
+        LinearLayout layoutMfContainer = v.findViewById(R.id.layoutMfContainer);
+        TextView tvEmptyMf = v.findViewById(R.id.tvEmptyMf);
+        TextView btnAddMfRow = v.findViewById(R.id.btnAddMfRow);
 
         Button btnCancel = v.findViewById(R.id.btnCancelGoal);
         Button btnSubmit = v.findViewById(R.id.btnSubmitGoal);
@@ -122,44 +128,8 @@ public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
 
-        // Parse initial contribution JSON
-        String initialLinkedAccount = null;
-        double initialAccountPct = 100.0;
-        String initialLinkedMf = null;
-        double initialMfPct = 100.0;
-        boolean hasLinkedAccount = false;
-        boolean hasLinkedMf = false;
-
-        try {
-            JsonObject obj = JsonParser.parseString(initialContribJson).getAsJsonObject();
-            if (obj.has("accounts") && obj.get("accounts").isJsonObject()) {
-                JsonObject accs = obj.getAsJsonObject("accounts");
-                for (String key : accs.keySet()) {
-                    initialLinkedAccount = key.trim();
-                    hasLinkedAccount = true;
-                    double p = accs.get(key).getAsDouble();
-                    initialAccountPct = (p <= 1.0) ? p * 100.0 : p;
-                    break;
-                }
-            }
-            if (!hasLinkedAccount && obj.has("mutual_funds") && obj.get("mutual_funds").isJsonArray()) {
-                JsonArray mfs = obj.getAsJsonArray("mutual_funds");
-                for (JsonElement el : mfs) {
-                    if (!el.isJsonObject()) continue;
-                    JsonObject rule = el.getAsJsonObject();
-                    initialLinkedMf = rule.has("value") ? rule.get("value").getAsString().trim() : "";
-                    if (!initialLinkedMf.isEmpty()) {
-                        hasLinkedMf = true;
-                        double p = rule.has("percentage") ? rule.get("percentage").getAsDouble() : 1.0;
-                        initialMfPct = (p <= 1.0) ? p * 100.0 : p;
-                        break;
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-
-        // Populate accounts using AllocationSourceAdapter (excluding this goal so its own allocation is available)
-        List<AllocationSourceAdapter.SourceItem> accItems = new ArrayList<>();
+        // 1. Prepare Base Account Items (exempting this goal's own allocation)
+        baseAccountItems.clear();
         List<String> rawAccs = new ArrayList<>();
         if (db != null && db.accounts != null) {
             for (Account a : db.accounts) {
@@ -172,37 +142,16 @@ public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
             rawAccs.add("PNB");
             rawAccs.add("HDFC SAVINGS");
             rawAccs.add("SBI");
+            rawAccs.add("PURSE");
         }
         for (String accName : rawAccs) {
             double alreadyUsed = CalculationEngine.getAccountAllocatedPercentage(accName, db != null ? db.goals : null, initialGoalName);
             double available = Math.max(0.0, 100.0 - alreadyUsed);
-            accItems.add(new AllocationSourceAdapter.SourceItem(accName, available, alreadyUsed));
+            baseAccountItems.add(new AllocationSourceAdapter.SourceItem(accName, available, alreadyUsed));
         }
-        AllocationSourceAdapter accAdapter = new AllocationSourceAdapter(requireContext(), accItems);
-        spGoalAccount.setAdapter(accAdapter);
 
-        // Pre-select account
-        int accInitialPos = 0;
-        if (initialLinkedAccount != null) {
-            for (int i = 0; i < accItems.size(); i++) {
-                if (accItems.get(i).name.equalsIgnoreCase(initialLinkedAccount)) {
-                    accInitialPos = i;
-                    break;
-                }
-            }
-        } else {
-            for (int i = 0; i < accItems.size(); i++) {
-                if (accItems.get(i).isSelectable()) {
-                    accInitialPos = i;
-                    break;
-                }
-            }
-        }
-        spGoalAccount.setSelection(accInitialPos);
-        etGoalAccountPercent.setText(String.format(Locale.US, "%d", (int) Math.round(initialAccountPct)));
-
-        // Populate mutual fund savings types using AllocationSourceAdapter (excluding this goal)
-        List<AllocationSourceAdapter.SourceItem> mfItems = new ArrayList<>();
+        // 2. Prepare Base Mutual Fund Items (exempting this goal's own allocation)
+        baseMfItems.clear();
         List<String> rawMfTypes = new ArrayList<>();
         if (db != null && db.holdings != null) {
             for (Holding h : db.holdings) {
@@ -225,301 +174,346 @@ public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
         for (String mfName : rawMfTypes) {
             double alreadyUsed = CalculationEngine.getMutualFundAllocatedPercentage(mfName, db != null ? db.goals : null, initialGoalName);
             double available = Math.max(0.0, 100.0 - alreadyUsed);
-            mfItems.add(new AllocationSourceAdapter.SourceItem(mfName, available, alreadyUsed));
+            baseMfItems.add(new AllocationSourceAdapter.SourceItem(mfName, available, alreadyUsed));
         }
-        AllocationSourceAdapter mfAdapter = new AllocationSourceAdapter(requireContext(), mfItems);
-        spGoalMfType.setAdapter(mfAdapter);
 
-        // Pre-select MF
-        int mfInitialPos = 0;
-        if (initialLinkedMf != null) {
-            for (int i = 0; i < mfItems.size(); i++) {
-                if (mfItems.get(i).name.equalsIgnoreCase(initialLinkedMf)) {
-                    mfInitialPos = i;
-                    break;
-                }
+        // Helper: Check and update empty state text views
+        Runnable updateEmptyStates = () -> {
+            if (tvEmptyAccounts != null) {
+                tvEmptyAccounts.setVisibility(layoutAccountsContainer.getChildCount() == 0 ? View.VISIBLE : View.GONE);
             }
-        } else {
-            for (int i = 0; i < mfItems.size(); i++) {
-                if (mfItems.get(i).isSelectable()) {
-                    mfInitialPos = i;
-                    break;
-                }
-            }
-        }
-        spGoalMfType.setSelection(mfInitialPos);
-        etGoalMfPercent.setText(String.format(Locale.US, "%d", (int) Math.round(initialMfPct)));
-
-        // Dynamic ceiling info runners
-        Runnable updateAccountAllocationInfo = () -> {
-            AllocationSourceAdapter.SourceItem selected = (AllocationSourceAdapter.SourceItem) spGoalAccount.getSelectedItem();
-            if (selected == null) return;
-            if (tvAccountAllocationInfo != null) {
-                if (!selected.isSelectable()) {
-                    tvAccountAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", selected.consumedPercent) + "% used by other goals (0% remaining)");
-                    tvAccountAllocationInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
-                    etGoalAccountPercent.setText("0");
-                    etGoalAccountPercent.setEnabled(false);
-                } else {
-                    tvAccountAllocationInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", selected.availablePercent) + "% (" + String.format(Locale.US, "%.1f", selected.consumedPercent) + "% used by other goals)");
-                    tvAccountAllocationInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
-                    etGoalAccountPercent.setEnabled(true);
-                }
+            if (tvEmptyMf != null) {
+                tvEmptyMf.setVisibility(layoutMfContainer.getChildCount() == 0 ? View.VISIBLE : View.GONE);
             }
         };
 
-        Runnable updateMfAllocationInfo = () -> {
-            AllocationSourceAdapter.SourceItem selected = (AllocationSourceAdapter.SourceItem) spGoalMfType.getSelectedItem();
-            if (selected == null) return;
-            if (tvMfAllocationInfo != null) {
-                if (!selected.isSelectable()) {
-                    tvMfAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", selected.consumedPercent) + "% used by other goals (0% remaining)");
-                    tvMfAllocationInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
-                    etGoalMfPercent.setText("0");
-                    etGoalMfPercent.setEnabled(false);
-                } else {
-                    tvMfAllocationInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", selected.availablePercent) + "% (" + String.format(Locale.US, "%.1f", selected.consumedPercent) + "% used by other goals)");
-                    tvMfAllocationInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
-                    etGoalMfPercent.setEnabled(true);
+        // Helper: Add an Account Row
+        AccountRowAdder addAccountRow = (selectedAccountName, initialPct) -> {
+            View rowView = inflater.inflate(R.layout.item_goal_account_row, layoutAccountsContainer, false);
+            Spinner sp = rowView.findViewById(R.id.spRowAccount);
+            EditText etPct = rowView.findViewById(R.id.etRowAccountPercent);
+            TextView tvInfo = rowView.findViewById(R.id.tvRowAccountInfo);
+            ImageView btnRemove = rowView.findViewById(R.id.btnRemoveAccountRow);
+
+            AllocationSourceAdapter adapter = new AllocationSourceAdapter(requireContext(), new ArrayList<>(baseAccountItems));
+            sp.setAdapter(adapter);
+
+            int selPos = 0;
+            if (selectedAccountName != null) {
+                for (int i = 0; i < adapter.getCount(); i++) {
+                    AllocationSourceAdapter.SourceItem it = adapter.getItem(i);
+                    if (it != null && it.name.equalsIgnoreCase(selectedAccountName.trim())) {
+                        selPos = i;
+                        break;
+                    }
                 }
             }
+            sp.setSelection(selPos);
+            etPct.setText(String.format(Locale.US, "%d", (int) Math.round(initialPct)));
+
+            Runnable refreshRowInfo = () -> {
+                AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
+                if (item == null) return;
+                if (!item.isSelectable()) {
+                    tvInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals (0% remaining)");
+                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    etPct.setEnabled(false);
+                } else {
+                    tvInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", item.availablePercent) + "% (" + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals)");
+                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+                    etPct.setEnabled(true);
+                }
+            };
+
+            sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    refreshRowInfo.run();
+                }
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {}
+            });
+
+            btnRemove.setOnClickListener(vRow -> {
+                layoutAccountsContainer.removeView(rowView);
+                updateEmptyStates.run();
+            });
+
+            refreshRowInfo.run();
+            layoutAccountsContainer.addView(rowView);
+            updateEmptyStates.run();
         };
 
-        spGoalAccount.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                AllocationSourceAdapter.SourceItem item = accAdapter.getItem(position);
-                if (item != null && !item.isSelectable()) {
-                    for (int i = 0; i < accAdapter.getCount(); i++) {
-                        if (accAdapter.getItem(i).isSelectable()) {
-                            spGoalAccount.setSelection(i);
-                            return;
-                        }
+        // Helper: Add a Mutual Fund Row
+        MfRowAdder addMfRow = (selectedMfName, initialPct) -> {
+            View rowView = inflater.inflate(R.layout.item_goal_mf_row, layoutMfContainer, false);
+            Spinner sp = rowView.findViewById(R.id.spRowMf);
+            EditText etPct = rowView.findViewById(R.id.etRowMfPercent);
+            TextView tvInfo = rowView.findViewById(R.id.tvRowMfInfo);
+            ImageView btnRemove = rowView.findViewById(R.id.btnRemoveMfRow);
+
+            AllocationSourceAdapter adapter = new AllocationSourceAdapter(requireContext(), new ArrayList<>(baseMfItems));
+            sp.setAdapter(adapter);
+
+            int selPos = 0;
+            if (selectedMfName != null) {
+                for (int i = 0; i < adapter.getCount(); i++) {
+                    AllocationSourceAdapter.SourceItem it = adapter.getItem(i);
+                    if (it != null && it.name.equalsIgnoreCase(selectedMfName.trim())) {
+                        selPos = i;
+                        break;
                     }
                 }
-                updateAccountAllocationInfo.run();
             }
+            sp.setSelection(selPos);
+            etPct.setText(String.format(Locale.US, "%d", (int) Math.round(initialPct)));
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
+            Runnable refreshRowInfo = () -> {
+                AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
+                if (item == null) return;
+                if (!item.isSelectable()) {
+                    tvInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals (0% remaining)");
+                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    etPct.setEnabled(false);
+                } else {
+                    tvInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", item.availablePercent) + "% (" + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals)");
+                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+                    etPct.setEnabled(true);
+                }
+            };
 
-        spGoalMfType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                AllocationSourceAdapter.SourceItem item = mfAdapter.getItem(position);
-                if (item != null && !item.isSelectable()) {
-                    for (int i = 0; i < mfAdapter.getCount(); i++) {
-                        if (mfAdapter.getItem(i).isSelectable()) {
-                            spGoalMfType.setSelection(i);
-                            return;
-                        }
+            sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    refreshRowInfo.run();
+                }
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {}
+            });
+
+            btnRemove.setOnClickListener(vRow -> {
+                layoutMfContainer.removeView(rowView);
+                updateEmptyStates.run();
+            });
+
+            refreshRowInfo.run();
+            layoutMfContainer.addView(rowView);
+            updateEmptyStates.run();
+        };
+
+        // Wire up "Add" buttons
+        btnAddAccountRow.setOnClickListener(vBtn -> addAccountRow.add(null, 100.0));
+        btnAddMfRow.setOnClickListener(vBtn -> addMfRow.add(null, 100.0));
+
+        // 3. Auto-populate from initialContribJson
+        Map<String, Double> initialAccounts = new HashMap<>();
+        Map<String, Double> initialMfs = new HashMap<>();
+        try {
+            JsonObject obj = JsonParser.parseString(initialContribJson).getAsJsonObject();
+            if (obj.has("accounts") && obj.get("accounts").isJsonObject()) {
+                JsonObject accs = obj.getAsJsonObject("accounts");
+                for (String key : accs.keySet()) {
+                    double p = accs.get(key).getAsDouble();
+                    initialAccounts.put(key.trim(), (p <= 1.0) ? p * 100.0 : p);
+                }
+            }
+            if (obj.has("mutual_funds") && obj.get("mutual_funds").isJsonArray()) {
+                JsonArray mfs = obj.getAsJsonArray("mutual_funds");
+                for (JsonElement el : mfs) {
+                    if (!el.isJsonObject()) continue;
+                    JsonObject rule = el.getAsJsonObject();
+                    String val = rule.has("value") ? rule.get("value").getAsString().trim() : "";
+                    if (!val.isEmpty()) {
+                        double p = rule.has("percentage") ? rule.get("percentage").getAsDouble() : 1.0;
+                        initialMfs.put(val, (p <= 1.0) ? p * 100.0 : p);
                     }
                 }
-                updateMfAllocationInfo.run();
             }
+        } catch (Exception ignored) {}
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
+        boolean hasLinkedAssets = !initialAccounts.isEmpty() || !initialMfs.isEmpty();
+        if (hasLinkedAssets) {
+            rbLinkAssets.setChecked(true);
+            layoutLinkedAssetsContainer.setVisibility(View.VISIBLE);
+            etGoalCurrentAmount.setEnabled(false);
 
-        // Set initial radio state
-        if (hasLinkedAccount) {
-            rbLinkAccount.setChecked(true);
-            layoutLinkAccount.setVisibility(View.VISIBLE);
-            layoutLinkMutualFund.setVisibility(View.GONE);
-            updateAccountAllocationInfo.run();
-        } else if (hasLinkedMf) {
-            rbLinkMutualFund.setChecked(true);
-            layoutLinkAccount.setVisibility(View.GONE);
-            layoutLinkMutualFund.setVisibility(View.VISIBLE);
-            updateMfAllocationInfo.run();
+            for (Map.Entry<String, Double> entry : initialAccounts.entrySet()) {
+                addAccountRow.add(entry.getKey(), entry.getValue());
+            }
+            for (Map.Entry<String, Double> entry : initialMfs.entrySet()) {
+                addMfRow.add(entry.getKey(), entry.getValue());
+            }
         } else {
             rbLinkNone.setChecked(true);
-            layoutLinkAccount.setVisibility(View.GONE);
-            layoutLinkMutualFund.setVisibility(View.GONE);
+            layoutLinkedAssetsContainer.setVisibility(View.GONE);
+            etGoalCurrentAmount.setEnabled(true);
         }
+        updateEmptyStates.run();
 
-        // Toggle linking visibility
+        // 4. Toggle Tracking Modes (Mutual Exclusivity)
         rgGoalLinkType.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.rbLinkAccount) {
-                layoutLinkAccount.setVisibility(View.VISIBLE);
-                layoutLinkMutualFund.setVisibility(View.GONE);
-                updateAccountAllocationInfo.run();
-            } else if (checkedId == R.id.rbLinkMutualFund) {
-                layoutLinkAccount.setVisibility(View.GONE);
-                layoutLinkMutualFund.setVisibility(View.VISIBLE);
-                updateMfAllocationInfo.run();
-            } else {
-                layoutLinkAccount.setVisibility(View.GONE);
-                layoutLinkMutualFund.setVisibility(View.GONE);
+            if (checkedId == R.id.rbLinkNone) {
+                // Manual Tracking ON -> Disable and hide linked assets
+                layoutLinkedAssetsContainer.setVisibility(View.GONE);
+                etGoalCurrentAmount.setEnabled(true);
+            } else if (checkedId == R.id.rbLinkAssets) {
+                // Linked Assets ON -> Enable linked assets, disable manual amount input
+                layoutLinkedAssetsContainer.setVisibility(View.VISIBLE);
+                etGoalCurrentAmount.setEnabled(false);
+
+                // If no rows exist yet, add one default account row
+                if (layoutAccountsContainer.getChildCount() == 0 && layoutMfContainer.getChildCount() == 0) {
+                    addAccountRow.add(null, 100.0);
+                }
             }
         });
 
-        btnCancel.setOnClickListener(view -> dismiss());
+        // 5. Cancel Button
+        btnCancel.setOnClickListener(vBtn -> dismiss());
 
-        btnSubmit.setOnClickListener(view -> {
-            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                FinMngrToast.show(getContext(), "You are not authorized", Toast.LENGTH_SHORT);
-                return;
-            }
-
+        // 6. Submit Changes
+        btnSubmit.setOnClickListener(vBtn -> {
             String goalName = etGoalName.getText().toString().trim();
             if (goalName.isEmpty()) {
-                etGoalName.setError("Goal name is required");
-                etGoalName.requestFocus();
+                FinMngrToast.showError(getContext(), "Goal Name cannot be empty.");
                 return;
-            }
-
-            // Uniqueness check if name was changed
-            if (!goalName.equalsIgnoreCase(initialGoalName) && db != null && db.goals != null) {
-                for (GoalItem existing : db.goals) {
-                    if (existing != null && existing.name != null && existing.name.trim().equalsIgnoreCase(goalName)) {
-                        etGoalName.setError("A goal named '" + goalName + "' already exists");
-                        etGoalName.requestFocus();
-                        FinMngrToast.show(getContext(), "Goal '" + goalName + "' already exists!", Toast.LENGTH_LONG);
-                        return;
-                    }
-                }
             }
 
             String targetStr = etGoalTargetAmount.getText().toString().trim();
-            if (targetStr.isEmpty()) {
-                etGoalTargetAmount.setError("Target amount is required");
-                etGoalTargetAmount.requestFocus();
-                return;
-            }
             double targetAmount;
             try {
                 targetAmount = Double.parseDouble(targetStr);
                 if (targetAmount <= 0) {
-                    etGoalTargetAmount.setError("Target must be greater than 0");
-                    etGoalTargetAmount.requestFocus();
+                    FinMngrToast.showError(getContext(), "Target Goal Amount must be greater than 0.");
                     return;
                 }
             } catch (Exception e) {
-                etGoalTargetAmount.setError("Invalid target amount");
-                etGoalTargetAmount.requestFocus();
+                FinMngrToast.showError(getContext(), "Please enter a valid numeric target amount.");
                 return;
             }
 
-            String currStr = etGoalCurrentAmount.getText().toString().trim();
             double currentAmount = 0.0;
-            if (!currStr.isEmpty()) {
-                try {
-                    currentAmount = Double.parseDouble(currStr);
-                } catch (Exception ignored) {}
-            }
+            String contributionJson = "{}";
 
-            // Validate source allocations (sum <= 100%)
-            if (rbLinkAccount.isChecked()) {
-                AllocationSourceAdapter.SourceItem selectedAccItem = (AllocationSourceAdapter.SourceItem) spGoalAccount.getSelectedItem();
-                String selectedAcc = selectedAccItem != null ? selectedAccItem.name : "";
-                if (selectedAccItem != null && !selectedAccItem.isSelectable()) {
-                    FinMngrToast.showError(getContext(), "Bank account '" + selectedAcc + "' is 100% allocated. Cannot be selected!");
-                    return;
-                }
-                String pctStr = etGoalAccountPercent.getText().toString().trim();
-                double requestedPct = 100.0;
-                if (!pctStr.isEmpty()) {
+            if (rbLinkNone.isChecked()) {
+                // Manual Tracking
+                String curStr = etGoalCurrentAmount.getText().toString().trim();
+                if (!curStr.isEmpty()) {
                     try {
-                        requestedPct = Double.parseDouble(pctStr);
-                    } catch (Exception e) {
-                        etGoalAccountPercent.setError("Invalid percentage");
-                        etGoalAccountPercent.requestFocus();
-                        return;
-                    }
-                }
-                if (requestedPct <= 0) {
-                    etGoalAccountPercent.setError("Percentage must be greater than 0%");
-                    etGoalAccountPercent.requestFocus();
-                    return;
-                }
-                double alreadyUsed = CalculationEngine.getAccountAllocatedPercentage(selectedAcc, db != null ? db.goals : null, initialGoalName);
-                if (alreadyUsed + requestedPct > 100.0001) {
-                    double maxAllowed = Math.max(0.0, 100.0 - alreadyUsed);
-                    etGoalAccountPercent.setError("Total allocation cannot exceed 100%. Max available: " + String.format(Locale.US, "%.1f", maxAllowed) + "%");
-                    etGoalAccountPercent.requestFocus();
-                    FinMngrToast.showError(getContext(), "Total allocation for " + selectedAcc + " would be " + String.format(Locale.US, "%.1f", (alreadyUsed + requestedPct)) + "%. Must be <= 100%!");
-                    return;
-                }
-            } else if (rbLinkMutualFund.isChecked()) {
-                AllocationSourceAdapter.SourceItem selectedMfItem = (AllocationSourceAdapter.SourceItem) spGoalMfType.getSelectedItem();
-                String selectedMfType = selectedMfItem != null ? selectedMfItem.name : "";
-                if (selectedMfItem != null && !selectedMfItem.isSelectable()) {
-                    FinMngrToast.showError(getContext(), "Mutual Fund '" + selectedMfType + "' is 100% allocated. Cannot be selected!");
-                    return;
-                }
-                String pctStr = etGoalMfPercent.getText().toString().trim();
-                double requestedPct = 100.0;
-                if (!pctStr.isEmpty()) {
-                    try {
-                        requestedPct = Double.parseDouble(pctStr);
-                    } catch (Exception e) {
-                        etGoalMfPercent.setError("Invalid percentage");
-                        etGoalMfPercent.requestFocus();
-                        return;
-                    }
-                }
-                if (requestedPct <= 0) {
-                    etGoalMfPercent.setError("Percentage must be greater than 0%");
-                    etGoalMfPercent.requestFocus();
-                    return;
-                }
-                double alreadyUsed = CalculationEngine.getMutualFundAllocatedPercentage(selectedMfType, db != null ? db.goals : null, initialGoalName);
-                if (alreadyUsed + requestedPct > 100.0001) {
-                    double maxAllowed = Math.max(0.0, 100.0 - alreadyUsed);
-                    etGoalMfPercent.setError("Total allocation cannot exceed 100%. Max available: " + String.format(Locale.US, "%.1f", maxAllowed) + "%");
-                    etGoalMfPercent.requestFocus();
-                    FinMngrToast.showError(getContext(), "Total allocation for " + selectedMfType + " would be " + String.format(Locale.US, "%.1f", (alreadyUsed + requestedPct)) + "%. Must be <= 100%!");
-                    return;
-                }
-            }
-
-            // Build Contribution JSON
-            JsonObject contribObj = new JsonObject();
-            JsonObject accountsObj = new JsonObject();
-            JsonArray mfArray = new JsonArray();
-
-            if (rbLinkAccount.isChecked()) {
-                AllocationSourceAdapter.SourceItem selectedAccItem = (AllocationSourceAdapter.SourceItem) spGoalAccount.getSelectedItem();
-                String selectedAcc = selectedAccItem != null ? selectedAccItem.name : "";
-                String pctStr = etGoalAccountPercent.getText().toString().trim();
-                double pct = 1.0;
-                if (!pctStr.isEmpty()) {
-                    try {
-                        pct = Double.parseDouble(pctStr) / 100.0;
+                        currentAmount = Double.parseDouble(curStr);
                     } catch (Exception ignored) {}
                 }
-                if (!selectedAcc.isEmpty()) {
-                    accountsObj.addProperty(selectedAcc, pct);
-                }
-            } else if (rbLinkMutualFund.isChecked()) {
-                AllocationSourceAdapter.SourceItem selectedMfItem = (AllocationSourceAdapter.SourceItem) spGoalMfType.getSelectedItem();
-                String selectedMfType = selectedMfItem != null ? selectedMfItem.name : "";
-                String pctStr = etGoalMfPercent.getText().toString().trim();
-                double pct = 1.0;
-                if (!pctStr.isEmpty()) {
-                    try {
-                        pct = Double.parseDouble(pctStr) / 100.0;
-                    } catch (Exception ignored) {}
-                }
-                if (!selectedMfType.isEmpty()) {
-                    JsonObject mfRule = new JsonObject();
-                    mfRule.addProperty("column", "Savings Type");
-                    mfRule.addProperty("value", selectedMfType);
-                    mfRule.addProperty("percentage", pct);
-                    mfArray.add(mfRule);
-                }
-            }
+                contributionJson = "{}";
+            } else {
+                // Linked Assets: Parse all Account Rows and Mutual Fund Rows
+                JsonObject contribObj = new JsonObject();
+                JsonObject accountsObj = new JsonObject();
+                JsonArray mfArray = new JsonArray();
 
-            contribObj.add("accounts", accountsObj);
-            contribObj.add("mutual_funds", mfArray);
-            String contributionJson = contribObj.toString();
+                // Validate Account Rows
+                List<String> seenAccounts = new ArrayList<>();
+                for (int i = 0; i < layoutAccountsContainer.getChildCount(); i++) {
+                    View rowView = layoutAccountsContainer.getChildAt(i);
+                    Spinner sp = rowView.findViewById(R.id.spRowAccount);
+                    EditText etPct = rowView.findViewById(R.id.etRowAccountPercent);
+
+                    AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
+                    if (item == null) continue;
+                    String accName = item.name.trim();
+
+                    if (seenAccounts.contains(accName.toUpperCase(Locale.US))) {
+                        FinMngrToast.showError(getContext(), "Bank Account '" + accName + "' is selected multiple times. Please adjust its percentage in a single row.");
+                        return;
+                    }
+                    seenAccounts.add(accName.toUpperCase(Locale.US));
+
+                    String pctStr = etPct.getText().toString().trim();
+                    double pct;
+                    try {
+                        pct = Double.parseDouble(pctStr);
+                    } catch (Exception e) {
+                        FinMngrToast.showError(getContext(), "Please enter a valid allocation percentage for account '" + accName + "'.");
+                        return;
+                    }
+
+                    if (pct <= 0 || pct > 100) {
+                        FinMngrToast.showError(getContext(), "Allocation percentage for account '" + accName + "' must be between 1% and 100%.");
+                        return;
+                    }
+
+                    if (pct > item.availablePercent + 0.001) {
+                        FinMngrToast.showError(getContext(), "Allocation for account '" + accName + "' (" + pct + "%) exceeds available capacity (" + String.format(Locale.US, "%.1f", item.availablePercent) + "%).");
+                        return;
+                    }
+
+                    accountsObj.addProperty(accName, pct / 100.0);
+                }
+
+                // Validate Mutual Fund Rows
+                List<String> seenMfs = new ArrayList<>();
+                for (int i = 0; i < layoutMfContainer.getChildCount(); i++) {
+                    View rowView = layoutMfContainer.getChildAt(i);
+                    Spinner sp = rowView.findViewById(R.id.spRowMf);
+                    EditText etPct = rowView.findViewById(R.id.etRowMfPercent);
+
+                    AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
+                    if (item == null) continue;
+                    String mfName = item.name.trim();
+
+                    if (seenMfs.contains(mfName.toLowerCase(Locale.US))) {
+                        FinMngrToast.showError(getContext(), "Holding '" + mfName + "' is selected multiple times. Please adjust its percentage in a single row.");
+                        return;
+                    }
+                    seenMfs.add(mfName.toLowerCase(Locale.US));
+
+                    String pctStr = etPct.getText().toString().trim();
+                    double pct;
+                    try {
+                        pct = Double.parseDouble(pctStr);
+                    } catch (Exception e) {
+                        FinMngrToast.showError(getContext(), "Please enter a valid allocation percentage for holding '" + mfName + "'.");
+                        return;
+                    }
+
+                    if (pct <= 0 || pct > 100) {
+                        FinMngrToast.showError(getContext(), "Allocation percentage for holding '" + mfName + "' must be between 1% and 100%.");
+                        return;
+                    }
+
+                    if (pct > item.availablePercent + 0.001) {
+                        FinMngrToast.showError(getContext(), "Allocation for holding '" + mfName + "' (" + pct + "%) exceeds available capacity (" + String.format(Locale.US, "%.1f", item.availablePercent) + "%).");
+                        return;
+                    }
+
+                    JsonObject rule = new JsonObject();
+                    rule.addProperty("column", "catgory");
+                    rule.addProperty("value", mfName);
+                    rule.addProperty("percentage", pct / 100.0);
+                    mfArray.add(rule);
+                }
+
+                if (accountsObj.keySet().isEmpty() && mfArray.size() == 0) {
+                    FinMngrToast.showError(getContext(), "Please link at least one bank account or mutual fund, or switch to Manual Tracking.");
+                    return;
+                }
+
+                if (!accountsObj.keySet().isEmpty()) {
+                    contribObj.add("accounts", accountsObj);
+                }
+                if (mfArray.size() > 0) {
+                    contribObj.add("mutual_funds", mfArray);
+                }
+                contributionJson = contribObj.toString();
+            }
 
             double achievedPercent = targetAmount > 0 ? (currentAmount / targetAmount) * 100.0 : 0.0;
-
             GoalItem updatedGoal = new GoalItem(goalName, targetAmount, currentAmount, achievedPercent, 0.0, contributionJson);
+
+            // If linked assets are present, compute real-time balance
+            if (!contributionJson.equals("{}") && db != null) {
+                updatedGoal.currentAmount = CalculationEngine.calculateGoalBalance(updatedGoal, db);
+                updatedGoal.achievedPercent = updatedGoal.targetAmount > 0 ? (updatedGoal.currentAmount / updatedGoal.targetAmount) * 100.0 : 0.0;
+            }
 
             btnSubmit.setEnabled(false);
             btnSubmit.setText("Saving Changes...");
@@ -537,14 +531,22 @@ public class EditGoalBottomSheet extends BaseBottomSheetDialogFragment {
                 @Override
                 public void onError(String error) {
                     if (isAdded()) {
-                        FinMngrToast.showError(getContext(), error);
                         btnSubmit.setEnabled(true);
                         btnSubmit.setText("💾 Save Changes");
+                        FinMngrToast.showError(getContext(), "Failed to update goal: " + error);
                     }
                 }
             });
         });
 
         return v;
+    }
+
+    private interface AccountRowAdder {
+        void add(String selectedAccountName, double initialPct);
+    }
+
+    private interface MfRowAdder {
+        void add(String selectedMfName, double initialPct);
     }
 }
