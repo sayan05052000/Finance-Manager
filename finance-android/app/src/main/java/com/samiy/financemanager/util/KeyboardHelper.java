@@ -38,4 +38,26 @@ public class KeyboardHelper {
             setupDoneAction(et);
         }
     }
+
+    /**
+     * Recursively attaches touch listeners to non-input views so that touching
+     * anywhere outside an EditText dismisses the soft keyboard and clears focus.
+     */
+    public static void setupAutoDismissKeyboard(View root) {
+        if (root == null) return;
+        if (!(root instanceof EditText)) {
+            root.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    hideKeyboard(v);
+                }
+                return false;
+            });
+        }
+        if (root instanceof android.view.ViewGroup) {
+            android.view.ViewGroup vg = (android.view.ViewGroup) root;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                setupAutoDismissKeyboard(vg.getChildAt(i));
+            }
+        }
+    }
 }

@@ -244,6 +244,11 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
 * **Simultaneous Multi-Account & Multi-Holding Contribution Architecture**:
   - A single financial goal can now be contributed by **multiple bank accounts** AND **multiple mutual fund holdings / categories** at the exact same time (e.g. `Emergency Fund` funded by `PNB (100%)`, `HDFC SAVINGS (100%)`, `PURSE (100%)`, and `Emergency Mutual Fund (100%)`).
   - Both `AddGoalBottomSheet` and `EditGoalBottomSheet` feature dynamic row builders (`[＋ Add Account]` and `[＋ Add Holding]`), allowing users to dynamically add, configure percentages, and remove linked assets.
+* **Dynamic Exclusive Dropdown Filtering**:
+  - Once any Bank Account or Mutual Fund Holding is linked in a row, it is dynamically **excluded from the selection options** of all other rows and new row additions, eliminating accidental duplication.
+  - Removing a row (`✕`) or changing an existing row's dropdown immediately returns the released asset to the available options across all other rows.
+* **Universal Touch-to-Dismiss Soft Keyboard**:
+  - Integrated `KeyboardHelper.setupAutoDismissKeyboard` directly into `BaseBottomSheetDialogFragment` and `NestedScrollView` scroll listeners, automatically dismissing the numeric/soft keyboard and clearing focus whenever the user taps on any non-editable surface (cards, labels, drag handles, backgrounds) or scrolls the view.
 * **Auto-Set Configuration Pre-population on Edit**:
   - Tapping `[✏️ Edit]` on any goal automatically inspects `contributionJson`, parses all contributing accounts and mutual funds, and populates the dynamic rows with their exact percentages.
   - The goal's own consumed percentages are dynamically exempted (`excludeGoalName = goal.name`), freeing up its capacity so the user can easily adjust percentages or switch sources.

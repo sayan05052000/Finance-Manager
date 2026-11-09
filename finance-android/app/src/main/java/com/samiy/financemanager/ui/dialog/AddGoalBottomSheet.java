@@ -18,6 +18,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -31,10 +32,13 @@ import com.samiy.financemanager.data.model.GoalItem;
 import com.samiy.financemanager.data.model.Holding;
 import com.samiy.financemanager.ui.adapter.AllocationSourceAdapter;
 import com.samiy.financemanager.util.FinMngrToast;
+import com.samiy.financemanager.util.KeyboardHelper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
@@ -46,6 +50,37 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
     private List<AllocationSourceAdapter.SourceItem> baseAccountItems = new ArrayList<>();
     private List<AllocationSourceAdapter.SourceItem> baseMfItems = new ArrayList<>();
+
+    private static class AccountRowHolder {
+        View rowView;
+        Spinner spinner;
+        EditText etPercent;
+        TextView tvInfo;
+        ImageView btnRemove;
+        String selectedAccount;
+        boolean isUpdatingAdapter = false;
+    }
+
+    private static class MfRowHolder {
+        View rowView;
+        Spinner spinner;
+        EditText etPercent;
+        TextView tvInfo;
+        ImageView btnRemove;
+        String selectedMf;
+        boolean isUpdatingAdapter = false;
+    }
+
+    private final List<AccountRowHolder> accountRowHolders = new ArrayList<>();
+    private final List<MfRowHolder> mfRowHolders = new ArrayList<>();
+
+    private LinearLayout layoutAccountsContainer;
+    private TextView tvEmptyAccounts;
+    private TextView btnAddAccountRow;
+
+    private LinearLayout layoutMfContainer;
+    private TextView tvEmptyMf;
+    private TextView btnAddMfRow;
 
     public static AddGoalBottomSheet newInstance() {
         return new AddGoalBottomSheet();
@@ -66,6 +101,12 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
         View v = inflater.inflate(R.layout.dialog_add_goal, container, false);
 
+        if (v instanceof NestedScrollView) {
+            ((NestedScrollView) v).setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener) (vScroll, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+                KeyboardHelper.hideKeyboard(vScroll);
+            });
+        }
+
         EditText etGoalName = v.findViewById(R.id.etGoalName);
         EditText etGoalTargetAmount = v.findViewById(R.id.etGoalTargetAmount);
         EditText etGoalCurrentAmount = v.findViewById(R.id.etGoalCurrentAmount);
@@ -75,16 +116,18 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         RadioButton rbLinkAssets = v.findViewById(R.id.rbLinkAssets);
 
         LinearLayout layoutLinkedAssetsContainer = v.findViewById(R.id.layoutLinkedAssetsContainer);
-        LinearLayout layoutAccountsContainer = v.findViewById(R.id.layoutAccountsContainer);
-        TextView tvEmptyAccounts = v.findViewById(R.id.tvEmptyAccounts);
-        TextView btnAddAccountRow = v.findViewById(R.id.btnAddAccountRow);
+        layoutAccountsContainer = v.findViewById(R.id.layoutAccountsContainer);
+        tvEmptyAccounts = v.findViewById(R.id.tvEmptyAccounts);
+        btnAddAccountRow = v.findViewById(R.id.btnAddAccountRow);
 
-        LinearLayout layoutMfContainer = v.findViewById(R.id.layoutMfContainer);
-        TextView tvEmptyMf = v.findViewById(R.id.tvEmptyMf);
-        TextView btnAddMfRow = v.findViewById(R.id.btnAddMfRow);
+        layoutMfContainer = v.findViewById(R.id.layoutMfContainer);
+        tvEmptyMf = v.findViewById(R.id.tvEmptyMf);
+        btnAddMfRow = v.findViewById(R.id.btnAddMfRow);
 
         Button btnCancel = v.findViewById(R.id.btnCancelGoal);
         Button btnSubmit = v.findViewById(R.id.btnSubmitGoal);
+
+        KeyboardHelper.setupDoneAction(etGoalName, etGoalTargetAmount, etGoalCurrentAmount);
 
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
 
@@ -137,156 +180,29 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
             baseMfItems.add(new AllocationSourceAdapter.SourceItem(mfName, available, alreadyUsed));
         }
 
-        // Helper: Check and update empty state text views
-        Runnable updateEmptyStates = () -> {
-            if (tvEmptyAccounts != null) {
-                tvEmptyAccounts.setVisibility(layoutAccountsContainer.getChildCount() == 0 ? View.VISIBLE : View.GONE);
-            }
-            if (tvEmptyMf != null) {
-                tvEmptyMf.setVisibility(layoutMfContainer.getChildCount() == 0 ? View.VISIBLE : View.GONE);
-            }
-        };
-
-        // Helper: Add an Account Row
-        AccountRowAdder addAccountRow = (selectedAccountName, initialPct) -> {
-            View rowView = inflater.inflate(R.layout.item_goal_account_row, layoutAccountsContainer, false);
-            Spinner sp = rowView.findViewById(R.id.spRowAccount);
-            EditText etPct = rowView.findViewById(R.id.etRowAccountPercent);
-            TextView tvInfo = rowView.findViewById(R.id.tvRowAccountInfo);
-            ImageView btnRemove = rowView.findViewById(R.id.btnRemoveAccountRow);
-
-            AllocationSourceAdapter adapter = new AllocationSourceAdapter(requireContext(), new ArrayList<>(baseAccountItems));
-            sp.setAdapter(adapter);
-
-            int selPos = 0;
-            if (selectedAccountName != null) {
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    AllocationSourceAdapter.SourceItem it = adapter.getItem(i);
-                    if (it != null && it.name.equalsIgnoreCase(selectedAccountName.trim())) {
-                        selPos = i;
-                        break;
-                    }
-                }
-            } else {
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    if (adapter.getItem(i).isSelectable()) {
-                        selPos = i;
-                        break;
-                    }
-                }
-            }
-            sp.setSelection(selPos);
-            etPct.setText(String.format(Locale.US, "%d", (int) Math.round(initialPct)));
-
-            Runnable refreshRowInfo = () -> {
-                AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
-                if (item == null) return;
-                if (!item.isSelectable()) {
-                    tvInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals (0% remaining)");
-                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
-                    etPct.setEnabled(false);
-                } else {
-                    tvInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", item.availablePercent) + "% (" + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals)");
-                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
-                    etPct.setEnabled(true);
-                }
-            };
-
-            sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    refreshRowInfo.run();
-                }
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {}
-            });
-
-            btnRemove.setOnClickListener(vRow -> {
-                layoutAccountsContainer.removeView(rowView);
-                updateEmptyStates.run();
-            });
-
-            refreshRowInfo.run();
-            layoutAccountsContainer.addView(rowView);
-            updateEmptyStates.run();
-        };
-
-        // Helper: Add a Mutual Fund Row
-        MfRowAdder addMfRow = (selectedMfName, initialPct) -> {
-            View rowView = inflater.inflate(R.layout.item_goal_mf_row, layoutMfContainer, false);
-            Spinner sp = rowView.findViewById(R.id.spRowMf);
-            EditText etPct = rowView.findViewById(R.id.etRowMfPercent);
-            TextView tvInfo = rowView.findViewById(R.id.tvRowMfInfo);
-            ImageView btnRemove = rowView.findViewById(R.id.btnRemoveMfRow);
-
-            AllocationSourceAdapter adapter = new AllocationSourceAdapter(requireContext(), new ArrayList<>(baseMfItems));
-            sp.setAdapter(adapter);
-
-            int selPos = 0;
-            if (selectedMfName != null) {
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    AllocationSourceAdapter.SourceItem it = adapter.getItem(i);
-                    if (it != null && it.name.equalsIgnoreCase(selectedMfName.trim())) {
-                        selPos = i;
-                        break;
-                    }
-                }
-            } else {
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    if (adapter.getItem(i).isSelectable()) {
-                        selPos = i;
-                        break;
-                    }
-                }
-            }
-            sp.setSelection(selPos);
-            etPct.setText(String.format(Locale.US, "%d", (int) Math.round(initialPct)));
-
-            Runnable refreshRowInfo = () -> {
-                AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
-                if (item == null) return;
-                if (!item.isSelectable()) {
-                    tvInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals (0% remaining)");
-                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
-                    etPct.setEnabled(false);
-                } else {
-                    tvInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", item.availablePercent) + "% (" + String.format(Locale.US, "%.1f", item.consumedPercent) + "% used by other goals)");
-                    tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
-                    etPct.setEnabled(true);
-                }
-            };
-
-            sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    refreshRowInfo.run();
-                }
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {}
-            });
-
-            btnRemove.setOnClickListener(vRow -> {
-                layoutMfContainer.removeView(rowView);
-                updateEmptyStates.run();
-            });
-
-            refreshRowInfo.run();
-            layoutMfContainer.addView(rowView);
-            updateEmptyStates.run();
-        };
-
         // Wire up "Add" buttons
-        btnAddAccountRow.setOnClickListener(vBtn -> addAccountRow.add(null, 100.0));
-        btnAddMfRow.setOnClickListener(vBtn -> addMfRow.add(null, 100.0));
+        btnAddAccountRow.setOnClickListener(vBtn -> {
+            KeyboardHelper.hideKeyboard(vBtn);
+            addAccountRow(null, 100.0);
+        });
+        btnAddMfRow.setOnClickListener(vBtn -> {
+            KeyboardHelper.hideKeyboard(vBtn);
+            addMfRow(null, 100.0);
+        });
 
         // Initial default: Manual Tracking
         rbLinkNone.setChecked(true);
         layoutLinkedAssetsContainer.setVisibility(View.GONE);
         etGoalCurrentAmount.setEnabled(true);
-        updateEmptyStates.run();
+
+        accountRowHolders.clear();
+        mfRowHolders.clear();
+        refreshAllAccountAdapters();
+        refreshAllMfAdapters();
 
         // Toggle Tracking Modes (Mutual Exclusivity)
         rgGoalLinkType.setOnCheckedChangeListener((group, checkedId) -> {
+            KeyboardHelper.hideKeyboard(group);
             if (checkedId == R.id.rbLinkNone) {
                 // Manual Tracking ON -> Disable and hide linked assets
                 layoutLinkedAssetsContainer.setVisibility(View.GONE);
@@ -297,17 +213,21 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                 etGoalCurrentAmount.setEnabled(false);
 
                 // If no rows exist yet, add one default account row
-                if (layoutAccountsContainer.getChildCount() == 0 && layoutMfContainer.getChildCount() == 0) {
-                    addAccountRow.add(null, 100.0);
+                if (accountRowHolders.isEmpty() && mfRowHolders.isEmpty()) {
+                    addAccountRow(null, 100.0);
                 }
             }
         });
 
         // Cancel Button
-        btnCancel.setOnClickListener(vBtn -> dismiss());
+        btnCancel.setOnClickListener(vBtn -> {
+            KeyboardHelper.hideKeyboard(vBtn);
+            dismiss();
+        });
 
         // Submit Button
         btnSubmit.setOnClickListener(vBtn -> {
+            KeyboardHelper.hideKeyboard(vBtn);
             String goalName = etGoalName.getText().toString().trim();
             if (goalName.isEmpty()) {
                 FinMngrToast.showError(getContext(), "Goal Name cannot be empty.");
@@ -357,14 +277,9 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
                 // Validate Account Rows
                 List<String> seenAccounts = new ArrayList<>();
-                for (int i = 0; i < layoutAccountsContainer.getChildCount(); i++) {
-                    View rowView = layoutAccountsContainer.getChildAt(i);
-                    Spinner sp = rowView.findViewById(R.id.spRowAccount);
-                    EditText etPct = rowView.findViewById(R.id.etRowAccountPercent);
-
-                    AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
-                    if (item == null) continue;
-                    String accName = item.name.trim();
+                for (AccountRowHolder holder : accountRowHolders) {
+                    String accName = holder.selectedAccount != null ? holder.selectedAccount.trim() : "";
+                    if (accName.isEmpty()) continue;
 
                     if (seenAccounts.contains(accName.toUpperCase(Locale.US))) {
                         FinMngrToast.showError(getContext(), "Bank Account '" + accName + "' is selected multiple times. Please adjust its percentage in a single row.");
@@ -372,7 +287,7 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                     }
                     seenAccounts.add(accName.toUpperCase(Locale.US));
 
-                    String pctStr = etPct.getText().toString().trim();
+                    String pctStr = holder.etPercent.getText().toString().trim();
                     double pct;
                     try {
                         pct = Double.parseDouble(pctStr);
@@ -386,8 +301,10 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                         return;
                     }
 
-                    if (pct > item.availablePercent + 0.001) {
-                        FinMngrToast.showError(getContext(), "Allocation for account '" + accName + "' (" + pct + "%) exceeds available capacity (" + String.format(Locale.US, "%.1f", item.availablePercent) + "%).");
+                    AllocationSourceAdapter.SourceItem baseItem = findBaseAccountItem(accName);
+                    double available = baseItem != null ? baseItem.availablePercent : 100.0;
+                    if (pct > available + 0.001) {
+                        FinMngrToast.showError(getContext(), "Allocation for account '" + accName + "' (" + pct + "%) exceeds available capacity (" + String.format(Locale.US, "%.1f", available) + "%).");
                         return;
                     }
 
@@ -396,14 +313,9 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
                 // Validate Mutual Fund Rows
                 List<String> seenMfs = new ArrayList<>();
-                for (int i = 0; i < layoutMfContainer.getChildCount(); i++) {
-                    View rowView = layoutMfContainer.getChildAt(i);
-                    Spinner sp = rowView.findViewById(R.id.spRowMf);
-                    EditText etPct = rowView.findViewById(R.id.etRowMfPercent);
-
-                    AllocationSourceAdapter.SourceItem item = (AllocationSourceAdapter.SourceItem) sp.getSelectedItem();
-                    if (item == null) continue;
-                    String mfName = item.name.trim();
+                for (MfRowHolder holder : mfRowHolders) {
+                    String mfName = holder.selectedMf != null ? holder.selectedMf.trim() : "";
+                    if (mfName.isEmpty()) continue;
 
                     if (seenMfs.contains(mfName.toLowerCase(Locale.US))) {
                         FinMngrToast.showError(getContext(), "Holding '" + mfName + "' is selected multiple times. Please adjust its percentage in a single row.");
@@ -411,7 +323,7 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                     }
                     seenMfs.add(mfName.toLowerCase(Locale.US));
 
-                    String pctStr = etPct.getText().toString().trim();
+                    String pctStr = holder.etPercent.getText().toString().trim();
                     double pct;
                     try {
                         pct = Double.parseDouble(pctStr);
@@ -425,8 +337,10 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                         return;
                     }
 
-                    if (pct > item.availablePercent + 0.001) {
-                        FinMngrToast.showError(getContext(), "Allocation for holding '" + mfName + "' (" + pct + "%) exceeds available capacity (" + String.format(Locale.US, "%.1f", item.availablePercent) + "%).");
+                    AllocationSourceAdapter.SourceItem baseItem = findBaseMfItem(mfName);
+                    double available = baseItem != null ? baseItem.availablePercent : 100.0;
+                    if (pct > available + 0.001) {
+                        FinMngrToast.showError(getContext(), "Allocation for holding '" + mfName + "' (" + pct + "%) exceeds available capacity (" + String.format(Locale.US, "%.1f", available) + "%).");
                         return;
                     }
 
@@ -487,11 +401,283 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         return v;
     }
 
-    private interface AccountRowAdder {
-        void add(String selectedAccountName, double initialPct);
+    private AllocationSourceAdapter.SourceItem findBaseAccountItem(String name) {
+        for (AllocationSourceAdapter.SourceItem it : baseAccountItems) {
+            if (it.name.equalsIgnoreCase(name.trim())) return it;
+        }
+        return null;
     }
 
-    private interface MfRowAdder {
-        void add(String selectedMfName, double initialPct);
+    private AllocationSourceAdapter.SourceItem findBaseMfItem(String name) {
+        for (AllocationSourceAdapter.SourceItem it : baseMfItems) {
+            if (it.name.equalsIgnoreCase(name.trim())) return it;
+        }
+        return null;
+    }
+
+    private void addAccountRow(String preferredAccountName, double initialPct) {
+        Set<String> selected = new HashSet<>();
+        for (AccountRowHolder h : accountRowHolders) {
+            if (h.selectedAccount != null && !h.selectedAccount.trim().isEmpty()) {
+                selected.add(h.selectedAccount.trim().toUpperCase(Locale.US));
+            }
+        }
+
+        String accountToPick = null;
+        if (preferredAccountName != null && !preferredAccountName.trim().isEmpty()) {
+            accountToPick = preferredAccountName.trim();
+        } else {
+            for (AllocationSourceAdapter.SourceItem base : baseAccountItems) {
+                if (!selected.contains(base.name.trim().toUpperCase(Locale.US)) && base.isSelectable()) {
+                    accountToPick = base.name.trim();
+                    break;
+                }
+            }
+            if (accountToPick == null) {
+                for (AllocationSourceAdapter.SourceItem base : baseAccountItems) {
+                    if (!selected.contains(base.name.trim().toUpperCase(Locale.US))) {
+                        accountToPick = base.name.trim();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (accountToPick == null) {
+            FinMngrToast.show(getContext(), "All available bank accounts have already been added.", Toast.LENGTH_SHORT);
+            return;
+        }
+
+        View rowView = LayoutInflater.from(getContext()).inflate(R.layout.item_goal_account_row, layoutAccountsContainer, false);
+        AccountRowHolder holder = new AccountRowHolder();
+        holder.rowView = rowView;
+        holder.spinner = rowView.findViewById(R.id.spRowAccount);
+        holder.etPercent = rowView.findViewById(R.id.etRowAccountPercent);
+        holder.tvInfo = rowView.findViewById(R.id.tvRowAccountInfo);
+        holder.btnRemove = rowView.findViewById(R.id.btnRemoveAccountRow);
+        holder.selectedAccount = accountToPick;
+
+        holder.etPercent.setText(String.format(Locale.US, "%d", (int) Math.round(initialPct)));
+        KeyboardHelper.setupDoneAction(holder.etPercent);
+
+        holder.spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (holder.isUpdatingAdapter) return;
+                AllocationSourceAdapter.SourceItem it = (AllocationSourceAdapter.SourceItem) holder.spinner.getItemAtPosition(position);
+                if (it != null && !it.name.equalsIgnoreCase(holder.selectedAccount)) {
+                    holder.selectedAccount = it.name;
+                    refreshAllAccountAdapters();
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        holder.btnRemove.setOnClickListener(vRow -> {
+            KeyboardHelper.hideKeyboard(vRow);
+            accountRowHolders.remove(holder);
+            layoutAccountsContainer.removeView(rowView);
+            refreshAllAccountAdapters();
+        });
+
+        accountRowHolders.add(holder);
+        layoutAccountsContainer.addView(rowView);
+        refreshAllAccountAdapters();
+    }
+
+    private void addMfRow(String preferredMfName, double initialPct) {
+        Set<String> selected = new HashSet<>();
+        for (MfRowHolder h : mfRowHolders) {
+            if (h.selectedMf != null && !h.selectedMf.trim().isEmpty()) {
+                selected.add(h.selectedMf.trim().toLowerCase(Locale.US));
+            }
+        }
+
+        String mfToPick = null;
+        if (preferredMfName != null && !preferredMfName.trim().isEmpty()) {
+            mfToPick = preferredMfName.trim();
+        } else {
+            for (AllocationSourceAdapter.SourceItem base : baseMfItems) {
+                if (!selected.contains(base.name.trim().toLowerCase(Locale.US)) && base.isSelectable()) {
+                    mfToPick = base.name.trim();
+                    break;
+                }
+            }
+            if (mfToPick == null) {
+                for (AllocationSourceAdapter.SourceItem base : baseMfItems) {
+                    if (!selected.contains(base.name.trim().toLowerCase(Locale.US))) {
+                        mfToPick = base.name.trim();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (mfToPick == null) {
+            FinMngrToast.show(getContext(), "All available holdings have already been added.", Toast.LENGTH_SHORT);
+            return;
+        }
+
+        View rowView = LayoutInflater.from(getContext()).inflate(R.layout.item_goal_mf_row, layoutMfContainer, false);
+        MfRowHolder holder = new MfRowHolder();
+        holder.rowView = rowView;
+        holder.spinner = rowView.findViewById(R.id.spRowMf);
+        holder.etPercent = rowView.findViewById(R.id.etRowMfPercent);
+        holder.tvInfo = rowView.findViewById(R.id.tvRowMfInfo);
+        holder.btnRemove = rowView.findViewById(R.id.btnRemoveMfRow);
+        holder.selectedMf = mfToPick;
+
+        holder.etPercent.setText(String.format(Locale.US, "%d", (int) Math.round(initialPct)));
+        KeyboardHelper.setupDoneAction(holder.etPercent);
+
+        holder.spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (holder.isUpdatingAdapter) return;
+                AllocationSourceAdapter.SourceItem it = (AllocationSourceAdapter.SourceItem) holder.spinner.getItemAtPosition(position);
+                if (it != null && !it.name.equalsIgnoreCase(holder.selectedMf)) {
+                    holder.selectedMf = it.name;
+                    refreshAllMfAdapters();
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        holder.btnRemove.setOnClickListener(vRow -> {
+            KeyboardHelper.hideKeyboard(vRow);
+            mfRowHolders.remove(holder);
+            layoutMfContainer.removeView(rowView);
+            refreshAllMfAdapters();
+        });
+
+        mfRowHolders.add(holder);
+        layoutMfContainer.addView(rowView);
+        refreshAllMfAdapters();
+    }
+
+    private void refreshAllAccountAdapters() {
+        Set<String> selectedAccounts = new HashSet<>();
+        for (AccountRowHolder holder : accountRowHolders) {
+            if (holder.selectedAccount != null && !holder.selectedAccount.trim().isEmpty()) {
+                selectedAccounts.add(holder.selectedAccount.trim().toUpperCase(Locale.US));
+            }
+        }
+
+        for (AccountRowHolder holder : accountRowHolders) {
+            List<AllocationSourceAdapter.SourceItem> availableForThisRow = new ArrayList<>();
+            int selectedIndex = 0;
+
+            for (AllocationSourceAdapter.SourceItem base : baseAccountItems) {
+                boolean isCurrentRowAccount = holder.selectedAccount != null &&
+                        base.name.trim().equalsIgnoreCase(holder.selectedAccount.trim());
+                boolean isUsedByOtherRow = selectedAccounts.contains(base.name.trim().toUpperCase(Locale.US)) && !isCurrentRowAccount;
+
+                if (!isUsedByOtherRow) {
+                    if (isCurrentRowAccount) {
+                        selectedIndex = availableForThisRow.size();
+                    }
+                    availableForThisRow.add(base);
+                }
+            }
+
+            holder.isUpdatingAdapter = true;
+            AllocationSourceAdapter adapter = new AllocationSourceAdapter(requireContext(), availableForThisRow);
+            holder.spinner.setAdapter(adapter);
+            if (!availableForThisRow.isEmpty()) {
+                holder.spinner.setSelection(selectedIndex);
+            }
+            holder.isUpdatingAdapter = false;
+
+            updateAccountRowInfo(holder);
+        }
+
+        int unselectedCount = baseAccountItems.size() - selectedAccounts.size();
+        if (btnAddAccountRow != null) {
+            btnAddAccountRow.setAlpha(unselectedCount > 0 ? 1.0f : 0.45f);
+        }
+
+        if (tvEmptyAccounts != null) {
+            tvEmptyAccounts.setVisibility(accountRowHolders.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void updateAccountRowInfo(AccountRowHolder holder) {
+        if (holder == null || holder.tvInfo == null) return;
+        AllocationSourceAdapter.SourceItem it = findBaseAccountItem(holder.selectedAccount != null ? holder.selectedAccount : "");
+        if (it == null) return;
+
+        if (!it.isSelectable()) {
+            holder.tvInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", it.consumedPercent) + "% used by other goals (0% remaining)");
+            holder.tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+            holder.etPercent.setEnabled(false);
+        } else {
+            holder.tvInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", it.availablePercent) + "% (" + String.format(Locale.US, "%.1f", it.consumedPercent) + "% used by other goals)");
+            holder.tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+            holder.etPercent.setEnabled(true);
+        }
+    }
+
+    private void refreshAllMfAdapters() {
+        Set<String> selectedMfs = new HashSet<>();
+        for (MfRowHolder holder : mfRowHolders) {
+            if (holder.selectedMf != null && !holder.selectedMf.trim().isEmpty()) {
+                selectedMfs.add(holder.selectedMf.trim().toLowerCase(Locale.US));
+            }
+        }
+
+        for (MfRowHolder holder : mfRowHolders) {
+            List<AllocationSourceAdapter.SourceItem> availableForThisRow = new ArrayList<>();
+            int selectedIndex = 0;
+
+            for (AllocationSourceAdapter.SourceItem base : baseMfItems) {
+                boolean isCurrentRowMf = holder.selectedMf != null &&
+                        base.name.trim().equalsIgnoreCase(holder.selectedMf.trim());
+                boolean isUsedByOtherRow = selectedMfs.contains(base.name.trim().toLowerCase(Locale.US)) && !isCurrentRowMf;
+
+                if (!isUsedByOtherRow) {
+                    if (isCurrentRowMf) {
+                        selectedIndex = availableForThisRow.size();
+                    }
+                    availableForThisRow.add(base);
+                }
+            }
+
+            holder.isUpdatingAdapter = true;
+            AllocationSourceAdapter adapter = new AllocationSourceAdapter(requireContext(), availableForThisRow);
+            holder.spinner.setAdapter(adapter);
+            if (!availableForThisRow.isEmpty()) {
+                holder.spinner.setSelection(selectedIndex);
+            }
+            holder.isUpdatingAdapter = false;
+
+            updateMfRowInfo(holder);
+        }
+
+        int unselectedCount = baseMfItems.size() - selectedMfs.size();
+        if (btnAddMfRow != null) {
+            btnAddMfRow.setAlpha(unselectedCount > 0 ? 1.0f : 0.45f);
+        }
+
+        if (tvEmptyMf != null) {
+            tvEmptyMf.setVisibility(mfRowHolders.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void updateMfRowInfo(MfRowHolder holder) {
+        if (holder == null || holder.tvInfo == null) return;
+        AllocationSourceAdapter.SourceItem it = findBaseMfItem(holder.selectedMf != null ? holder.selectedMf : "");
+        if (it == null) return;
+
+        if (!it.isSelectable()) {
+            holder.tvInfo.setText("⚠️ Fully Allocated: " + String.format(Locale.US, "%.1f", it.consumedPercent) + "% used by other goals (0% remaining)");
+            holder.tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+            holder.etPercent.setEnabled(false);
+        } else {
+            holder.tvInfo.setText("Available to allocate: " + String.format(Locale.US, "%.1f", it.availablePercent) + "% (" + String.format(Locale.US, "%.1f", it.consumedPercent) + "% used by other goals)");
+            holder.tvInfo.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+            holder.etPercent.setEnabled(true);
+        }
     }
 }

@@ -44,6 +44,12 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
     }
 
     @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        com.samiy.financemanager.util.KeyboardHelper.setupAutoDismissKeyboard(view);
+    }
+
+    @Override
     public void onStart() {
         super.onStart();
         Dialog dialog = getDialog();
