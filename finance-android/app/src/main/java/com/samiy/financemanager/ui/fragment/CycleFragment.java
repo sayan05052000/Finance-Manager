@@ -359,7 +359,7 @@ public class CycleFragment extends Fragment {
 
             LinearLayout card = new LinearLayout(getContext());
             card.setOrientation(LinearLayout.VERTICAL);
-            card.setBackgroundResource(R.drawable.bg_pill_dark);
+            card.setBackgroundResource(R.drawable.bg_card);
             card.setPadding(32, 28, 32, 28);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -377,13 +377,13 @@ public class CycleFragment extends Fragment {
 
             TextView tvName = new TextView(getContext());
             tvName.setText(item.subCategory);
-            tvName.setTextColor(0xFFFFFFFF);
+            tvName.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary));
             tvName.setTextSize(13.5f);
             tvName.setTypeface(null, android.graphics.Typeface.BOLD);
 
             TextView tvType = new TextView(getContext());
             tvType.setText(item.expenseType != null && !item.expenseType.isEmpty() ? item.expenseType : (item.isSaving() ? "Savings" : "Expense"));
-            tvType.setTextColor(getResources().getColor(item.isSaving() ? R.color.green_mint : R.color.blue_sky));
+            tvType.setTextColor(ContextCompat.getColor(requireContext(), item.isSaving() ? R.color.green_mint : R.color.blue_sky));
             tvType.setTextSize(10.5f);
 
             titleContainer.addView(tvName);

@@ -20,6 +20,7 @@ import com.samiy.financemanager.R;
 import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.FinanceDatabase;
+import com.samiy.financemanager.data.model.Holding;
 import com.samiy.financemanager.data.model.PortfolioSummary;
 import com.samiy.financemanager.data.model.SavingsTypeSummary;
 import com.samiy.financemanager.ui.adapter.HoldingsAdapter;
@@ -84,14 +85,27 @@ public class HoldingsFragment extends Fragment {
             });
         }
 
-        adapter.setOnHoldingClickListener(h -> {
-            if (h != null) {
-                String subCat = (h.savingsType != null && !h.savingsType.trim().isEmpty())
-                        ? h.savingsType.trim() : h.subCategory;
-                com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet dialog =
-                        com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet.newInstance(
-                                h.schemeName, null, subCat, h.schemeId, h.schemeCode);
-                dialog.show(getParentFragmentManager(), "ViewMfTxDialog");
+        adapter.setOnHoldingActionListener(new HoldingsAdapter.OnHoldingActionListener() {
+            @Override
+            public void onViewTransactions(Holding h) {
+                if (h != null) {
+                    String subCat = (h.savingsType != null && !h.savingsType.trim().isEmpty())
+                            ? h.savingsType.trim() : h.subCategory;
+                    com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet dialog =
+                            com.samiy.financemanager.ui.dialog.ViewMfTransactionsBottomSheet.newInstance(
+                                    h.schemeName, null, subCat, h.schemeId, h.schemeCode);
+                    dialog.show(getParentFragmentManager(), "ViewMfTxDialog");
+                }
+            }
+
+            @Override
+            public void onAddTransaction(Holding h) {
+                if (h != null) {
+                    com.samiy.financemanager.ui.dialog.AddMutualFundTransactionBottomSheet dialog =
+                            com.samiy.financemanager.ui.dialog.AddMutualFundTransactionBottomSheet.newInstanceForHolding(h);
+                    dialog.setListener(HoldingsFragment.this::populateUI);
+                    dialog.show(getParentFragmentManager(), "AddMfTxDialog");
+                }
             }
         });
 
@@ -157,6 +171,7 @@ public class HoldingsFragment extends Fragment {
         // Holdings List
         if (db.holdings != null) {
             adapter.setItems(db.holdings);
+            adapter.setMutualFundTransactions(db.mutualFundTransactions);
         }
     }
 

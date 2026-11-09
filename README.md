@@ -380,6 +380,11 @@ The custom calendar dialog (`CustomCalendarDialog.java` & `dialog_custom_calenda
 * **Redeem**:
   - Negative units.
   - Amount is left blank or computed via sheet formula.
+* **Direct Add MF Transaction from Holdings with Locked Auto-Selection**:
+  - Each individual mutual fund item in the Holdings screen includes a direct `[＋ Add MF Tx]` action button alongside `[📜 Transactions]`.
+  - When invoked from a holding card, `AddMutualFundTransactionBottomSheet.newInstanceForHolding(holding)` auto-selects the Fund Scheme and Sub-Category (Savings Type), pre-fills the latest NAV, and **strictly locks** both inputs (disabled with touch rejection `setOnTouchListener((v, e) -> true)`).
+  - Displays a high-contrast amber banner: `🔒 Auto-selected Fund: [SchemeName] • Sub-Category: [SubCat] (Cannot be changed)`.
+  - Folio autocomplete suggestions dynamically filter to only folios previously used for that exact fund.
 
 ---
 

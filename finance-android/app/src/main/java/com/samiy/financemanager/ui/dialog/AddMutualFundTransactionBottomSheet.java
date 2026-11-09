@@ -23,7 +23,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.samiy.financemanager.R;
 import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
@@ -40,12 +39,50 @@ import java.util.Locale;
 import java.util.Map;
 
 public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFragment {
+    public static final String ARG_LOCKED_SCHEME_NAME = "arg_locked_scheme_name";
+    public static final String ARG_LOCKED_SUB_CATEGORY = "arg_locked_sub_category";
+    public static final String ARG_LOCKED_SAVINGS_TYPE = "arg_locked_savings_type";
+    public static final String ARG_LOCKED_CATEGORY = "arg_locked_category";
+    public static final String ARG_LOCKED_PLATFORM = "arg_locked_platform";
+    public static final String ARG_LOCKED_SCHEME_CODE = "arg_locked_scheme_code";
+    public static final String ARG_LOCKED_SCHEME_ID = "arg_locked_scheme_id";
+    public static final String ARG_LOCKED_NAV = "arg_locked_nav";
+
     public interface OnMfTransactionAddedListener {
         void onMfTransactionAdded();
     }
 
     private OnMfTransactionAddedListener listener;
     private int lastSelectedSchemePosition = -1;
+
+    public static AddMutualFundTransactionBottomSheet newInstanceForHolding(Holding holding) {
+        AddMutualFundTransactionBottomSheet sheet = new AddMutualFundTransactionBottomSheet();
+        Bundle b = new Bundle();
+        if (holding != null) {
+            if (holding.schemeName != null) b.putString(ARG_LOCKED_SCHEME_NAME, holding.schemeName);
+            if (holding.subCategory != null) b.putString(ARG_LOCKED_SUB_CATEGORY, holding.subCategory);
+            if (holding.savingsType != null) b.putString(ARG_LOCKED_SAVINGS_TYPE, holding.savingsType);
+            if (holding.category != null) b.putString(ARG_LOCKED_CATEGORY, holding.category);
+            if (holding.source != null) b.putString(ARG_LOCKED_PLATFORM, holding.source);
+            if (holding.schemeCode != null) b.putString(ARG_LOCKED_SCHEME_CODE, holding.schemeCode);
+            if (holding.schemeId != null) b.putString(ARG_LOCKED_SCHEME_ID, holding.schemeId);
+            b.putDouble(ARG_LOCKED_NAV, holding.nav);
+        }
+        sheet.setArguments(b);
+        return sheet;
+    }
+
+    public static AddMutualFundTransactionBottomSheet newInstanceForFund(String schemeName, String subCategory) {
+        AddMutualFundTransactionBottomSheet sheet = new AddMutualFundTransactionBottomSheet();
+        Bundle b = new Bundle();
+        if (schemeName != null) b.putString(ARG_LOCKED_SCHEME_NAME, schemeName);
+        if (subCategory != null) {
+            b.putString(ARG_LOCKED_SUB_CATEGORY, subCategory);
+            b.putString(ARG_LOCKED_SAVINGS_TYPE, subCategory);
+        }
+        sheet.setArguments(b);
+        return sheet;
+    }
 
     public void setListener(OnMfTransactionAddedListener listener) {
         this.listener = listener;
@@ -75,13 +112,14 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (!com.samiy.financemanager.auth.GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-            com.samiy.financemanager.util.FinMngrToast.show(requireContext(), "You are not authorized", android.widget.Toast.LENGTH_SHORT);
+            FinMngrToast.show(requireContext(), "You are not authorized", Toast.LENGTH_SHORT);
             dismissAllowingStateLoss();
             return null;
         }
 
         View v = inflater.inflate(R.layout.dialog_add_mf_transaction, container, false);
 
+        TextView tvMfLockHint = v.findViewById(R.id.tvMfLockHint);
         Spinner spMfFund = v.findViewById(R.id.spMfFund);
         RadioGroup rgMfType = v.findViewById(R.id.rgMfType);
         RadioButton rbMfBuy = v.findViewById(R.id.rbMfBuy);
@@ -153,11 +191,37 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         etMfDate.setText(sdf.format(new Date()));
         com.samiy.financemanager.util.DateTimeHelper.setupPastDatePicker(etMfDate);
 
+        // Check for locked arguments
+        Bundle args = getArguments();
+        boolean isLocked = false;
+        String lockedSchemeName = "";
+        String lockedSubCategory = "";
+        String lockedSavingsType = "";
+        String lockedCategory = "";
+        String lockedPlatform = "";
+        String lockedSchemeCode = "";
+        String lockedSchemeId = "";
+        double lockedNav = 0.0;
+
+        if (args != null && args.containsKey(ARG_LOCKED_SCHEME_NAME)) {
+            String nameArg = args.getString(ARG_LOCKED_SCHEME_NAME, "");
+            if (nameArg != null && !nameArg.trim().isEmpty()) {
+                isLocked = true;
+                lockedSchemeName = nameArg.trim();
+                lockedSubCategory = args.getString(ARG_LOCKED_SUB_CATEGORY, "");
+                lockedSavingsType = args.getString(ARG_LOCKED_SAVINGS_TYPE, "");
+                lockedCategory = args.getString(ARG_LOCKED_CATEGORY, "");
+                lockedPlatform = args.getString(ARG_LOCKED_PLATFORM, "");
+                lockedSchemeCode = args.getString(ARG_LOCKED_SCHEME_CODE, "");
+                lockedSchemeId = args.getString(ARG_LOCKED_SCHEME_ID, "");
+                lockedNav = args.getDouble(ARG_LOCKED_NAV, 0.0);
+            }
+        }
+
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         
         // Build unique scheme list mapping Scheme Name -> SchemeItem (with Scheme Code)
         Map<String, SchemeItem> schemeMap = new LinkedHashMap<>();
-        List<String> allKnownFolios = new ArrayList<>();
 
         if (db != null && db.holdings != null) {
             for (Holding h : db.holdings) {
@@ -240,6 +304,32 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
             schemeList.add(default2);
         }
 
+        // If locked fund is not in schemeList, insert it at position 0
+        if (isLocked) {
+            boolean found = false;
+            for (SchemeItem si : schemeList) {
+                if (si.schemeName.equalsIgnoreCase(lockedSchemeName)) {
+                    found = true;
+                    if (lockedNav > 0 && si.lastNav <= 0) si.lastNav = lockedNav;
+                    if (!lockedSchemeCode.isEmpty() && si.schemeCode.isEmpty()) si.schemeCode = lockedSchemeCode;
+                    if (!lockedSchemeId.isEmpty() && si.schemeId.isEmpty()) si.schemeId = lockedSchemeId;
+                    break;
+                }
+            }
+            if (!found) {
+                SchemeItem item = new SchemeItem();
+                item.schemeName = lockedSchemeName;
+                item.schemeCode = lockedSchemeCode;
+                item.schemeId = lockedSchemeId;
+                item.fundCategory = !lockedCategory.isEmpty() ? lockedCategory : "Equity";
+                item.fundSubCategory = !lockedSubCategory.isEmpty() ? lockedSubCategory : "Small Cap";
+                item.platform = !lockedPlatform.isEmpty() ? lockedPlatform : "Groww";
+                item.savingsType = !lockedSavingsType.isEmpty() ? lockedSavingsType : "Mutual Fund";
+                item.lastNav = lockedNav;
+                schemeList.add(0, item);
+            }
+        }
+
         // Show Scheme Names in the spinner with Dark UI styling
         ArrayAdapter<SchemeItem> fundAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, schemeList);
         fundAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
@@ -253,6 +343,13 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         savingsTypes.add("Emergency Mutual Fund");
         savingsTypes.add("Kuvera Surplus(Family)");
         savingsTypes.add("Brother Mutual Fund");
+
+        String effectiveSavingsType = (lockedSavingsType != null && !lockedSavingsType.trim().isEmpty())
+                ? lockedSavingsType.trim() : ((lockedSubCategory != null && !lockedSubCategory.trim().isEmpty()) ? lockedSubCategory.trim() : "Mutual Fund");
+        if (isLocked && !savingsTypes.contains(effectiveSavingsType)) {
+            savingsTypes.add(effectiveSavingsType);
+        }
+
         ArrayAdapter<String> savingsAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, savingsTypes);
         savingsAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         spMfSavingsType.setAdapter(savingsAdapter);
@@ -262,6 +359,9 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         platforms.add("Groww");
         platforms.add("Kuvera");
         platforms.add("Coin");
+        if (isLocked && lockedPlatform != null && !lockedPlatform.trim().isEmpty() && !platforms.contains(lockedPlatform.trim())) {
+            platforms.add(lockedPlatform.trim());
+        }
         ArrayAdapter<String> platformAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, platforms);
         platformAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         spMfPlatform.setAdapter(platformAdapter);
@@ -271,6 +371,9 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         fundCategories.add("Equity");
         fundCategories.add("Debt");
         fundCategories.add("Commodities");
+        if (isLocked && lockedCategory != null && !lockedCategory.trim().isEmpty() && !fundCategories.contains(lockedCategory.trim())) {
+            fundCategories.add(lockedCategory.trim());
+        }
         ArrayAdapter<String> fundCategoryAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, fundCategories);
         fundCategoryAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         spMfCategory.setAdapter(fundCategoryAdapter);
@@ -287,6 +390,9 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         fundSubCategories.add("Short Duration");
         fundSubCategories.add("Index");
         fundSubCategories.add("Value");
+        if (isLocked && lockedSubCategory != null && !lockedSubCategory.trim().isEmpty() && !fundSubCategories.contains(lockedSubCategory.trim())) {
+            fundSubCategories.add(lockedSubCategory.trim());
+        }
         ArrayAdapter<String> fundSubCategoryAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, fundSubCategories);
         fundSubCategoryAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         spMfSubCategory.setAdapter(fundSubCategoryAdapter);
@@ -339,7 +445,6 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
                     btnCancel.setOnClickListener(vCancel -> dialog.dismiss());
                 }
 
-                // using method parameter inflater
                 for (String folio : suggestions) {
                     View itemView = inflater.inflate(R.layout.item_folio_suggestion, layoutItems, false);
                     TextView tvVal = itemView.findViewById(R.id.tvFolioValue);
@@ -359,6 +464,7 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         });
 
         // Scheme Selector Listener with Form Reset on Scheme Change
+        final boolean lockedMode = isLocked;
         spMfFund.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -379,6 +485,20 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
                     } else {
                         tvMfFolioHint.setText("No previous folio for this scheme (Type new)");
                     }
+                }
+
+                if (lockedMode) {
+                    if (etMfFolio.getText().toString().trim().isEmpty()) {
+                        if (!selected.folios.isEmpty()) {
+                            etMfFolio.setText(selected.folios.get(0));
+                        } else if (selected.defaultFolio != null && !selected.defaultFolio.isEmpty()) {
+                            etMfFolio.setText(selected.defaultFolio);
+                        }
+                    }
+                    if (etMfNav.getText().toString().trim().isEmpty() && selected.lastNav > 0) {
+                        etMfNav.setText(String.format(Locale.US, "%.3f", selected.lastNav));
+                    }
+                    return;
                 }
 
                 if (isSchemeChanged) {
@@ -498,9 +618,78 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // Toggle Buy vs Redeem:
-        // For Buy: amount, nav, units are provided with NO relation between them.
-        // For Redeem: amount is NOT required. Units will always be considered as negative.
+        // Apply Locked Auto-Selection and strictly disable modifications
+        if (isLocked) {
+            // 1. Select and lock Fund
+            for (int i = 0; i < schemeList.size(); i++) {
+                if (schemeList.get(i).schemeName.equalsIgnoreCase(lockedSchemeName)) {
+                    spMfFund.setSelection(i);
+                    lastSelectedSchemePosition = i;
+                    break;
+                }
+            }
+            spMfFund.setEnabled(false);
+            spMfFund.setOnTouchListener((view, event) -> true);
+
+            // 2. Select and lock Savings Type / Sub-Category
+            for (int i = 0; i < savingsTypes.size(); i++) {
+                if (savingsTypes.get(i).equalsIgnoreCase(effectiveSavingsType)) {
+                    spMfSavingsType.setSelection(i);
+                    break;
+                }
+            }
+            spMfSavingsType.setEnabled(false);
+            spMfSavingsType.setOnTouchListener((view, event) -> true);
+
+            // 3. Select and lock Fund Sub-Category
+            if (lockedSubCategory != null && !lockedSubCategory.trim().isEmpty()) {
+                for (int i = 0; i < fundSubCategories.size(); i++) {
+                    if (fundSubCategories.get(i).equalsIgnoreCase(lockedSubCategory.trim())) {
+                        spMfSubCategory.setSelection(i);
+                        break;
+                    }
+                }
+                spMfSubCategory.setEnabled(false);
+                spMfSubCategory.setOnTouchListener((view, event) -> true);
+            }
+
+            // 4. Select and lock Fund Category
+            if (lockedCategory != null && !lockedCategory.trim().isEmpty()) {
+                for (int i = 0; i < fundCategories.size(); i++) {
+                    if (fundCategories.get(i).equalsIgnoreCase(lockedCategory.trim())) {
+                        spMfCategory.setSelection(i);
+                        break;
+                    }
+                }
+                spMfCategory.setEnabled(false);
+                spMfCategory.setOnTouchListener((view, event) -> true);
+            }
+
+            // 5. Select and lock Platform
+            if (lockedPlatform != null && !lockedPlatform.trim().isEmpty()) {
+                for (int i = 0; i < platforms.size(); i++) {
+                    if (platforms.get(i).equalsIgnoreCase(lockedPlatform.trim())) {
+                        spMfPlatform.setSelection(i);
+                        break;
+                    }
+                }
+                spMfPlatform.setEnabled(false);
+                spMfPlatform.setOnTouchListener((view, event) -> true);
+            }
+
+            // 6. Pre-fill NAV if available
+            if (lockedNav > 0) {
+                etMfNav.setText(String.format(Locale.US, "%.3f", lockedNav));
+            }
+
+            // 7. Show user lock confirmation banner
+            if (tvMfLockHint != null) {
+                tvMfLockHint.setVisibility(View.VISIBLE);
+                tvMfLockHint.setText("🔒 Auto-selected Fund: " + lockedSchemeName + " • Sub-Category: " + effectiveSavingsType + " (Cannot be changed)");
+            }
+        }
+
+        // Toggle Buy vs Redeem
         rgMfType.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == R.id.rbMfRedeem) {
                 tvMfAmountLabel.setText("Amount (₹) [Not required for Redeem]");
@@ -512,6 +701,10 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
                 etMfUnits.setHint("e.g. 89.605");
             }
         });
+
+        final String finalLockedSchemeName = lockedSchemeName;
+        final String finalLockedSchemeCode = lockedSchemeCode;
+        final String finalLockedSchemeId = lockedSchemeId;
 
         btnSubmit.setOnClickListener(view -> {
             boolean isBuy = rbMfBuy.isChecked();
@@ -534,7 +727,6 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
                     return;
                 }
             } else {
-                // Redeem: amount not required
                 if (!amtStr.isEmpty()) {
                     try {
                         amount = Double.parseDouble(amtStr);
@@ -594,14 +786,14 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
 
             if (selectedItem != null) {
                 mfTx.schemeName = selectedItem.schemeName;
-                mfTx.schemeId = selectedItem.schemeId;
-                // User rule: show name in selection option, but send scheme code in scheme code column
-                mfTx.schemeCode = selectedItem.schemeCode;
+                mfTx.schemeId = !selectedItem.schemeId.isEmpty() ? selectedItem.schemeId : finalLockedSchemeId;
+                mfTx.schemeCode = !selectedItem.schemeCode.isEmpty() ? selectedItem.schemeCode : finalLockedSchemeCode;
                 mfTx.fundCategory = spMfCategory.getSelectedItem() != null ? spMfCategory.getSelectedItem().toString() : selectedItem.fundCategory;
                 mfTx.fundSubCategory = spMfSubCategory.getSelectedItem() != null ? spMfSubCategory.getSelectedItem().toString() : selectedItem.fundSubCategory;
             } else {
-                mfTx.schemeName = spMfFund.getSelectedItem() != null ? spMfFund.getSelectedItem().toString() : "Mutual Fund";
-                mfTx.schemeCode = "";
+                mfTx.schemeName = !finalLockedSchemeName.isEmpty() ? finalLockedSchemeName : (spMfFund.getSelectedItem() != null ? spMfFund.getSelectedItem().toString() : "Mutual Fund");
+                mfTx.schemeCode = finalLockedSchemeCode;
+                mfTx.schemeId = finalLockedSchemeId;
                 mfTx.fundCategory = spMfCategory.getSelectedItem() != null ? spMfCategory.getSelectedItem().toString() : "Equity";
                 mfTx.fundSubCategory = spMfSubCategory.getSelectedItem() != null ? spMfSubCategory.getSelectedItem().toString() : "Small Cap";
             }
