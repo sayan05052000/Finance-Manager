@@ -98,6 +98,9 @@ public class AddPolicyBottomSheet extends BaseBottomSheetDialogFragment {
         DateTimeHelper.setupFutureDatePicker(etDueDate);
         DateTimeHelper.setupPastDatePicker(etLastPaid);
         DateTimeHelper.setupFutureDatePicker(etMaturityDate);
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(
+                etPolicyNumber, etBirthDate, etAmount, etSumAssured,
+                etDueDate, etLastPaid, etMaturityDate, etNotes);
         com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etPolicyNumber, etAmount, etSumAssured, etNotes);
 
         // Subcategory modal selector
@@ -110,12 +113,14 @@ public class AddPolicyBottomSheet extends BaseBottomSheetDialogFragment {
                 "Sister LIC Policies"
         };
         btnSelectSubCategory.setOnClickListener(view -> {
+            com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(view);
             new AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
                     .setTitle("Select Policy Provider / Sub-Category")
                     .setItems(subCategoryOptions, (dialog, which) -> {
                         tvSubCategory.setText(subCategoryOptions[which]);
+                        com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(view);
                     })
-                    ;
+                    .show();
         });
 
         btnSubmit.setOnClickListener(view -> {
@@ -126,6 +131,10 @@ public class AddPolicyBottomSheet extends BaseBottomSheetDialogFragment {
             String lastPaid = etLastPaid.getText().toString().trim();
             String maturityDate = etMaturityDate.getText().toString().trim();
             String subCat = tvSubCategory.getText().toString().trim();
+            if (subCat.isEmpty() || "Select Sub-Category / Provider".equalsIgnoreCase(subCat) || "Select Policy Provider / Sub-Category".equalsIgnoreCase(subCat)) {
+                FinMngrToast.show(getContext(), "Sub-Category / Provider is mandatory. Please select an option.", Toast.LENGTH_SHORT);
+                return;
+            }
             String sumAssuredStr = etSumAssured.getText().toString().trim();
             String installments = ""; // Auto-calculated at sheet
             String notes = etNotes.getText().toString().trim();

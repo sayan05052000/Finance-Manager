@@ -463,6 +463,7 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         holder.spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
                 if (holder.isUpdatingAdapter) return;
                 AllocationSourceAdapter.SourceItem it = (AllocationSourceAdapter.SourceItem) holder.spinner.getItemAtPosition(position);
                 if (it != null && !it.name.equalsIgnoreCase(holder.selectedAccount)) {
@@ -534,6 +535,7 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         holder.spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
                 if (holder.isUpdatingAdapter) return;
                 AllocationSourceAdapter.SourceItem it = (AllocationSourceAdapter.SourceItem) holder.spinner.getItemAtPosition(position);
                 if (it != null && !it.name.equalsIgnoreCase(holder.selectedMf)) {

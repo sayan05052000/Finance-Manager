@@ -289,16 +289,22 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
             }
         }
 
-        new AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
+        AlertDialog singleChoiceDialog = new AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
                 .setTitle(title)
                 .setSingleChoiceItems(items, checkedItem, (dialog, which) -> {
                     if (which >= 0 && which < items.length) {
                         onSelected.onSelected(items[which]);
                     }
+                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(getView());
                     dialog.dismiss();
                 })
-                .setNegativeButton("Cancel", null)
-                ;
+                .setNegativeButton("Cancel", (dialog, which) -> {
+                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(getView());
+                    dialog.dismiss();
+                })
+                .create();
+        com.samiy.financemanager.util.KeyboardHelper.setupOutsideTouchDismiss(singleChoiceDialog);
+        singleChoiceDialog.show();
     }
 
     private void setCurrentStatus(String status) {

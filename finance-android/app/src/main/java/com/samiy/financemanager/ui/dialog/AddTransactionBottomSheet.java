@@ -260,10 +260,50 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             actvSubCategory.setText(subCatList.get(0));
         }
 
+        // Configure AutoCompleteTextView: close keyboard on selecting an option and on IME done action
+        com.samiy.financemanager.util.KeyboardHelper.setupAutoComplete(actvSubCategory, (parent, view, position, id) -> {
+            actvSubCategory.setError(null);
+        });
+
         actvSubCategory.setOnClickListener(view -> actvSubCategory.showDropDown());
         if (btnSubCategoryDropdown != null) {
-            btnSubCategoryDropdown.setOnClickListener(view -> actvSubCategory.showDropDown());
+            btnSubCategoryDropdown.setOnClickListener(view -> {
+                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(actvSubCategory);
+                if (actvSubCategory.isPopupShowing()) {
+                    actvSubCategory.dismissDropDown();
+                } else {
+                    actvSubCategory.showDropDown();
+                }
+            });
         }
+
+        // Real-time TextWatcher on Sub-Category: alert user if query does not match any available option
+        actvSubCategory.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String q = (s != null ? s.toString().trim().toLowerCase(Locale.ROOT) : "");
+                if (q.isEmpty()) {
+                    actvSubCategory.setError(null);
+                    return;
+                }
+                boolean hasMatch = false;
+                for (String cat : subCatList) {
+                    if (cat.toLowerCase(Locale.ROOT).contains(q)) {
+                        hasMatch = true;
+                        break;
+                    }
+                }
+                if (!hasMatch) {
+                    actvSubCategory.setError("No matching option found");
+                } else {
+                    actvSubCategory.setError(null);
+                }
+            }
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
 
         // Searchable Sub-Category Modal Picker
         if (btnSearchSubCategory != null) {
@@ -271,7 +311,9 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                 hideKeyboard.run();
                 View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_select_subcategory, null);
                 EditText etSearch = dialogView.findViewById(R.id.etSearchSubCategoryQuery);
+                View btnClearSearch = dialogView.findViewById(R.id.btnClearSearchSubCategory);
                 LinearLayout layoutItems = dialogView.findViewById(R.id.layoutSubCategoryItems);
+                View scrollSubCategories = dialogView.findViewById(R.id.scrollSubCategories);
 
                 androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                         .setView(dialogView)
@@ -281,8 +323,25 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
                 }
 
+                com.samiy.financemanager.util.KeyboardHelper.setupOutsideTouchDismiss(dialog);
+                com.samiy.financemanager.util.KeyboardHelper.setupAutoDismissKeyboard(dialogView);
+                com.samiy.financemanager.util.KeyboardHelper.setupScrollToDismissKeyboard(dialogView);
+                com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etSearch);
+
+                if (btnClearSearch != null) {
+                    btnClearSearch.setOnClickListener(vClear -> {
+                        etSearch.setText("");
+                        com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(etSearch);
+                    });
+                }
+
                 Button btnCancel = dialogView.findViewById(R.id.btnSubCategoryDialogCancel);
-                if (btnCancel != null) btnCancel.setOnClickListener(vCancel -> dialog.dismiss());
+                if (btnCancel != null) {
+                    btnCancel.setOnClickListener(vCancel -> {
+                        com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(etSearch);
+                        dialog.dismiss();
+                    });
+                }
 
                 java.util.function.Consumer<String> renderList = (query) -> {
                     layoutItems.removeAllViews();
@@ -296,6 +355,10 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                             if (tvVal != null) tvVal.setText(cat);
                             itemView.setOnClickListener(vItem -> {
                                 actvSubCategory.setText(cat);
+                                actvSubCategory.setError(null);
+                                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(etSearch);
+                                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(actvSubCategory);
+                                actvSubCategory.clearFocus();
                                 dialog.dismiss();
                             });
                             layoutItems.addView(itemView);
@@ -303,8 +366,8 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     }
                     if (matchedCount == 0) {
                         TextView tvEmpty = new TextView(getContext());
-                        tvEmpty.setText("No matching sub-categories found.");
-                        tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
+                        tvEmpty.setText("⚠️ No matching sub-categories found. Please choose an existing option.");
+                        tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
                         tvEmpty.setTextSize(12);
                         tvEmpty.setPadding(0, 24, 0, 24);
                         layoutItems.addView(tvEmpty);
@@ -318,6 +381,9 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
                     @Override
                     public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        if (btnClearSearch != null) {
+                            btnClearSearch.setVisibility(s != null && s.length() > 0 ? View.VISIBLE : View.GONE);
+                        }
                         renderList.accept(s != null ? s.toString() : "");
                     }
                     @Override
@@ -522,6 +588,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
         spSourceSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
                 updateCreditCardVisibility.run();
             }
             @Override
@@ -529,6 +596,17 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                 updateCreditCardVisibility.run();
             }
         });
+
+        if (spCreditCardSelector != null) {
+            spCreditCardSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
+                }
+                @Override
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            });
+        }
 
         rgTagType.setOnCheckedChangeListener((group, checkedId) -> {
             hideKeyboard.run();
@@ -603,10 +681,31 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                 }
             }
 
-            String subCategory = actvSubCategory.getText().toString().trim();
-            if (subCategory.isEmpty()) {
-                subCategory = "General";
+            String rawSubCategory = actvSubCategory.getText().toString().trim();
+            if (rawSubCategory.isEmpty()) {
+                actvSubCategory.setError("Sub-Category is mandatory");
+                actvSubCategory.requestFocus();
+                FinMngrToast.showError(getContext(), "Sub-Category is mandatory. Please select an option from the list.");
+                return;
             }
+
+            // Strict mandatory select validation: verify typed/selected value exists in available options
+            String matchedSubCategory = null;
+            for (String cat : subCatList) {
+                if (cat.trim().equalsIgnoreCase(rawSubCategory)) {
+                    matchedSubCategory = cat.trim();
+                    break;
+                }
+            }
+
+            if (matchedSubCategory == null) {
+                actvSubCategory.setError("No matching option found. Please select from the list.");
+                actvSubCategory.requestFocus();
+                FinMngrToast.showError(getContext(), "No matching select option for '" + rawSubCategory + "'. You must select a valid option to post.");
+                return; // DO NOT LET USER POST!
+            }
+
+            String subCategory = matchedSubCategory;
 
             String date = etDate.getText().toString().trim();
 
@@ -617,7 +716,21 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             } else if (selectedObj != null) {
                 selectedSource = selectedObj.toString();
             }
+
+            if (selectedSource == null || selectedSource.trim().isEmpty() || "Select Source".equalsIgnoreCase(selectedSource.trim())) {
+                FinMngrToast.showError(getContext(), "Please select an Account or Loan source.");
+                return;
+            }
+
             boolean isLoan = rbTagLoan.isChecked();
+            if (isLoan && "CREDIT CARD".equalsIgnoreCase(selectedSource.trim())) {
+                String card = (spCreditCardSelector != null && spCreditCardSelector.getSelectedItem() != null)
+                        ? spCreditCardSelector.getSelectedItem().toString().trim() : "";
+                if (card.isEmpty() || "No cards available".equalsIgnoreCase(card)) {
+                    FinMngrToast.showError(getContext(), "Please select a Credit Card.");
+                    return;
+                }
+            }
 
             Transaction tx = new Transaction();
             tx.date = date;

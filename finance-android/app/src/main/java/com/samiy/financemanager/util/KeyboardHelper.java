@@ -1,11 +1,24 @@
 package com.samiy.financemanager.util;
 
+import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
-import android.view.KeyEvent;
+import android.graphics.Rect;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
+import android.widget.ScrollView;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.view.WindowCallbackWrapper;
+import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.RecyclerView;
 
 public class KeyboardHelper {
 
@@ -14,8 +27,31 @@ public class KeyboardHelper {
         InputMethodManager imm = (InputMethodManager) view.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm != null) {
             imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            if (view.getRootView() != null && view.getRootView().getWindowToken() != null) {
+                imm.hideSoftInputFromWindow(view.getRootView().getWindowToken(), 0);
+            }
         }
         view.clearFocus();
+    }
+
+    public static void hideKeyboard(Activity activity) {
+        if (activity == null) return;
+        View focus = activity.getCurrentFocus();
+        if (focus != null) {
+            hideKeyboard(focus);
+        } else if (activity.getWindow() != null && activity.getWindow().getDecorView() != null) {
+            hideKeyboard(activity.getWindow().getDecorView());
+        }
+    }
+
+    public static void hideKeyboard(Dialog dialog) {
+        if (dialog == null) return;
+        View focus = dialog.getCurrentFocus();
+        if (focus != null) {
+            hideKeyboard(focus);
+        } else if (dialog.getWindow() != null && dialog.getWindow().getDecorView() != null) {
+            hideKeyboard(dialog.getWindow().getDecorView());
+        }
     }
 
     /**
@@ -40,6 +76,26 @@ public class KeyboardHelper {
     }
 
     /**
+     * Configures an AutoCompleteTextView:
+     * 1. Setting Done IME action to hide keyboard and clear focus.
+     * 2. When an option is clicked from the dropdown, immediately hides keyboard and clears focus.
+     */
+    public static void setupAutoComplete(AutoCompleteTextView actv) {
+        setupAutoComplete(actv, null);
+    }
+
+    public static void setupAutoComplete(AutoCompleteTextView actv, AdapterView.OnItemClickListener extraListener) {
+        if (actv == null) return;
+        setupDoneAction(actv);
+        actv.setOnItemClickListener((parent, view, position, id) -> {
+            if (extraListener != null) {
+                extraListener.onItemClick(parent, view, position, id);
+            }
+            hideKeyboard(actv);
+        });
+    }
+
+    /**
      * Recursively attaches touch listeners to non-input views so that touching
      * anywhere outside an EditText dismisses the soft keyboard and clears focus.
      */
@@ -47,17 +103,76 @@ public class KeyboardHelper {
         if (root == null) return;
         if (!(root instanceof EditText)) {
             root.setOnTouchListener((v, event) -> {
-                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
                     hideKeyboard(v);
                 }
                 return false;
             });
         }
-        if (root instanceof android.view.ViewGroup) {
-            android.view.ViewGroup vg = (android.view.ViewGroup) root;
+        if (root instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) root;
             for (int i = 0; i < vg.getChildCount(); i++) {
                 setupAutoDismissKeyboard(vg.getChildAt(i));
             }
         }
     }
+
+    /**
+     * Recursively attaches scroll listeners to scrollable containers (NestedScrollView,
+     * ScrollView, RecyclerView) so that scrolling immediately dismisses the soft keyboard.
+     */
+    public static void setupScrollToDismissKeyboard(View root) {
+        if (root == null) return;
+        if (root instanceof NestedScrollView) {
+            ((NestedScrollView) root).setOnScrollChangeListener(
+                    (NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> hideKeyboard(v)
+            );
+        } else if (root instanceof ScrollView) {
+            root.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> hideKeyboard(v));
+        } else if (root instanceof RecyclerView) {
+            ((RecyclerView) root).addOnScrollListener(new RecyclerView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                        hideKeyboard(recyclerView);
+                    }
+                }
+            });
+        }
+        if (root instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) root;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                setupScrollToDismissKeyboard(vg.getChildAt(i));
+            }
+        }
+    }
+
+    /**
+     * Intercepts touch events for any Dialog window to immediately dismiss
+     * soft keyboard when tapping anywhere outside the currently focused EditText.
+     */
+    public static void setupOutsideTouchDismiss(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
+        Window.Callback originalCallback = window.getCallback();
+        if (originalCallback == null) return;
+        window.setCallback(new WindowCallbackWrapper(originalCallback) {
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    View currentFocus = dialog.getCurrentFocus();
+                    if (currentFocus instanceof EditText) {
+                        Rect outRect = new Rect();
+                        currentFocus.getGlobalVisibleRect(outRect);
+                        if (!outRect.contains((int) event.getRawX(), (int) event.getRawY())) {
+                            currentFocus.clearFocus();
+                            hideKeyboard(currentFocus);
+                        }
+                    }
+                }
+                return super.dispatchTouchEvent(event);
+            }
+        });
+    }
 }
+

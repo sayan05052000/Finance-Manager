@@ -87,6 +87,7 @@ public class EditCreditCardBottomSheet extends BaseBottomSheetDialogFragment {
         }
 
         DateTimeHelper.setupDatePicker(etDueDate);
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etBilled, etDueDate);
 
         btnCancel.setOnClickListener(view -> dismiss());
 

@@ -165,6 +165,19 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
         spMfSubCategory.setOnTouchListener(touchDismissListener);
         spMfSavingsType.setOnTouchListener(touchDismissListener);
         spMfPlatform.setOnTouchListener(touchDismissListener);
+
+        android.widget.AdapterView.OnItemSelectedListener mfSpinnerDismissListener = new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        };
+        spMfCategory.setOnItemSelectedListener(mfSpinnerDismissListener);
+        spMfSubCategory.setOnItemSelectedListener(mfSpinnerDismissListener);
+        spMfSavingsType.setOnItemSelectedListener(mfSpinnerDismissListener);
+        spMfPlatform.setOnItemSelectedListener(mfSpinnerDismissListener);
         rgMfType.setOnTouchListener(touchDismissListener);
 
         // Ensure proper keyboard opens when switching focus between input fields
@@ -413,7 +426,8 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
             return suggestions;
         };
 
-        // Folio Dropdown picker & AutoComplete
+        // Folio Dropdown picker & AutoComplete: close keyboard on select
+        com.samiy.financemanager.util.KeyboardHelper.setupAutoComplete(etMfFolio);
         etMfFolio.setOnClickListener(view -> etMfFolio.showDropDown());
         etMfFolio.setOnFocusChangeListener((view, hasFocus) -> {
             if (hasFocus) etMfFolio.showDropDown();
@@ -440,9 +454,16 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
                     dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
                 }
 
+                com.samiy.financemanager.util.KeyboardHelper.setupOutsideTouchDismiss(dialog);
+                com.samiy.financemanager.util.KeyboardHelper.setupAutoDismissKeyboard(dialogView);
+                com.samiy.financemanager.util.KeyboardHelper.setupScrollToDismissKeyboard(dialogView);
+
                 Button btnCancel = dialogView.findViewById(R.id.btnFolioDialogCancel);
                 if (btnCancel != null) {
-                    btnCancel.setOnClickListener(vCancel -> dialog.dismiss());
+                    btnCancel.setOnClickListener(vCancel -> {
+                        com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(dialog);
+                        dialog.dismiss();
+                    });
                 }
 
                 for (String folio : suggestions) {
@@ -452,6 +473,8 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
                     itemView.setOnClickListener(vItem -> {
                         etMfFolio.setText(folio);
                         etMfFolio.setSelection(etMfFolio.getText().length());
+                        com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(etMfFolio);
+                        etMfFolio.clearFocus();
                         dialog.dismiss();
                     });
                     layoutItems.addView(itemView);
@@ -771,6 +794,10 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
 
             int selFundIdx = spMfFund.getSelectedItemPosition();
             SchemeItem selectedItem = (selFundIdx >= 0 && selFundIdx < schemeList.size()) ? schemeList.get(selFundIdx) : null;
+            if (selectedItem == null && finalLockedSchemeName.isEmpty()) {
+                FinMngrToast.showError(getContext(), "Mutual Fund scheme is mandatory. Please select a fund scheme.");
+                return;
+            }
 
             MutualFundTransaction mfTx = new MutualFundTransaction();
             mfTx.date = etMfDate.getText().toString().trim();

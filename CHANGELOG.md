@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.3] - 2026-11-09
+
+### Added
+- **Universal Dropdown Option Selection Keyboard Auto-Dismissal**:
+  - Integrated `KeyboardHelper.setupAutoComplete` and `setOnItemClickListener` across all searchable `AutoCompleteTextView` dropdowns (e.g. `actvSubCategory` in [`AddTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddTransactionBottomSheet.java), `etMfFolio` in [`AddMutualFundTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddMutualFundTransactionBottomSheet.java)) and modal selection dialogs ([`dialog_select_subcategory.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_subcategory.xml), [`dialog_select_folio.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_folio.xml)). Selecting any option immediately closes the soft keyboard and clears focus.
+  - Selecting any item in Spinners across all bottom sheets (`spSourceSelector`, `spCreditCardSelector`, `spMfFund`, `spMfCategory`, etc.) also automatically hides the keyboard.
+- **Universal Touch-to-Dismiss Soft Keyboard Across the Entire Project**:
+  - Overrode `dispatchTouchEvent` in [`MainActivity.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/MainActivity.java) and [`BaseBottomSheetDialogFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/BaseBottomSheetDialogFragment.java) (governing all 14 bottom sheets), automatically detecting any tap outside the active `EditText`'s bounding box to immediately hide the keyboard and clear focus.
+  - Implemented `KeyboardHelper.setupOutsideTouchDismiss(dialog)` utilizing `WindowCallbackWrapper` for custom and alert dialogs ([`dialog_select_subcategory`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_subcategory.xml), [`dialog_select_folio`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_folio.xml), and single-choice dialogs in [`EditSipBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/EditSipBottomSheet.java)).
+  - Attached recursive scroll listeners (`setupScrollToDismissKeyboard`) to all `NestedScrollView`, `ScrollView`, and `RecyclerView` components to dismiss the soft keyboard as soon as the user drags or scrolls.
+- **Universal Keyboard Done / Close Option Across Every Input Field**:
+  - Standardized `EditorInfo.IME_ACTION_DONE` and `KeyboardHelper.setupDoneAction` across every input field throughout all dialogs and bottom sheets (Debit, Credit, Sub-Category, Folio, Target Amounts, Allocation Percentages, Due Dates, Card Names, Billed Amounts, Policy fields, SIP amounts), providing an explicit Done/Checkmark keyboard button to dismiss the soft keyboard from any input field.
+  - Added an inline quick-clear/dismiss icon (`btnClearSearchSubCategory`) in [`dialog_select_subcategory.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_subcategory.xml).
+- **Strict Mandatory Field & Option Match Enforcement (Prevent Invalid Posting)**:
+  - Added real-time typing feedback (`TextWatcher`) on searchable fields like `actvSubCategory` that flags `"No matching option found"` when user input does not match any available option.
+  - When submitting/posting (e.g. `Add to Google Sheet` in `AddTransactionBottomSheet` or `AddPolicyBottomSheet`), the app verifies that the entered value strictly matches an available option from the valid options list.
+  - If the user typed an invalid option, did not get any select option, or left mandatory fields unselected, posting is strictly blocked, the field is highlighted with `setError(...)`, focus is requested, and an informative toast explains the requirement.
+  - Fixed policy provider selection in [`AddPolicyBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddPolicyBottomSheet.java) and enforced mandatory provider selection before saving.
+
 ## [v2.2] - 2026-11-09
 
 ### Added

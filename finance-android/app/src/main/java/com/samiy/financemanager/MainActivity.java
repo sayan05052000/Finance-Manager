@@ -611,4 +611,20 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
     private String formatCurrency(double amount) {
         return currencyFormat.format(amount).replace("INR", "₹").replace(".00", "");
     }
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+            View v = getCurrentFocus();
+            if (v instanceof android.widget.EditText) {
+                android.graphics.Rect outRect = new android.graphics.Rect();
+                v.getGlobalVisibleRect(outRect);
+                if (!outRect.contains((int) ev.getRawX(), (int) ev.getRawY())) {
+                    v.clearFocus();
+                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(v);
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
 }

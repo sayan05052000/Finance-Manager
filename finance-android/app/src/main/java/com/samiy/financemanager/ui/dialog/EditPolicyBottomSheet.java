@@ -198,6 +198,7 @@ public class EditPolicyBottomSheet extends BaseBottomSheetDialogFragment {
 
         etDueDate.setText(originalDue);
         etLastPaid.setText(originalLastPaid);
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etDueDate, etLastPaid);
 
         boolean isMatured = isPolicyFullyPaidOrMatured(policy);
 

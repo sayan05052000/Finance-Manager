@@ -24,7 +24,23 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
     @NonNull
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-        BottomSheetDialog dialog = (BottomSheetDialog) super.onCreateDialog(savedInstanceState);
+        BottomSheetDialog dialog = new BottomSheetDialog(requireContext(), getTheme()) {
+            @Override
+            public boolean dispatchTouchEvent(@NonNull android.view.MotionEvent ev) {
+                if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    View v = getCurrentFocus();
+                    if (v instanceof android.widget.EditText) {
+                        android.graphics.Rect outRect = new android.graphics.Rect();
+                        v.getGlobalVisibleRect(outRect);
+                        if (!outRect.contains((int) ev.getRawX(), (int) ev.getRawY())) {
+                            v.clearFocus();
+                            com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(v);
+                        }
+                    }
+                }
+                return super.dispatchTouchEvent(ev);
+            }
+        };
         dialog.setOnShowListener(dialogInterface -> {
             BottomSheetDialog d = (BottomSheetDialog) dialogInterface;
             FrameLayout bottomSheet = d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
@@ -47,6 +63,7 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         com.samiy.financemanager.util.KeyboardHelper.setupAutoDismissKeyboard(view);
+        com.samiy.financemanager.util.KeyboardHelper.setupScrollToDismissKeyboard(view);
     }
 
     @Override

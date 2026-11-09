@@ -24,19 +24,37 @@
         android:textSize="12sp" />
 
     <!-- Search Input Field -->
-    <EditText
-        android:id="@+id/etSearchSubCategoryQuery"
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="44dp"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/bg_pill_dark"
-        android:hint="🔍 Search (e.g. Card, Interest, Fee)..."
-        android:textColorHint="@color/text_muted"
-        android:textColor="@color/text_primary"
-        android:textSize="13sp"
-        android:singleLine="true"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp" />
+        android:layout_marginTop="12dp">
+
+        <EditText
+            android:id="@+id/etSearchSubCategoryQuery"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_pill_dark"
+            android:hint="🔍 Search (e.g. Card, Interest, Fee)..."
+            android:textColorHint="@color/text_muted"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:imeOptions="actionDone"
+            android:paddingStart="14dp"
+            android:paddingEnd="42dp" />
+
+        <ImageView
+            android:id="@+id/btnClearSearchSubCategory"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="4dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </RelativeLayout>
 
     <View
         android:layout_width="match_parent"
@@ -46,6 +64,7 @@
         android:layout_marginBottom="8dp" />
 
     <ScrollView
+        android:id="@+id/scrollSubCategories"
         android:layout_width="match_parent"
         android:layout_height="260dp"
         android:scrollbars="vertical"

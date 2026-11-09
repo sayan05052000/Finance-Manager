@@ -55,6 +55,7 @@ public class AddCreditCardBottomSheet extends BaseBottomSheetDialogFragment {
         Button btnSubmit = v.findViewById(R.id.btnAddCardSubmit);
 
         DateTimeHelper.setupDatePicker(etDueDate);
+        com.samiy.financemanager.util.KeyboardHelper.setupDoneAction(etCardName, etDueDate, etBilledAmount);
 
         btnCancel.setOnClickListener(view -> dismiss());
 
