@@ -22,6 +22,9 @@ public class Holding implements Serializable {
     @SerializedName("savingsType")
     public String savingsType = "";
 
+    @SerializedName("savingsCategory")
+    public String savingsCategory = "";
+
     @SerializedName("source")
     public String source = "";
 

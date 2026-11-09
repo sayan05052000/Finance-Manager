@@ -657,6 +657,61 @@ function doPost(e) {
       });
     }
 
+    if (action === 'addGoal') {
+      const sheet = ss.getSheetByName('Goals');
+      if (!sheet) throw new Error('Goals sheet not found');
+
+      const g = data.goal || {};
+      const goalName = String(g.name || g.goalName || '').trim();
+      if (!goalName) throw new Error('Goal Name is required');
+
+      const goalAmount = Number(g.targetAmount || g.goalAmount) || 0;
+      const currentAmount = Number(g.currentAmount || g.occuredTillDate) || 0;
+      const achieved = goalAmount > 0 ? (currentAmount / goalAmount) : 0;
+      const contributionJson = typeof g.contributionJson === 'object' ? JSON.stringify(g.contributionJson, null, 2) : String(g.contributionJson || '{}').trim();
+
+      sheet.appendRow([
+        goalName,
+        goalAmount,
+        currentAmount,
+        achieved,
+        contributionJson
+      ]);
+      SpreadsheetApp.flush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Goal "' + goalName + '" added successfully'
+      });
+    }
+
+    if (action === 'deleteGoal') {
+      const sheet = ss.getSheetByName('Goals');
+      if (!sheet) throw new Error('Goals sheet not found');
+
+      const goalName = String(data.name || (data.goal && data.goal.name) || '').trim();
+      if (!goalName) throw new Error('Goal Name is required to delete');
+
+      const vals = sheet.getDataRange().getValues();
+      let rowToDelete = -1;
+      for (let i = 1; i < vals.length; i++) {
+        if (String(vals[i][0] || '').trim().toLowerCase() === goalName.toLowerCase()) {
+          rowToDelete = i + 1;
+          break;
+        }
+      }
+
+      if (rowToDelete === -1) {
+        throw new Error('Goal not found: ' + goalName);
+      }
+
+      sheet.deleteRow(rowToDelete);
+      SpreadsheetApp.flush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Goal "' + goalName + '" deleted successfully'
+      });
+    }
+
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
@@ -863,12 +918,19 @@ function getGoals(ss) {
   return raw.map(g => {
     const target = Number(g['Goal Amount']) || 0;
     const current = Number(g['Occured Till Date']) || 0;
+    const rawAchieved = (g['Achived Till Date'] !== undefined && g['Achived Till Date'] !== '') 
+      ? Number(g['Achived Till Date']) 
+      : ((g['Achieved Till Date'] !== undefined && g['Achieved Till Date'] !== '') 
+        ? Number(g['Achieved Till Date']) 
+        : (target > 0 ? (current / target) : 0));
+    const achievedPct = target > 0 ? Math.round(rawAchieved * 1000) / 10 : 0;
     return {
       name: g['Goals Name'],
       targetAmount: target,
       currentAmount: current,
-      achievedPercent: target > 0 ? Math.round((current / target) * 1000) / 10 : 0,
-      savingAllocationPercent: (Number(g['Percentage Of saving To Put']) || 0) * 100
+      achievedPercent: achievedPct,
+      savingAllocationPercent: (Number(g['Percentage Of saving To Put']) || 0) * 100,
+      contributionJson: String(g['Contribution JSON'] || '{}').trim()
     };
   });
 }

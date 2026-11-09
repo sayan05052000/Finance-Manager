@@ -1,5 +1,10 @@
 package com.samiy.financemanager.data;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.samiy.financemanager.data.model.Account;
 import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.ExpenseTrackerItem;
@@ -300,6 +305,18 @@ public class CalculationEngine {
 
         if (db.goals == null || db.goals.isEmpty()) {
             db.goals = createDefaultGoals();
+        } else {
+            for (GoalItem g : db.goals) {
+                if (g != null && g.contributionJson != null && !g.contributionJson.trim().isEmpty() && !g.contributionJson.trim().equals("{}")) {
+                    double calcBal = calculateGoalBalance(g, db);
+                    if (calcBal > 0) {
+                        g.currentAmount = calcBal;
+                    }
+                    if (g.targetAmount > 0) {
+                        g.achievedPercent = Math.round((g.currentAmount / g.targetAmount) * 1000.0) / 10.0;
+                    }
+                }
+            }
         }
         if (db.insurance == null || db.insurance.isEmpty()) {
             db.insurance = createDefaultInsurance();
@@ -341,11 +358,86 @@ public class CalculationEngine {
         return list;
     }
 
+    public static double calculateGoalBalance(GoalItem g, FinanceDatabase db) {
+        if (db == null || g == null) return 0.0;
+        if (g.contributionJson == null || g.contributionJson.trim().isEmpty() || g.contributionJson.trim().equals("{}")) {
+            return g.currentAmount;
+        }
+        try {
+            JsonObject obj = JsonParser.parseString(g.contributionJson).getAsJsonObject();
+            double total = 0.0;
+
+            // 1. Accounts
+            if (obj.has("accounts") && obj.get("accounts").isJsonObject() && db.accounts != null) {
+                JsonObject accs = obj.getAsJsonObject("accounts");
+                Map<String, Double> accBalances = new HashMap<>();
+                for (Account a : db.accounts) {
+                    if (a != null && a.name != null) {
+                        accBalances.put(a.name.trim().toUpperCase(Locale.US), a.currentBalance);
+                    }
+                }
+                for (String accName : accs.keySet()) {
+                    double pct = 1.0;
+                    try {
+                        pct = accs.get(accName).getAsDouble();
+                    } catch (Exception ignored) {}
+                    Double bal = accBalances.get(accName.trim().toUpperCase(Locale.US));
+                    if (bal != null) {
+                        total += bal * pct;
+                    }
+                }
+            }
+
+            // 2. Mutual Funds
+            if (obj.has("mutual_funds") && obj.get("mutual_funds").isJsonArray() && db.holdings != null) {
+                JsonArray mfs = obj.getAsJsonArray("mutual_funds");
+                for (JsonElement elem : mfs) {
+                    if (!elem.isJsonObject()) continue;
+                    JsonObject rule = elem.getAsJsonObject();
+                    String col = rule.has("column") ? rule.get("column").getAsString().trim().toLowerCase(Locale.US) : "";
+                    String val = rule.has("value") ? rule.get("value").getAsString().trim().toLowerCase(Locale.US) : "";
+                    double pct = 1.0;
+                    if (rule.has("percentage")) {
+                        try {
+                            pct = rule.get("percentage").getAsDouble();
+                        } catch (Exception ignored) {}
+                    }
+
+                    for (Holding h : db.holdings) {
+                        if (h == null) continue;
+                        boolean match = false;
+                        if (col.contains("catgory") || col.contains("category")) {
+                            if (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val)) match = true;
+                        } else if (col.contains("type")) {
+                            if (h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) match = true;
+                        } else {
+                            if ((h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) ||
+                                (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val))) {
+                                match = true;
+                            }
+                        }
+
+                        if (match) {
+                            total += h.currentValue * pct;
+                        }
+                    }
+                }
+            }
+
+            return Math.round(total * 100.0) / 100.0;
+        } catch (Exception e) {
+            return g.currentAmount;
+        }
+    }
+
     private static List<GoalItem> createDefaultGoals() {
         List<GoalItem> list = new ArrayList<>();
-        list.add(new GoalItem("Health And Life Insurance", 60000.0, 15190.28, 25.3, 0.0));
-        list.add(new GoalItem("Emergency Fund", 200000.0, 28237.31, 14.1, 100.0));
-        list.add(new GoalItem("Bike", 200000.0, 41407.97, 20.7, 30.0));
+        list.add(new GoalItem("Health And Life Insurance", 60000.0, 15193.01, 25.3, 0.0,
+                "{\n  \"accounts\": {},\n  \"mutual_funds\": [\n    {\n      \"column\": \"Savings Catgory\",\n      \"value\": \"Family Savings\",\n      \"percentage\": 1.0\n    }\n  ]\n}"));
+        list.add(new GoalItem("Emergency Fund", 200000.0, 29008.74, 14.5, 0.0,
+                "{\n  \"accounts\": {\n    \"HDFC SAVINGS\": 1.0,\n    \"PNB SAVINGS FROM PREVIOUS MONTH\": 1.0,\n    \"PNB\": 1.0,\n    \"SBI\": 1.0\n  },\n  \"mutual_funds\": [\n    {\n      \"column\": \"Savings Type\",\n      \"value\": \"Emergency Mutual Fund\",\n      \"percentage\": 1.0\n    }\n  ]\n}"));
+        list.add(new GoalItem("Bike", 200000.0, 41407.97, 20.7, 0.0,
+                "{\n  \"accounts\": {},\n  \"mutual_funds\": [\n    {\n      \"column\": \"Savings Type\",\n      \"value\": \"Mutual Fund\",\n      \"percentage\": \"0.3\"\n    }\n  ]\n}"));
         return list;
     }
 

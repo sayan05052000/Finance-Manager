@@ -31,7 +31,10 @@
 
     <style name="FinMngrBottomSheetModal" parent="Widget.MaterialComponents.BottomSheet.Modal">
         <item name="android:background">@android:color/transparent</item>
+        <item name="android:backgroundTint">@android:color/transparent</item>
         <item name="backgroundTint">@android:color/transparent</item>
+        <item name="shapeAppearance">@null</item>
+        <item name="shapeAppearanceOverlay">@null</item>
     </style>
 
     <style name="CustomDarkDialog" parent="Theme.MaterialComponents.Dialog.Alert">

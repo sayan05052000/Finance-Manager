@@ -25,7 +25,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
    - [Running Balance (Remainder) Synchronization & Account Reconciliation](#running-balance-remainder-synchronization--account-reconciliation)
    - [Dual Sub-Category System](#dual-sub-category-system)
    - [SIP Tracer Architecture & Constraints](#sip-tracer-architecture--constraints)
-   - [Financial Goals (View Only)](#financial-goals-view-only)
+   - [Financial Goals Management & Dynamic Allocations](#financial-goals-management)
    - [LIC & Tata AIA Policies (Controlled Updates, 'Mark as Paid' & Add Flow)](#lic--tata-aia-policies)
    - [Credit Cards Management (Billed vs Unbilled, Adding Cards & 1-Month Due Date Advance)](#credit-cards-management)
    - [Upcoming Due Date Reminders & Automated Daily System Notifications](#upcoming-due-date-reminders--daily-notifications)
@@ -237,15 +237,29 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
 
 ---
 
-### Financial Goals (View Only)
-* **Design & Security Requirement**: Financial goals represent long-term wealth milestones and savings buckets (e.g. `Health And Life Insurance`, `Emergency Fund`, `Bike`).
-* **Strict View-Only Rule**: Financial goals are strictly **view-only**. The mobile UI does not render edit, update, or delete buttons for goals.
+### Financial Goals Management & Dynamic Allocations
+* **Dynamic Multi-Asset Schema (`Goals` Sheet)**:
+  - Columns: `Goals Name`, `Goal Amount`, `Occured Till Date`, `Achived Till Date`, `Contribution JSON`.
+  - Replaces legacy hardcoded savings percentages with a flexible `Contribution JSON` mapping architecture that links each goal to specific Bank Accounts (e.g. `HDFC SAVINGS`, `PNB`, `SBI`) and Mutual Funds (e.g. `Mutual Fund`, `Family Savings`, `Emergency Mutual Fund`) along with their respective contribution weighting percentages (e.g. `1.0`, `0.3`).
+* **Dynamic Recalculation Engine (`CalculationEngine`)**:
+  - Replicates Google Sheets `MAP` / `LAMBDA` array formulas in local Android logic, evaluating live account balances and current mutual fund valuations in real time to calculate accumulated funds and percentage achieved even when operating offline.
+  - Linked Asset Summary: Automatically resolves and displays human-readable contribution sources on each goal card (e.g. `Linked: HDFC SAVINGS, PNB • MF (30%)`).
+* **Add Goal Workflow (`AddGoalBottomSheet`)**:
+  - Tapping `[＋ Add Goal]` in the Financial Goals header opens an intuitive creation modal.
+  - Users provide Goal Name, Target Amount, Initial Amount (optional), and choose a Contribution Asset Linker:
+    - **Manual Asset Allocation**: Allocates an explicit rupee contribution without auto-linking.
+    - **Link to Bank Account**: Dynamically selects an active bank account (100% balance allocation).
+    - **Link to Mutual Fund Category**: Selects a mutual fund savings category with a configurable contribution percentage (e.g. 30%).
+  - Appends the new goal directly to the `Goals` sheet in Google Sheets via `action === 'addGoal'`.
+* **Remove Goal Option**:
+  - Every goal card now provides a dedicated `[🗑️ Remove]` button.
+  - Displays a safety confirmation dialog before permanently removing the goal from both the local cache and Google Sheets via `action === 'deleteGoal'`.
 * **Tracked Metrics**:
-  - **Goal Target Amount**: Total planned fund accumulation (e.g. ₹60,000.00).
-  - **Accumulated Balance**: Current sum saved towards the target (e.g. ₹15,190.28).
-  - **Achieved Percentage**: Dynamic progress calculation ($$\text{Achieved} = \frac{\text{Current Amount}}{\text{Target Amount}} \times 100$$).
-  - **Savings Allocation Percentage**: Planned monthly savings share (e.g. 30% of monthly savings).
-  - **Visual Progress Bar**: Horizontal emerald progress bar showing completion toward goal target.
+  - **Target Amount**: Total planned milestone fund (e.g. ₹2,00,000).
+  - **Accumulated Balance**: Live calculated funds accumulated from linked sources.
+  - **Achieved Percentage**: Progress toward completion ($$\text{Achieved} = \frac{\text{Current Amount}}{\text{Target Amount}} \times 100$$).
+  - **Contribution Summary**: Linked accounts and mutual fund category weightings.
+  - **Progress Indicator**: High-contrast emerald progress bar showing achievement percentage.
 
 ---
 

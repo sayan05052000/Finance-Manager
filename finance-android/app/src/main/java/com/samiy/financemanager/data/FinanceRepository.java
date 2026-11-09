@@ -1061,6 +1061,110 @@ public class FinanceRepository {
         });
     }
 
+    public void addGoal(com.samiy.financemanager.data.model.GoalItem newGoal, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Uniqueness check & Pre-append in-memory
+        if (database != null) {
+            if (database.goals == null) database.goals = new java.util.ArrayList<>();
+            for (com.samiy.financemanager.data.model.GoalItem existing : database.goals) {
+                if (existing != null && existing.name != null && existing.name.trim().equalsIgnoreCase(newGoal.name.trim())) {
+                    mainHandler.post(() -> {
+                        if (callback != null) callback.onError("A goal named '" + newGoal.name + "' already exists");
+                    });
+                    return;
+                }
+            }
+            database.goals.add(newGoal);
+            CalculationEngine.recalculate(database);
+            saveLocalCache();
+            notifySyncListeners();
+        }
+
+        notifySyncStarted("Adding goal '" + newGoal.name + "'...");
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "addGoal");
+
+                JsonObject goalObj = new JsonObject();
+                goalObj.addProperty("name", newGoal.name);
+                goalObj.addProperty("targetAmount", newGoal.targetAmount);
+                goalObj.addProperty("currentAmount", newGoal.currentAmount);
+                goalObj.addProperty("contributionJson", newGoal.contributionJson != null ? newGoal.contributionJson : "{}");
+
+                postBody.add("goal", goalObj);
+
+                String jsonStr = gson.toJson(postBody);
+                String resp = executeHttpPost(GAS_URL, jsonStr);
+                checkJsonResponseForError(resp);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+                notifySyncFinished("Goal added successfully", false);
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding goal in Google Sheets", e);
+                notifySyncFinished("Failed to add goal: " + e.getMessage(), true);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to add goal: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void deleteGoal(String goalName, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        // Optimistically remove from in-memory database
+        if (database != null && database.goals != null) {
+            database.goals.removeIf(g -> g != null && g.name != null && g.name.trim().equalsIgnoreCase(goalName.trim()));
+            CalculationEngine.recalculate(database);
+            saveLocalCache();
+            notifySyncListeners();
+        }
+
+        notifySyncStarted("Deleting goal '" + goalName + "'...");
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "deleteGoal");
+                postBody.addProperty("name", goalName);
+
+                String jsonStr = gson.toJson(postBody);
+                String resp = executeHttpPost(GAS_URL, jsonStr);
+                checkJsonResponseForError(resp);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+                notifySyncFinished("Goal removed successfully", false);
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error deleting goal in Google Sheets", e);
+                notifySyncFinished("Failed to delete goal: " + e.getMessage(), true);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to delete goal: " + e.getMessage());
+                });
+            }
+        });
+    }
+
     public void addPolicy(InsurancePolicy newPolicy, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {

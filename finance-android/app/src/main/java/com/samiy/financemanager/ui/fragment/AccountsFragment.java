@@ -165,6 +165,21 @@ public class AccountsFragment extends Fragment {
             });
         }
 
+        // Add Goal Button Listener
+        View btnAddGoal = v.findViewById(R.id.btnAddGoal);
+        if (btnAddGoal != null) {
+            btnAddGoal.setOnClickListener(view -> {
+                if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                    Toast.makeText(getContext(), "You are not authorized to add goals.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                com.samiy.financemanager.ui.dialog.AddGoalBottomSheet bottomSheet =
+                        com.samiy.financemanager.ui.dialog.AddGoalBottomSheet.newInstance();
+                bottomSheet.setOnGoalAddedListener(newGoal -> refreshData());
+                bottomSheet.show(getChildFragmentManager(), "add_goal");
+            });
+        }
+
         swipeRefresh.setOnRefreshListener(this::refreshData);
 
         applySectionFilterUI();
@@ -887,6 +902,7 @@ public class AccountsFragment extends Fragment {
             ProgressBar pbProgress = itemView.findViewById(R.id.pbGoalProgress);
             TextView tvAchievedPercent = itemView.findViewById(R.id.tvGoalAchievedPercent);
             TextView tvSavingAllocation = itemView.findViewById(R.id.tvGoalSavingAllocation);
+            View btnRemoveGoal = itemView.findViewById(R.id.btnRemoveGoal);
 
             tvGoalName.setText(g.name != null ? g.name : "Financial Goal");
             tvCurrentAmount.setText(formatCurrency(g.currentAmount));
@@ -896,9 +912,36 @@ public class AccountsFragment extends Fragment {
             pbProgress.setProgress(progressInt);
 
             tvAchievedPercent.setText(String.format(Locale.US, "%.1f%% Achieved", g.achievedPercent));
-            tvSavingAllocation.setText(String.format(Locale.US, "Allocation: %.0f%%", g.savingAllocationPercent));
+            tvSavingAllocation.setText(g.getContributionSummary());
 
-            // Goals are strictly VIEW-ONLY per explicit requirement. No edit or click listeners attached.
+            if (btnRemoveGoal != null) {
+                btnRemoveGoal.setOnClickListener(vItem -> {
+                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                            .setTitle("Remove Goal")
+                            .setMessage("Are you sure you want to remove goal \"" + g.name + "\"? This will delete this goal from your Goals tracker and Google Sheets.")
+                            .setPositiveButton("Remove", (dialog, which) -> {
+                                FinanceRepository.getInstance(requireContext()).deleteGoal(g.name, new FinanceRepository.DataCallback() {
+                                    @Override
+                                    public void onLoaded(FinanceDatabase updatedDb) {
+                                        if (isAdded()) {
+                                            populateUI();
+                                            FinMngrToast.showSuccess(getContext(), "Goal \"" + g.name + "\" removed successfully");
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onError(String error) {
+                                        if (isAdded()) {
+                                            populateUI();
+                                            FinMngrToast.showError(getContext(), error);
+                                        }
+                                    }
+                                });
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                });
+            }
 
             layoutGoalsList.addView(itemView);
         }

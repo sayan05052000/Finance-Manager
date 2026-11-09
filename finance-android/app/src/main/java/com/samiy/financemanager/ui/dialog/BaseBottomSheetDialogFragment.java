@@ -29,7 +29,8 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
             BottomSheetDialog d = (BottomSheetDialog) dialogInterface;
             FrameLayout bottomSheet = d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheet != null) {
-                bottomSheet.setBackgroundResource(android.R.color.transparent);
+                bottomSheet.setBackground(null);
+                bottomSheet.setBackgroundColor(android.graphics.Color.TRANSPARENT);
                 BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(bottomSheet);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 behavior.setSkipCollapsed(true);
@@ -37,7 +38,28 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
         });
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            dialog.getWindow().setDimAmount(0.6f);
         }
         return dialog;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        Dialog dialog = getDialog();
+        if (dialog != null) {
+            View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (bottomSheet != null) {
+                bottomSheet.setBackground(null);
+                bottomSheet.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            }
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            }
+        }
+        if (getView() != null && getView().getParent() instanceof View) {
+            ((View) getView().getParent()).setBackground(null);
+            ((View) getView().getParent()).setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        }
     }
 }

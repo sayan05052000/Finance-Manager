@@ -481,7 +481,7 @@
                     android:orientation="vertical" />
             </LinearLayout>
 
-            <!-- SECTION: Financial Goals (View Only) -->
+            <!-- SECTION: Financial Goals -->
             <LinearLayout
                 android:id="@+id/layoutSectionGoals"
                 android:layout_width="match_parent"
@@ -489,19 +489,43 @@
                 android:layout_marginTop="28dp"
                 android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="🎯 Financial Goals (View Only)"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="🎯 Financial Goals"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnAddGoal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="＋ Add Goal"
+                        android:textColor="@color/green_mint"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/bg_chip_green"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:paddingTop="5dp"
+                        android:paddingBottom="5dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Target funds and savings allocation percentages"
+                    android:text="Target funds and linked asset contributions"
                     android:textColor="@color/text_muted"
                     android:textSize="11sp" />
 

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.2] - 2026-11-09
+
+### Added
+- **Financial Goals Dynamic Schema & Contribution JSON Integration**:
+  - Adapted to the user's updated Google Sheet `Goals` schema: `[Goals Name, Goal Amount, Occured Till Date, Achived Till Date, Contribution JSON]`.
+  - Added JSON contribution mapping in [`GoalItem.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/model/GoalItem.java) linking goals to specific Bank Accounts (`HDFC SAVINGS`, `PNB`, `SBI`, etc.) and Mutual Fund categories (`Mutual Fund`, `Family Savings`, etc.) with individual allocation weights.
+  - Engineered local spreadsheet-parity formula evaluation in [`CalculationEngine.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/CalculationEngine.java), dynamically aggregating real-time account balances and mutual fund portfolio valuations.
+  - Added human-readable contribution summaries to goal cards via `getContributionSummary()` (e.g., `Linked: HDFC SAVINGS, PNB • MF (30%)`).
+- **Interactive Add Goal Workflow (`AddGoalBottomSheet`)**:
+  - Added `[＋ Add Goal]` action pill in `fragment_accounts.xml` launching [`AddGoalBottomSheet`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddGoalBottomSheet.java).
+  - Supports Goal Name, Target Amount, Initial Amount, and Contribution Asset Linker (Manual Allocation, Bank Account Link, or Mutual Fund Category Link with percentage).
+  - Appends new rows to Google Sheets via `action === 'addGoal'` in `androidscript.gs` with instant optimistic UI update.
+- **Goal Removal Workflow (`[🗑️ Remove]`)**:
+  - Replaced legacy view-only labels with interactive `[🗑️ Remove]` action pill on each goal card in [`item_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal.xml).
+  - Prompts with safety confirmation dialog before permanently removing the goal from Google Sheets (`action === 'deleteGoal'`) and local cache.
+- **Google Apps Script Goals Sync Endpoints (`androidscript.gs`)**:
+  - Added `addGoal` POST action appending `[name, targetAmount, occuredTillDate, "=MAP(...)", contributionJson]`.
+  - Added `deleteGoal` POST action searching by Goal Name and deleting the corresponding row.
+  - Updated `getGoals(ss)` to read `Achived Till Date` and `Contribution JSON`.
+
+### Fixed
+- **Bottom Sheet Modal Corner Artifacts Elimination (Hardening)**:
+  - Enforced `onStart()` background stripping on both `design_bottom_sheet` and view parent in [`BaseBottomSheetDialogFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/BaseBottomSheetDialogFragment.java).
+  - Set `shapeAppearance="@null"`, `shapeAppearanceOverlay="@null"`, and `elevation="0dp"` in `FinMngrBottomSheetModal` style, completely eliminating grey rectangular corner artifacts behind curved modals.
+
+---
+
 ## [v2.1] - 2026-11-09
 
 ### Added

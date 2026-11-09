@@ -8,7 +8,7 @@
     android:padding="16dp"
     android:layout_marginBottom="12dp">
 
-    <!-- Header Row: Goal Name + View Only Tag -->
+    <!-- Header Row: Goal Name + Remove Button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -26,16 +26,20 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/btnRemoveGoal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_pill_dark"
-            android:text="🔒 View Only"
-            android:textColor="@color/text_muted"
-            android:textSize="10.5sp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp" />
+            android:background="@drawable/bg_badge_warning"
+            android:text="🗑️ Remove"
+            android:textColor="@color/red_rose"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:clickable="true"
+            android:focusable="true" />
     </LinearLayout>
 
     <!-- Amount Row: Current Accumulated vs Target -->
@@ -105,7 +109,7 @@
         android:progressTint="@color/green_mint"
         android:progressBackgroundTint="@color/border_dark" />
 
-    <!-- Footer Row: Achieved % and Saving Allocation % -->
+    <!-- Footer Row: Achieved % and Linked Contribution -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -115,9 +119,8 @@
 
         <TextView
             android:id="@+id/tvGoalAchievedPercent"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="25.3% Achieved"
             android:textColor="@color/green_mint"
             android:textSize="11.5sp"
@@ -125,12 +128,16 @@
 
         <TextView
             android:id="@+id/tvGoalSavingAllocation"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Allocation: 30%"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="Linked: Family Savings"
             android:textColor="@color/blue_sky"
             android:textSize="11.5sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:ellipsize="end"
+            android:maxLines="1" />
     </LinearLayout>
 
 </LinearLayout>
