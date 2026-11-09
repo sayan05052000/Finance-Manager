@@ -78,12 +78,12 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         Button btnCancel = v.findViewById(R.id.btnCancelGoal);
         Button btnSubmit = v.findViewById(R.id.btnSubmitGoal);
 
-        // Populate accounts
+        // Populate accounts using AllocationSourceAdapter
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         List<String> accountNames = new ArrayList<>();
         if (db != null && db.accounts != null) {
             for (Account a : db.accounts) {
-                if (a != null && a.name != null && !a.name.trim().isEmpty()) {
+                if (a != null && a.name != null && !a.name.trim().isEmpty() && !accountNames.contains(a.name.trim())) {
                     accountNames.add(a.name.trim());
                 }
             }
@@ -93,11 +93,24 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
             accountNames.add("HDFC SAVINGS");
             accountNames.add("SBI");
         }
-        ArrayAdapter<String> accAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, accountNames);
-        accAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
+        List<com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem> accItems = new ArrayList<>();
+        for (String accName : accountNames) {
+            double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getAccountAllocatedPercentage(accName, db != null ? db.goals : null, null);
+            double available = Math.max(0.0, 100.0 - alreadyUsed);
+            accItems.add(new com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem(accName, available, alreadyUsed));
+        }
+        com.samiy.financemanager.ui.adapter.AllocationSourceAdapter accAdapter = new com.samiy.financemanager.ui.adapter.AllocationSourceAdapter(requireContext(), accItems);
         spGoalAccount.setAdapter(accAdapter);
 
-        // Populate mutual fund savings types
+        // Pre-select first selectable account
+        for (int i = 0; i < accItems.size(); i++) {
+            if (accItems.get(i).isSelectable()) {
+                spGoalAccount.setSelection(i);
+                break;
+            }
+        }
+
+        // Populate mutual fund savings types using AllocationSourceAdapter
         List<String> mfTypes = new ArrayList<>();
         if (db != null && db.holdings != null) {
             for (Holding h : db.holdings) {
@@ -117,60 +130,55 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
             mfTypes.add("Family Savings");
             mfTypes.add("Kuvera Surplus(Family)");
         }
-        ArrayAdapter<String> mfAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, mfTypes);
-        mfAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
+        List<com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem> mfItems = new ArrayList<>();
+        for (String mfName : mfTypes) {
+            double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getMutualFundAllocatedPercentage(mfName, db != null ? db.goals : null, null);
+            double available = Math.max(0.0, 100.0 - alreadyUsed);
+            mfItems.add(new com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem(mfName, available, alreadyUsed));
+        }
+        com.samiy.financemanager.ui.adapter.AllocationSourceAdapter mfAdapter = new com.samiy.financemanager.ui.adapter.AllocationSourceAdapter(requireContext(), mfItems);
         spGoalMfType.setAdapter(mfAdapter);
 
-        Runnable updateAccountAllocationInfo = () -> {
-            String selectedAcc = spGoalAccount.getSelectedItem() != null ? spGoalAccount.getSelectedItem().toString() : "";
-            if (selectedAcc.isEmpty() || db == null || db.goals == null) {
-                if (tvAccountAllocationInfo != null) {
-                    tvAccountAllocationInfo.setText("Available to allocate: 100%");
-                    tvAccountAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
-                }
-                etGoalAccountPercent.setEnabled(true);
-                return;
+        // Pre-select first selectable mutual fund
+        for (int i = 0; i < mfItems.size(); i++) {
+            if (mfItems.get(i).isSelectable()) {
+                spGoalMfType.setSelection(i);
+                break;
             }
-            double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getAccountAllocatedPercentage(selectedAcc, db.goals, null);
-            double available = Math.max(0.0, 100.0 - alreadyUsed);
+        }
+
+        Runnable updateAccountAllocationInfo = () -> {
+            com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem selected = (com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem) spGoalAccount.getSelectedItem();
+            if (selected == null) return;
             if (tvAccountAllocationInfo != null) {
-                if (alreadyUsed >= 100.0) {
-                    tvAccountAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% already allocated across goals (0% remaining)");
+                if (!selected.isSelectable()) {
+                    tvAccountAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(java.util.Locale.US, "%.1f", selected.consumedPercent) + "% already allocated across goals (0% remaining)");
                     tvAccountAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.red_rose));
                     etGoalAccountPercent.setText("0");
                     etGoalAccountPercent.setEnabled(false);
                 } else {
-                    tvAccountAllocationInfo.setText("Available to allocate: " + String.format(java.util.Locale.US, "%.1f", available) + "% (" + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% allocated across other goals)");
+                    tvAccountAllocationInfo.setText("Available to allocate: " + String.format(java.util.Locale.US, "%.1f", selected.availablePercent) + "% (" + String.format(java.util.Locale.US, "%.1f", selected.consumedPercent) + "% allocated across other goals)");
                     tvAccountAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
                     etGoalAccountPercent.setEnabled(true);
-                    etGoalAccountPercent.setText(String.format(java.util.Locale.US, "%d", (int) Math.floor(available)));
+                    etGoalAccountPercent.setText(String.format(java.util.Locale.US, "%d", (int) Math.floor(selected.availablePercent)));
                 }
             }
         };
 
         Runnable updateMfAllocationInfo = () -> {
-            String selectedMf = spGoalMfType.getSelectedItem() != null ? spGoalMfType.getSelectedItem().toString() : "";
-            if (selectedMf.isEmpty() || db == null || db.goals == null) {
-                if (tvMfAllocationInfo != null) {
-                    tvMfAllocationInfo.setText("Available to allocate: 100%");
-                    tvMfAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
-                }
-                etGoalMfPercent.setEnabled(true);
-                return;
-            }
-            double alreadyUsed = com.samiy.financemanager.data.CalculationEngine.getMutualFundAllocatedPercentage(selectedMf, db.goals, null);
-            double available = Math.max(0.0, 100.0 - alreadyUsed);
+            com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem selected = (com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem) spGoalMfType.getSelectedItem();
+            if (selected == null) return;
             if (tvMfAllocationInfo != null) {
-                if (alreadyUsed >= 100.0) {
-                    tvMfAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% already allocated across goals (0% remaining)");
+                if (!selected.isSelectable()) {
+                    tvMfAllocationInfo.setText("⚠️ Fully Allocated: " + String.format(java.util.Locale.US, "%.1f", selected.consumedPercent) + "% already allocated across goals (0% remaining)");
                     tvMfAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.red_rose));
                     etGoalMfPercent.setText("0");
                     etGoalMfPercent.setEnabled(false);
                 } else {
-                    tvMfAllocationInfo.setText("Available to allocate: " + String.format(java.util.Locale.US, "%.1f", available) + "% (" + String.format(java.util.Locale.US, "%.1f", alreadyUsed) + "% allocated across other goals)");
+                    tvMfAllocationInfo.setText("Available to allocate: " + String.format(java.util.Locale.US, "%.1f", selected.availablePercent) + "% (" + String.format(java.util.Locale.US, "%.1f", selected.consumedPercent) + "% allocated across other goals)");
                     tvMfAllocationInfo.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.green_mint));
                     etGoalMfPercent.setEnabled(true);
-                    etGoalMfPercent.setText(String.format(java.util.Locale.US, "%d", (int) Math.floor(available)));
+                    etGoalMfPercent.setText(String.format(java.util.Locale.US, "%d", (int) Math.floor(selected.availablePercent)));
                 }
             }
         };
@@ -178,6 +186,15 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         spGoalAccount.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem item = accAdapter.getItem(position);
+                if (item != null && !item.isSelectable()) {
+                    for (int i = 0; i < accAdapter.getCount(); i++) {
+                        if (accAdapter.getItem(i).isSelectable()) {
+                            spGoalAccount.setSelection(i);
+                            return;
+                        }
+                    }
+                }
                 updateAccountAllocationInfo.run();
             }
             @Override
@@ -187,6 +204,15 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
         spGoalMfType.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem item = mfAdapter.getItem(position);
+                if (item != null && !item.isSelectable()) {
+                    for (int i = 0; i < mfAdapter.getCount(); i++) {
+                        if (mfAdapter.getItem(i).isSelectable()) {
+                            spGoalMfType.setSelection(i);
+                            return;
+                        }
+                    }
+                }
                 updateMfAllocationInfo.run();
             }
             @Override
@@ -266,7 +292,12 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
 
             // Validate source allocations (sum <= 100%)
             if (rbLinkAccount.isChecked()) {
-                String selectedAcc = spGoalAccount.getSelectedItem() != null ? spGoalAccount.getSelectedItem().toString() : "";
+                com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem selectedAccItem = (com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem) spGoalAccount.getSelectedItem();
+                String selectedAcc = selectedAccItem != null ? selectedAccItem.name : "";
+                if (selectedAccItem != null && !selectedAccItem.isSelectable()) {
+                    FinMngrToast.showError(getContext(), "Bank account '" + selectedAcc + "' is 100% allocated. Cannot be selected!");
+                    return;
+                }
                 String pctStr = etGoalAccountPercent.getText().toString().trim();
                 double requestedPct = 100.0;
                 if (!pctStr.isEmpty()) {
@@ -292,7 +323,12 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                     return;
                 }
             } else if (rbLinkMutualFund.isChecked()) {
-                String selectedMfType = spGoalMfType.getSelectedItem() != null ? spGoalMfType.getSelectedItem().toString() : "";
+                com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem selectedMfItem = (com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem) spGoalMfType.getSelectedItem();
+                String selectedMfType = selectedMfItem != null ? selectedMfItem.name : "";
+                if (selectedMfItem != null && !selectedMfItem.isSelectable()) {
+                    FinMngrToast.showError(getContext(), "Mutual fund '" + selectedMfType + "' is 100% allocated. Cannot be selected!");
+                    return;
+                }
                 String pctStr = etGoalMfPercent.getText().toString().trim();
                 double requestedPct = 100.0;
                 if (!pctStr.isEmpty()) {
@@ -325,7 +361,8 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
             JsonArray mfArray = new JsonArray();
 
             if (rbLinkAccount.isChecked()) {
-                String selectedAcc = spGoalAccount.getSelectedItem() != null ? spGoalAccount.getSelectedItem().toString() : "";
+                com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem selectedAccItem = (com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem) spGoalAccount.getSelectedItem();
+                String selectedAcc = selectedAccItem != null ? selectedAccItem.name : "";
                 String pctStr = etGoalAccountPercent.getText().toString().trim();
                 double pct = 1.0;
                 if (!pctStr.isEmpty()) {
@@ -337,7 +374,8 @@ public class AddGoalBottomSheet extends BaseBottomSheetDialogFragment {
                     accountsObj.addProperty(selectedAcc, pct);
                 }
             } else if (rbLinkMutualFund.isChecked()) {
-                String selectedMfType = spGoalMfType.getSelectedItem() != null ? spGoalMfType.getSelectedItem().toString() : "";
+                com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem selectedMfItem = (com.samiy.financemanager.ui.adapter.AllocationSourceAdapter.SourceItem) spGoalMfType.getSelectedItem();
+                String selectedMfType = selectedMfItem != null ? selectedMfItem.name : "";
                 String pctStr = etGoalMfPercent.getText().toString().trim();
                 double pct = 1.0;
                 if (!pctStr.isEmpty()) {

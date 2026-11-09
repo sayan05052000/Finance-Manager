@@ -902,7 +902,18 @@ public class AccountsFragment extends Fragment {
             ProgressBar pbProgress = itemView.findViewById(R.id.pbGoalProgress);
             TextView tvAchievedPercent = itemView.findViewById(R.id.tvGoalAchievedPercent);
             TextView tvSavingAllocation = itemView.findViewById(R.id.tvGoalSavingAllocation);
+            View btnEditGoal = itemView.findViewById(R.id.btnEditGoal);
             View btnRemoveGoal = itemView.findViewById(R.id.btnRemoveGoal);
+
+            if (btnEditGoal != null) {
+                btnEditGoal.setOnClickListener(vItem -> {
+                    com.samiy.financemanager.ui.dialog.EditGoalBottomSheet sheet = com.samiy.financemanager.ui.dialog.EditGoalBottomSheet.newInstance(g);
+                    sheet.setOnGoalUpdatedListener(updated -> {
+                        populateUI();
+                    });
+                    sheet.show(getChildFragmentManager(), "edit_goal_" + g.name);
+                });
+            }
 
             tvGoalName.setText(g.name != null ? g.name : "Financial Goal");
             tvCurrentAmount.setText(formatCurrency(g.currentAmount));

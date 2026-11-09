@@ -1131,6 +1131,92 @@ public class FinanceRepository {
         });
     }
 
+    public void updateGoal(String oldGoalName, com.samiy.financemanager.data.model.GoalItem updatedGoal, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        if (database != null) {
+            if (database.goals == null) database.goals = new java.util.ArrayList<>();
+
+            // If name changed, check uniqueness
+            if (!oldGoalName.trim().equalsIgnoreCase(updatedGoal.name.trim())) {
+                for (com.samiy.financemanager.data.model.GoalItem existing : database.goals) {
+                    if (existing != null && existing.name != null && existing.name.trim().equalsIgnoreCase(updatedGoal.name.trim())) {
+                        mainHandler.post(() -> {
+                            if (callback != null) callback.onError("A goal named '" + updatedGoal.name + "' already exists");
+                        });
+                        return;
+                    }
+                }
+            }
+
+            // Allocation <= 100% check across existing goals (excluding oldGoalName)
+            String allocError = CalculationEngine.validateGoalAllocations(updatedGoal, database.goals);
+            if (allocError != null) {
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(allocError);
+                });
+                return;
+            }
+
+            // Optimistic in-memory update
+            boolean found = false;
+            for (int i = 0; i < database.goals.size(); i++) {
+                com.samiy.financemanager.data.model.GoalItem g = database.goals.get(i);
+                if (g != null && g.name != null && g.name.trim().equalsIgnoreCase(oldGoalName.trim())) {
+                    database.goals.set(i, updatedGoal);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                database.goals.add(updatedGoal);
+            }
+            CalculationEngine.recalculate(database);
+            saveLocalCache();
+            notifySyncListeners();
+        }
+
+        notifySyncStarted("Updating goal '" + updatedGoal.name + "'...");
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updateGoal");
+                postBody.addProperty("oldName", oldGoalName);
+
+                JsonObject goalObj = new JsonObject();
+                goalObj.addProperty("name", updatedGoal.name);
+                goalObj.addProperty("targetAmount", updatedGoal.targetAmount);
+                goalObj.addProperty("currentAmount", updatedGoal.currentAmount);
+                goalObj.addProperty("contributionJson", updatedGoal.contributionJson != null ? updatedGoal.contributionJson : "{}");
+
+                postBody.add("goal", goalObj);
+
+                String jsonStr = gson.toJson(postBody);
+                String resp = executeHttpPost(GAS_URL, jsonStr);
+                checkJsonResponseForError(resp);
+
+                FinanceDatabase syncedDb = performSyncInternal();
+                notifySyncFinished("Goal updated successfully", false);
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating goal in Google Sheets", e);
+                notifySyncFinished("Failed to update goal: " + e.getMessage(), true);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError("Failed to update goal: " + e.getMessage());
+                });
+            }
+        });
+    }
+
     public void deleteGoal(String goalName, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {

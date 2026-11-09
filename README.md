@@ -251,6 +251,14 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
     - **Link to Bank Account**: Dynamically selects an active bank account (100% balance allocation).
     - **Link to Mutual Fund Category**: Selects a mutual fund savings category with a configurable contribution percentage (e.g. 30%).
   - Appends the new goal directly to the `Goals` sheet in Google Sheets via `action === 'addGoal'`.
+* **Edit Goal Workflow (`EditGoalBottomSheet`)**:
+  - Every goal card now provides a dedicated `[✏️ Edit]` button next to `[🗑️ Remove]`.
+  - Tapping `[✏️ Edit]` launches `EditGoalBottomSheet`, pre-populated with current Goal Name, Target Amount, Initial/Saved Funds, and linked Account/Mutual Fund allocation rules.
+  - During editing, the goal's own currently consumed percentage is dynamically exempted (`excludeGoalName = goal.name`), freeing up its capacity so the user can easily adjust percentages or switch to any other source with available capacity.
+  - Changes are updated in Google Sheets via `action === 'updateGoal'` with immediate optimistic in-memory rendering.
+* **Remaining Consumption Display & Zero-Allocation Selection Prevention (`AllocationSourceAdapter`)**:
+  - The source selection dropdowns for both Bank Accounts and Mutual Funds utilize `AllocationSourceAdapter`, dynamically displaying live remaining capacity next to each asset (e.g. `Mutual Fund • 70% available`, `PNB • 100% available`).
+  - Any source with **0% remaining capacity** (100% consumed by other goals) is flagged with `• 0% available (Fully Allocated 🔒)`, grayed out with 45% opacity, and strictly **blocked from selection** via `isEnabled(position) == false` and automatic selection reversion.
 * **Strict Multi-Goal Source Allocation Cap (x + y ≤ 100% Rule)**:
   - Across all active goals, no single asset source (Bank Account or Mutual Fund Category) can have a cumulative allocation exceeding 100% ($$\sum_{g} \text{percentage}(g, \text{source}) \le 100\%$$).
   - For example, if Goal A consumes 30% of `Mutual Fund`, any subsequent goal may consume at most the remaining 70% of `Mutual Fund`.

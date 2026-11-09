@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.2] - 2026-11-09
 
 ### Added
+- **Interactive Edit Goal Workflow (`EditGoalBottomSheet`)**:
+  - Added dedicated `[✏️ Edit]` button on each goal card in [`item_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal.xml).
+  - Designed [`dialog_edit_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_edit_goal.xml) and implemented [`EditGoalBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/EditGoalBottomSheet.java) pre-populating goal targets, accumulated balances, and linked sources.
+  - Dynamically exempts the goal's own consumed percentage during edit evaluation (`excludeGoalName`), allowing seamless percentage adjustments without false over-allocation warnings.
+  - Added `updateGoal` API endpoint in `androidscript.gs` and `FinanceRepository.java` with instant optimistic UI cache persistence.
+- **Remaining Consumption Display & Zero-Allocation Selection Prevention (`AllocationSourceAdapter`)**:
+  - Implemented [`AllocationSourceAdapter.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/adapter/AllocationSourceAdapter.java) showing exact remaining percentage next to each source (e.g. `Mutual Fund • 70% available`).
+  - Sources with 0% available are clearly labeled `• 0% available (Fully Allocated 🔒)`, dimmed with 45% opacity, and strictly disabled from selection via `isEnabled(position) == false`.
 - **Strict Multi-Goal Source Allocation Cap (x + y ≤ 100% Rule)**:
   - Enforced mathematical constraint across all goals: the sum of allocation percentages for any individual Bank Account or Mutual Fund Category across multiple goals must always be $\le 100\%$.
   - Added `getAccountAllocatedPercentage` and `getMutualFundAllocatedPercentage` in [`CalculationEngine.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/CalculationEngine.java) calculating live consumption across existing goals.

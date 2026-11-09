@@ -746,6 +746,110 @@ function doPost(e) {
       });
     }
 
+    if (action === 'updateGoal' || action === 'editGoal') {
+      const sheet = ss.getSheetByName('Goals');
+      if (!sheet) throw new Error('Goals sheet not found');
+
+      const oldName = String(data.oldName || data.oldGoalName || (data.goal && data.goal.oldName) || (data.goal && data.goal.name) || '').trim();
+      const g = data.goal || {};
+      const newName = String(g.name || g.goalName || oldName).trim();
+      if (!oldName && !newName) throw new Error('Goal Name is required');
+
+      const goalAmount = Number(g.targetAmount || g.goalAmount) || 0;
+      const currentAmount = Number(g.currentAmount || g.occuredTillDate) || 0;
+      const achieved = goalAmount > 0 ? (currentAmount / goalAmount) : 0;
+      const contributionJson = typeof g.contributionJson === 'object' ? JSON.stringify(g.contributionJson, null, 2) : String(g.contributionJson || '{}').trim();
+
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        const rowName = String(values[i][0] || '').trim();
+        if (rowName.toLowerCase() === oldName.toLowerCase() || rowName.toLowerCase() === newName.toLowerCase()) {
+          matchedRow = i + 1;
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Goal not found: ' + (oldName || newName));
+      }
+
+      // Check allocation rule: exclude matchedRow, verify all sources <= 1.0 (100%)
+      try {
+        const incomingContrib = JSON.parse(contributionJson);
+        const rows = sheet.getDataRange().getValues();
+        const accAllocations = {};
+        const mfAllocations = {};
+
+        for (let i = 1; i < rows.length; i++) {
+          if (i + 1 === matchedRow) continue; // Exclude current goal being updated!
+          const rowJsonStr = String(rows[i][4] || '').trim();
+          if (!rowJsonStr || rowJsonStr === '{}') continue;
+          try {
+            const exObj = JSON.parse(rowJsonStr);
+            if (exObj.accounts && typeof exObj.accounts === 'object') {
+              for (const acc in exObj.accounts) {
+                const cleanAcc = acc.trim().toUpperCase();
+                let p = Number(exObj.accounts[acc]) || 0;
+                if (p > 1.0) p = p / 100.0;
+                accAllocations[cleanAcc] = (accAllocations[cleanAcc] || 0) + p;
+              }
+            }
+            if (Array.isArray(exObj.mutual_funds)) {
+              for (const mf of exObj.mutual_funds) {
+                const mfVal = String(mf.value || '').trim().toLowerCase();
+                let p = Number(mf.percentage) || 1.0;
+                if (p > 1.0) p = p / 100.0;
+                mfAllocations[mfVal] = (mfAllocations[mfVal] || 0) + p;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // Validate incoming accounts
+        if (incomingContrib.accounts && typeof incomingContrib.accounts === 'object') {
+          for (const acc in incomingContrib.accounts) {
+            const cleanAcc = acc.trim().toUpperCase();
+            let p = Number(incomingContrib.accounts[acc]) || 0;
+            if (p > 1.0) p = p / 100.0;
+            const total = (accAllocations[cleanAcc] || 0) + p;
+            if (total > 1.0001) {
+              throw new Error('Total allocation for account "' + acc + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
+            }
+          }
+        }
+
+        // Validate incoming mutual funds
+        if (Array.isArray(incomingContrib.mutual_funds)) {
+          for (const mf of incomingContrib.mutual_funds) {
+            const mfVal = String(mf.value || '').trim().toLowerCase();
+            let p = Number(mf.percentage) || 1.0;
+            if (p > 1.0) p = p / 100.0;
+            const total = (mfAllocations[mfVal] || 0) + p;
+            if (total > 1.0001) {
+              throw new Error('Total allocation for mutual fund "' + (mf.value || '') + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
+            }
+          }
+        }
+      } catch (err) {
+        if (err.message && err.message.indexOf('Total allocation') !== -1) {
+          throw err;
+        }
+      }
+
+      sheet.getRange(matchedRow, 1).setValue(newName);
+      sheet.getRange(matchedRow, 2).setValue(goalAmount);
+      sheet.getRange(matchedRow, 3).setValue(currentAmount);
+      sheet.getRange(matchedRow, 4).setValue(achieved);
+      sheet.getRange(matchedRow, 5).setValue(contributionJson);
+      SpreadsheetApp.flush();
+
+      return jsonResponse({
+        status: 'success',
+        message: 'Goal "' + newName + '" updated successfully'
+      });
+    }
+
     if (action === 'deleteGoal') {
       const sheet = ss.getSheetByName('Goals');
       if (!sheet) throw new Error('Goals sheet not found');
