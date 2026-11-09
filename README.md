@@ -251,6 +251,13 @@ The SIP Tracer tracks systematic investment commitments across multiple platform
     - **Link to Bank Account**: Dynamically selects an active bank account (100% balance allocation).
     - **Link to Mutual Fund Category**: Selects a mutual fund savings category with a configurable contribution percentage (e.g. 30%).
   - Appends the new goal directly to the `Goals` sheet in Google Sheets via `action === 'addGoal'`.
+* **Goal Contribution Breakdown Modal (`GoalContributionBottomSheet`)**:
+  - Every goal card features a prominent `[📊 View Contribution Breakdown]` button, and tapping the contribution summary pill (`tvGoalSavingAllocation`) also opens the breakdown.
+  - Tapping this launches `GoalContributionBottomSheet`, which provides complete transparency into how the goal's accumulated funds are calculated:
+    - **Milestone Overview**: Target Goal, Accumulated Funds, Progress Bar, Percentage Achieved, and remaining rupee amount needed to hit target.
+    - **Itemized Source Breakdown**: Each contributing source (Bank Account, Mutual Fund category, or Manual Savings) is rendered with its live asset balance/valuation, allocation percentage, and net rupee contribution.
+    - **Underlying Holdings Drill-Down**: For Mutual Fund allocations, every individual fund scheme in the category is itemized with its scheme name, market valuation, and calculated rupee share contributed to the goal.
+    - **Direct Quick Actions**: Includes `[✏️ Edit Goal]` to immediately jump into editing the goal's targets/allocations and `[Done]` to dismiss.
 * **Edit Goal Workflow (`EditGoalBottomSheet`)**:
   - Every goal card now provides a dedicated `[✏️ Edit]` button next to `[🗑️ Remove]`.
   - Tapping `[✏️ Edit]` launches `EditGoalBottomSheet`, pre-populated with current Goal Name, Target Amount, Initial/Saved Funds, and linked Account/Mutual Fund allocation rules.

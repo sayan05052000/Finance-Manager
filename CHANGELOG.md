@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.2] - 2026-11-09
 
 ### Added
+- **Interactive Goal Contribution Breakdown Modal (`GoalContributionBottomSheet`)**:
+  - Added full-width interactive `[📊 View Contribution Breakdown]` action button to every financial goal card in [`item_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal.xml) and made `tvGoalSavingAllocation` clickable.
+  - Implemented [`GoalContributionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/GoalContributionBottomSheet.java) and [`dialog_goal_contribution.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_goal_contribution.xml) displaying:
+    - Target amount, accumulated balance, visual progress bar, percentage achieved, and exact remaining amount required to reach target.
+    - Itemized breakdown of all contributing sources (Bank Accounts, Mutual Fund categories/types, or Initial/Manual savings) with live balance, percentage allocation, and net contributed rupee value.
+    - Underlying Mutual Fund holdings drill-down showing individual fund scheme names, current market valuations, and their respective rupee contributions to the goal.
+    - Quick action shortcuts: `[✏️ Edit Goal]` to directly modify target/allocations and `[Done]` to dismiss.
+  - Added `getGoalContributionBreakdown(GoalItem g, FinanceDatabase db)` and `HoldingContributionDetail` in [`CalculationEngine.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/CalculationEngine.java).
 - **Interactive Edit Goal Workflow (`EditGoalBottomSheet`)**:
   - Added dedicated `[✏️ Edit]` button on each goal card in [`item_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_goal.xml).
   - Designed [`dialog_edit_goal.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_edit_goal.xml) and implemented [`EditGoalBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/EditGoalBottomSheet.java) pre-populating goal targets, accumulated balances, and linked sources.

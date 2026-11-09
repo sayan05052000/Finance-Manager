@@ -430,6 +430,136 @@ public class CalculationEngine {
         }
     }
 
+    public static class HoldingContributionDetail {
+        public String schemeName;
+        public double currentValue;
+        public double contributedValue;
+    }
+
+    public static class GoalContributionItem {
+        public String sourceName;
+        public String sourceType; // "Bank Account", "Mutual Fund", "Manual Tracking"
+        public double sourceTotal;
+        public double allocationPercentage; // 0 to 100
+        public double contributedAmount;
+        public List<HoldingContributionDetail> holdingDetails = new ArrayList<>();
+    }
+
+    public static List<GoalContributionItem> getGoalContributionBreakdown(GoalItem g, FinanceDatabase db) {
+        List<GoalContributionItem> items = new ArrayList<>();
+        if (g == null) return items;
+
+        if (g.contributionJson == null || g.contributionJson.trim().isEmpty() || g.contributionJson.trim().equals("{}")) {
+            if (g.currentAmount > 0) {
+                GoalContributionItem item = new GoalContributionItem();
+                item.sourceName = "Initial / Manual Savings";
+                item.sourceType = "Manual Tracking";
+                item.sourceTotal = g.currentAmount;
+                item.allocationPercentage = 100.0;
+                item.contributedAmount = g.currentAmount;
+                items.add(item);
+            }
+            return items;
+        }
+
+        try {
+            JsonObject obj = JsonParser.parseString(g.contributionJson).getAsJsonObject();
+
+            // 1. Accounts
+            if (obj.has("accounts") && obj.get("accounts").isJsonObject() && db != null && db.accounts != null) {
+                JsonObject accs = obj.getAsJsonObject("accounts");
+                Map<String, Double> accBalances = new HashMap<>();
+                for (Account a : db.accounts) {
+                    if (a != null && a.name != null) {
+                        accBalances.put(a.name.trim().toUpperCase(Locale.US), a.currentBalance);
+                    }
+                }
+                for (String accName : accs.keySet()) {
+                    double pct = 1.0;
+                    try {
+                        pct = accs.get(accName).getAsDouble();
+                    } catch (Exception ignored) {}
+                    Double bal = accBalances.get(accName.trim().toUpperCase(Locale.US));
+                    double balanceVal = (bal != null) ? bal : 0.0;
+                    double pctPoints = (pct <= 1.0) ? pct * 100.0 : pct;
+                    double contributed = balanceVal * (pctPoints / 100.0);
+
+                    GoalContributionItem item = new GoalContributionItem();
+                    item.sourceName = accName;
+                    item.sourceType = "Bank Account";
+                    item.sourceTotal = balanceVal;
+                    item.allocationPercentage = pctPoints;
+                    item.contributedAmount = Math.round(contributed * 100.0) / 100.0;
+                    items.add(item);
+                }
+            }
+
+            // 2. Mutual Funds
+            if (obj.has("mutual_funds") && obj.get("mutual_funds").isJsonArray() && db != null && db.holdings != null) {
+                JsonArray mfs = obj.getAsJsonArray("mutual_funds");
+                for (JsonElement elem : mfs) {
+                    if (!elem.isJsonObject()) continue;
+                    JsonObject rule = elem.getAsJsonObject();
+                    String col = rule.has("column") ? rule.get("column").getAsString().trim().toLowerCase(Locale.US) : "";
+                    String val = rule.has("value") ? rule.get("value").getAsString().trim().toLowerCase(Locale.US) : "";
+                    double pct = 1.0;
+                    if (rule.has("percentage")) {
+                        try {
+                            pct = rule.get("percentage").getAsDouble();
+                        } catch (Exception ignored) {}
+                    }
+                    double pctPoints = (pct <= 1.0) ? pct * 100.0 : pct;
+
+                    GoalContributionItem item = new GoalContributionItem();
+                    item.sourceName = rule.has("value") ? rule.get("value").getAsString().trim() : "Mutual Fund";
+                    item.sourceType = "Mutual Fund (" + (rule.has("column") ? rule.get("column").getAsString().trim() : "Type") + ")";
+                    item.allocationPercentage = pctPoints;
+
+                    double categoryTotal = 0.0;
+                    for (Holding h : db.holdings) {
+                        if (h == null) continue;
+                        boolean match = false;
+                        if (col.contains("catgory") || col.contains("category")) {
+                            if (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val)) match = true;
+                        } else if (col.contains("type")) {
+                            if (h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) match = true;
+                        } else {
+                            if ((h.savingsType != null && h.savingsType.trim().equalsIgnoreCase(val)) ||
+                                (h.savingsCategory != null && h.savingsCategory.trim().equalsIgnoreCase(val))) {
+                                match = true;
+                            }
+                        }
+
+                        if (match) {
+                            categoryTotal += h.currentValue;
+                            HoldingContributionDetail detail = new HoldingContributionDetail();
+                            detail.schemeName = (h.schemeName != null && !h.schemeName.trim().isEmpty()) ? h.schemeName.trim() : "Fund Holding";
+                            detail.currentValue = h.currentValue;
+                            detail.contributedValue = Math.round(h.currentValue * (pctPoints / 100.0) * 100.0) / 100.0;
+                            item.holdingDetails.add(detail);
+                        }
+                    }
+
+                    item.sourceTotal = categoryTotal;
+                    item.contributedAmount = Math.round(categoryTotal * (pctPoints / 100.0) * 100.0) / 100.0;
+                    items.add(item);
+                }
+            }
+
+            if (items.isEmpty() && g.currentAmount > 0) {
+                GoalContributionItem item = new GoalContributionItem();
+                item.sourceName = "Initial / Manual Savings";
+                item.sourceType = "Manual Tracking";
+                item.sourceTotal = g.currentAmount;
+                item.allocationPercentage = 100.0;
+                item.contributedAmount = g.currentAmount;
+                items.add(item);
+            }
+        } catch (Exception ignored) {}
+
+        return items;
+    }
+
     /**
      * Calculates the total percentage (0 to 100) allocated to a specific bank account across all existing goals.
      */

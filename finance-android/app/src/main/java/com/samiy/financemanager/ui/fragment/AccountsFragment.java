@@ -925,6 +925,20 @@ public class AccountsFragment extends Fragment {
             tvAchievedPercent.setText(String.format(Locale.US, "%.1f%% Achieved", g.achievedPercent));
             tvSavingAllocation.setText(g.getContributionSummary());
 
+            View btnViewContribution = itemView.findViewById(R.id.btnViewContribution);
+            if (btnViewContribution != null) {
+                btnViewContribution.setOnClickListener(vItem -> {
+                    com.samiy.financemanager.ui.dialog.GoalContributionBottomSheet sheet = com.samiy.financemanager.ui.dialog.GoalContributionBottomSheet.newInstance(g);
+                    sheet.show(getChildFragmentManager(), "contrib_" + g.name);
+                });
+            }
+            if (tvSavingAllocation != null) {
+                tvSavingAllocation.setOnClickListener(vItem -> {
+                    com.samiy.financemanager.ui.dialog.GoalContributionBottomSheet sheet = com.samiy.financemanager.ui.dialog.GoalContributionBottomSheet.newInstance(g);
+                    sheet.show(getChildFragmentManager(), "contrib_" + g.name);
+                });
+            }
+
             if (btnRemoveGoal != null) {
                 btnRemoveGoal.setOnClickListener(vItem -> {
                     new androidx.appcompat.app.AlertDialog.Builder(requireContext())

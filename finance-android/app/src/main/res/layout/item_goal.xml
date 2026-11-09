@@ -157,4 +157,21 @@
             android:maxLines="1" />
     </LinearLayout>
 
+    <!-- Action Button: View Contribution Breakdown -->
+    <TextView
+        android:id="@+id/btnViewContribution"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_pill_dark"
+        android:gravity="center"
+        android:text="📊 View Contribution Breakdown"
+        android:textColor="@color/green_mint"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:paddingTop="7dp"
+        android:paddingBottom="7dp"
+        android:clickable="true"
+        android:focusable="true" />
+
 </LinearLayout>
