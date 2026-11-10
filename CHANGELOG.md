@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.3] - 2026-11-10
 
 ### Added
+- **Sequential Queue & Atomic Revalidation Architecture for Concurrent Updates Across the Entire Project**:
+  - **Single-Threaded FIFO Mutation Queue**:
+    - Centralized all 16 write mutations (`addTransaction`, `deleteTransaction`, `updateSipStatus`, `updateSip`, `addSip`, `deleteSip`, `addMutualFundTransaction`, `updatePolicy`, `addPolicy`, `addCreditCard`, `updateCreditCard`, `markCreditCardBillGenerated`, `markCreditCardPaid`, `addGoal`, `updateGoal`, `deleteGoal`) in [`FinanceRepository.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/FinanceRepository.java) via a unified `QueuedMutation` interface and `enqueueMutation()` worker pipeline.
+    - If two or more updates are initiated simultaneously or in rapid succession, Request 1 executes to completion, posts to Google Sheets, triggers formula recalculations, flushes, and executes a full resync before Request 2 begins.
+  - **Pre-Execution Atomic Revalidation**:
+    - Every queued operation implements `revalidate(FinanceDatabase currentDb)` which evaluates against the freshly resynced database right before execution.
+    - If a concurrent change rendered Request 2 invalid (e.g. goal allocation exceeding 100%, deleting an already removed transaction/SIP, duplicate entries, generating bills with zero unbilled balance, or paying an already cleared card/SIP), Request 2 safely rejects with a descriptive user-facing error message without making corrupted writes to Google Sheets.
+    - Dynamic calculations (such as entity running remainders, max transaction IDs, and credit card unbilled reversals) are calculated against the fresh post-sync state.
+  - **Atomic Google Apps Script Concurrency Locking (`androidscript.gs`)**:
+    - Integrated `LockService.getScriptLock()` with `waitLock(30000)` and a `finally { lock.releaseLock(); }` block at the entry point of `doPost(e)`.
+    - Serializes concurrent network requests at the server level, preventing parallel Google Sheets write races and ensuring complete atomic recalculation on the backend.
 - **Universal Automatic Sheet Post Mutation Resync Across the Entire Project**:
   - **Google Apps Script Backend (`androidscript.gs`)**:
     - Centralized `runCalculationScriptsAndFlush()` executing `calculateRemainders()`, `processTransactionsRows()`, `processMutualFunds()`, and `SpreadsheetApp.flush()`.

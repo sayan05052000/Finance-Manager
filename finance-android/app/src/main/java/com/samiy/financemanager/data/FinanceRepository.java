@@ -17,9 +17,15 @@ import com.samiy.financemanager.auth.GoogleAuthManager;
 import com.samiy.financemanager.data.model.CategoryItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.FinanceDatabase;
-import com.samiy.financemanager.data.model.Transaction;
-import com.samiy.financemanager.data.model.InsurancePolicy;
+import com.samiy.financemanager.data.model.Account;
+import com.samiy.financemanager.data.model.CreditCard;
 import com.samiy.financemanager.data.model.GoalItem;
+import com.samiy.financemanager.data.model.Holding;
+import com.samiy.financemanager.data.model.InsurancePolicy;
+import com.samiy.financemanager.data.model.Loan;
+import com.samiy.financemanager.data.model.MutualFundTransaction;
+import com.samiy.financemanager.data.model.SipItem;
+import com.samiy.financemanager.data.model.Transaction;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -348,6 +354,103 @@ public class FinanceRepository {
         });
     }
 
+    /**
+     * Interface representing an atomic mutation that executes sequentially in a queue.
+     * Before execution, it is revalidated against the freshly synced in-memory database.
+     */
+    public interface QueuedMutation {
+        String getActionName();
+
+        /**
+         * Revalidates this operation against the fresh database state (after any previous
+         * queued mutations have completed and resynced).
+         *
+         * @param currentDb the latest database state in memory.
+         * @return null if validation succeeds, or a user-facing error message if validation fails.
+         */
+        String revalidate(FinanceDatabase currentDb);
+
+        /**
+         * Prepares the mutation using the latest database state, posts to Google Apps Script,
+         * triggers sheet recalculation, flushes, and performs a complete resync.
+         *
+         * @param currentDb the latest database state in memory.
+         * @return the newly resynced FinanceDatabase.
+         */
+        FinanceDatabase execute(FinanceDatabase currentDb) throws Exception;
+
+        void onSuccess(FinanceDatabase syncedDb);
+
+        void onError(String errorMessage);
+    }
+
+    /**
+     * Enqueues a mutation onto the single-thread background worker queue.
+     * Ensures strict FIFO execution: each mutation waits for the preceding mutation
+     * to completely execute, trigger Google Sheets calculation, and resync the entire database.
+     * Before executing, the mutation revalidates against the updated database state.
+     */
+    private void enqueueMutation(String startMessage, QueuedMutation mutation) {
+        notifySyncStarted(startMessage);
+        executor.execute(() -> {
+            try {
+                // Ensure in-memory database is initialized
+                if (this.database == null) {
+                    loadLocalCache();
+                    if (this.database == null) {
+                        performSyncInternal();
+                    }
+                }
+                FinanceDatabase currentDb = this.database;
+
+                // 1. REVALIDATION STEP against the latest database
+                String validationError = mutation.revalidate(currentDb);
+                if (validationError != null && !validationError.trim().isEmpty()) {
+                    Log.w(TAG, "Revalidation failed for " + mutation.getActionName() + ": " + validationError);
+                    notifySyncFinished(validationError, true);
+                    mainHandler.post(() -> mutation.onError(validationError));
+                    return;
+                }
+
+                // 2. EXECUTE MUTATION & RESYNC
+                FinanceDatabase syncedDb = mutation.execute(currentDb);
+
+                // 3. SUCCESS NOTIFICATION
+                notifySyncFinished(mutation.getActionName() + " completed successfully", false);
+                mainHandler.post(() -> mutation.onSuccess(syncedDb != null ? syncedDb : this.database));
+            } catch (Exception e) {
+                Log.e(TAG, "Error executing queued mutation: " + mutation.getActionName(), e);
+                notifySyncFinished("Failed to " + mutation.getActionName() + ": " + e.getMessage(), true);
+                mainHandler.post(() -> mutation.onError(e.getMessage() != null ? e.getMessage() : "Unknown error"));
+            }
+        });
+    }
+
+    public void updateEntityBalance(String entityName, double delta) {
+        updateEntityBalance(this.database, entityName, delta);
+    }
+
+    public void updateEntityBalance(FinanceDatabase targetDb, String entityName, double delta) {
+        if (targetDb == null || entityName == null || entityName.trim().isEmpty() || delta == 0) return;
+        String name = entityName.trim();
+        if (targetDb.accounts != null) {
+            for (Account a : targetDb.accounts) {
+                if (a != null && a.name != null && a.name.trim().equalsIgnoreCase(name)) {
+                    a.currentBalance = Math.round((a.currentBalance + delta) * 100.0) / 100.0;
+                    return;
+                }
+            }
+        }
+        if (targetDb.loans != null) {
+            for (Loan l : targetDb.loans) {
+                if (l != null && l.name != null && l.name.trim().equalsIgnoreCase(name)) {
+                    l.outstanding = Math.round((l.outstanding + delta) * 100.0) / 100.0;
+                    return;
+                }
+            }
+        }
+    }
+
     public void addTransaction(Transaction tx, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
@@ -356,94 +459,102 @@ public class FinanceRepository {
             return;
         }
 
-        // Ensure net is accurately computed
-        double netVal = (tx.credit > 0 ? tx.credit : 0) + 
-                (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
-        tx.net = netVal;
+        enqueueMutation("Adding transaction to Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "add transaction";
+            }
 
-        if (tx.year == 0 || tx.month == 0) {
-            if (tx.date != null && tx.date.contains("/")) {
-                String[] p = tx.date.trim().split("/");
-                if (p.length == 3) {
-                    try {
-                        int d = Integer.parseInt(p[0].trim());
-                        int m = Integer.parseInt(p[1].trim());
-                        int y = Integer.parseInt(p[2].trim());
-                        if (d < 6) {
-                            if (m == 1) { m = 12; y = y - 1; }
-                            else { m = m - 1; }
-                        }
-                        if (tx.year == 0) tx.year = y;
-                        if (tx.month == 0) tx.month = m;
-                    } catch (Exception ignored) {}
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (tx == null) {
+                    return "Transaction cannot be empty";
                 }
-            }
-        }
-
-        // Pre-append to local database for immediate UI responsiveness
-        if (database != null) {
-            if (database.transactions == null) {
-                database.transactions = new java.util.ArrayList<>();
-            }
-            tx.id = System.currentTimeMillis();
-
-            // Calculate running remainder for the entity (Account or Loan)
-            String entity = tx.account != null && !tx.account.trim().isEmpty() ? tx.account.trim() : (tx.loans != null ? tx.loans.trim() : "");
-            if (!entity.isEmpty()) {
-                double prevRem = 0;
-                boolean foundPrev = false;
-                for (Transaction t : database.transactions) {
-                    String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
-                    if (tEntity.equalsIgnoreCase(entity)) {
-                        prevRem = t.remainder;
-                        foundPrev = true;
-                        break;
+                if (tx.date == null || tx.date.trim().isEmpty()) {
+                    return "Transaction date is required";
+                }
+                double netVal = (tx.credit > 0 ? tx.credit : 0) +
+                        (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
+                if (netVal == 0 && tx.credit == 0 && tx.debit == 0 && tx.debitWithoutSign == 0) {
+                    return "Transaction amount must be greater than zero";
+                }
+                if (tx.taggedCreditCard != null && !tx.taggedCreditCard.trim().isEmpty() && currentDb != null && currentDb.creditCards != null) {
+                    boolean foundCard = false;
+                    for (CreditCard cc : currentDb.creditCards) {
+                        if (cc != null && cc.cardName != null && cc.cardName.trim().equalsIgnoreCase(tx.taggedCreditCard.trim())) {
+                            foundCard = true;
+                            break;
+                        }
+                    }
+                    if (!foundCard) {
+                        return "Tagged credit card '" + tx.taggedCreditCard + "' does not exist";
                     }
                 }
-                if (!foundPrev) {
-                    if (database.accounts != null) {
-                        for (com.samiy.financemanager.data.model.Account a : database.accounts) {
-                            if (a != null && a.name != null && a.name.trim().equalsIgnoreCase(entity)) {
-                                prevRem = a.currentBalance;
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                // Ensure net is accurately computed
+                double netVal = (tx.credit > 0 ? tx.credit : 0) +
+                        (tx.debit != 0 ? tx.debit : (tx.debitWithoutSign > 0 ? -tx.debitWithoutSign : 0));
+                tx.net = netVal;
+
+                if (tx.year == 0 || tx.month == 0) {
+                    if (tx.date != null && tx.date.contains("/")) {
+                        String[] p = tx.date.trim().split("/");
+                        if (p.length == 3) {
+                            try {
+                                int d = Integer.parseInt(p[0].trim());
+                                int m = Integer.parseInt(p[1].trim());
+                                int y = Integer.parseInt(p[2].trim());
+                                if (d < 6) {
+                                    if (m == 1) { m = 12; y = y - 1; }
+                                    else { m = m - 1; }
+                                }
+                                if (tx.year == 0) tx.year = y;
+                                if (tx.month == 0) tx.month = m;
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+
+                // Calculate running remainder for the entity against currentDb
+                String entity = tx.account != null && !tx.account.trim().isEmpty() ? tx.account.trim() : (tx.loans != null ? tx.loans.trim() : "");
+                if (!entity.isEmpty() && currentDb != null) {
+                    double prevRem = 0;
+                    boolean foundPrev = false;
+                    if (currentDb.transactions != null) {
+                        for (Transaction t : currentDb.transactions) {
+                            String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
+                            if (tEntity.equalsIgnoreCase(entity)) {
+                                prevRem = t.remainder;
+                                foundPrev = true;
                                 break;
                             }
                         }
                     }
-                    if (database.loans != null) {
-                        for (com.samiy.financemanager.data.model.Loan l : database.loans) {
-                            if (l != null && l.name != null && l.name.trim().equalsIgnoreCase(entity)) {
-                                prevRem = l.outstanding;
-                                break;
+                    if (!foundPrev) {
+                        if (currentDb.accounts != null) {
+                            for (Account a : currentDb.accounts) {
+                                if (a != null && a.name != null && a.name.trim().equalsIgnoreCase(entity)) {
+                                    prevRem = a.currentBalance;
+                                    break;
+                                }
+                            }
+                        }
+                        if (currentDb.loans != null) {
+                            for (Loan l : currentDb.loans) {
+                                if (l != null && l.name != null && l.name.trim().equalsIgnoreCase(entity)) {
+                                    prevRem = l.outstanding;
+                                    break;
+                                }
                             }
                         }
                     }
+                    tx.remainder = Math.round((prevRem + netVal) * 100.0) / 100.0;
                 }
-                tx.remainder = Math.round((prevRem + netVal) * 100.0) / 100.0;
-                updateEntityBalance(entity, netVal);
-            }
 
-            // If tagged to a credit card, update its local unbilled amount
-            if (tx.taggedCreditCard != null && !tx.taggedCreditCard.trim().isEmpty() && database.creditCards != null) {
-                for (com.samiy.financemanager.data.model.CreditCard cc : database.creditCards) {
-                    if (cc != null && cc.cardName != null && cc.cardName.trim().equalsIgnoreCase(tx.taggedCreditCard.trim())) {
-                        double delta = (tx.debitWithoutSign > 0) ? (tx.debitWithoutSign - tx.credit) : -tx.credit;
-                        if (delta == 0 && tx.net != 0) delta = Math.abs(tx.net);
-                        cc.unbilledAmount = Math.max(0, Math.round((cc.unbilledAmount + delta) * 100.0) / 100.0);
-                        break;
-                    }
-                }
-            }
-
-            database.transactions.add(0, tx);
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        }
-
-
-        notifySyncStarted("Adding transaction to Google Sheets...");
-        executor.execute(() -> {
-            try {
                 JsonObject payload = new JsonObject();
                 payload.addProperty("action", "addTransaction");
                 JsonObject txObj = new JsonObject();
@@ -457,10 +568,13 @@ public class FinanceRepository {
                 if (tx.debit != 0) txObj.addProperty("debit", tx.debit);
                 else if (tx.debitWithoutSign != 0) txObj.addProperty("debit", -Math.abs(tx.debitWithoutSign));
                 else txObj.addProperty("debit", "");
+
                 if (tx.net != 0) txObj.addProperty("net", tx.net);
                 else txObj.addProperty("net", "");
+
                 if (tx.remainder != 0) txObj.addProperty("remainder", tx.remainder);
                 else txObj.addProperty("remainder", "");
+
                 txObj.addProperty("type", tx.type);
                 txObj.addProperty("category", ""); // automatically decided inside sheet
                 txObj.addProperty("subCategory", tx.subCategory);
@@ -474,41 +588,19 @@ public class FinanceRepository {
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
-                FinanceDatabase syncedDb = executePostAndSync(postBody);
-                notifySyncFinished("Transaction added successfully", false);
+                return executePostAndSync(postBody);
+            }
 
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error posting transaction to Google Sheets", e);
-                notifySyncFinished("Failed to sync to sheet: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to sync to sheet: " + e.getMessage());
-                });
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
-    }
-
-    private void updateEntityBalance(String entityName, double delta) {
-        if (database == null || entityName == null || entityName.trim().isEmpty() || delta == 0) return;
-        String name = entityName.trim();
-        if (database.accounts != null) {
-            for (com.samiy.financemanager.data.model.Account a : database.accounts) {
-                if (a != null && a.name != null && a.name.trim().equalsIgnoreCase(name)) {
-                    a.currentBalance = Math.round((a.currentBalance + delta) * 100.0) / 100.0;
-                    return;
-                }
-            }
-        }
-        if (database.loans != null) {
-            for (com.samiy.financemanager.data.model.Loan l : database.loans) {
-                if (l != null && l.name != null && l.name.trim().equalsIgnoreCase(name)) {
-                    l.outstanding = Math.round((l.outstanding + delta) * 100.0) / 100.0;
-                    return;
-                }
-            }
-        }
     }
 
     public void deleteTransaction(long transactionId, DataCallback callback) {
@@ -519,87 +611,58 @@ public class FinanceRepository {
             return;
         }
 
-        // Remove from local database immediately and adjust remainders
-        final Transaction removedTx;
-        final String cardNameForReversal;
-        if (database != null && database.transactions != null) {
-            Transaction toRemove = null;
-            int foundIdx = -1;
-            for (int i = 0; i < database.transactions.size(); i++) {
-                if (database.transactions.get(i).id == transactionId) {
-                    toRemove = database.transactions.get(i);
-                    foundIdx = i;
-                    break;
-                }
+        enqueueMutation("Deleting transaction from Google Sheets...", new QueuedMutation() {
+            private Transaction toRemove = null;
+            private String cardNameForReversal = "";
+
+            @Override
+            public String getActionName() {
+                return "delete transaction";
             }
 
-            if (foundIdx != -1 && toRemove != null) {
-                removedTx = toRemove;
-                double net = (toRemove.credit > 0 ? toRemove.credit : 0) + 
-                        (toRemove.debit != 0 ? toRemove.debit : (toRemove.debitWithoutSign > 0 ? -toRemove.debitWithoutSign : 0));
-                String entity = toRemove.account != null && !toRemove.account.trim().isEmpty() 
-                        ? toRemove.account.trim() : (toRemove.loans != null ? toRemove.loans.trim() : "");
-                if (!entity.isEmpty()) {
-                    for (Transaction t : database.transactions) {
-                        String tEntity = t.account != null && !t.account.trim().isEmpty() ? t.account.trim() : (t.loans != null ? t.loans.trim() : "");
-                        if (tEntity.equalsIgnoreCase(entity) && t.id > toRemove.id) {
-                            t.remainder = Math.round((t.remainder - net) * 100.0) / 100.0;
-                        }
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (currentDb == null || currentDb.transactions == null) {
+                    return "No transactions found in current database";
+                }
+                toRemove = null;
+                for (Transaction t : currentDb.transactions) {
+                    if (t.id == transactionId) {
+                        toRemove = t;
+                        break;
                     }
-                    updateEntityBalance(entity, -net);
+                }
+                if (toRemove == null) {
+                    return "Transaction #" + transactionId + " does not exist or was already deleted";
                 }
 
-                // Reverse credit card unbilled amount if tagged
                 String targetCard = toRemove.taggedCreditCard != null ? toRemove.taggedCreditCard.trim() : "";
                 if (targetCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(toRemove.loans != null ? toRemove.loans.trim() : "")) {
-                    if (database.creditCards != null && database.creditCards.size() == 1) {
-                        targetCard = database.creditCards.get(0).cardName;
+                    if (currentDb.creditCards != null && currentDb.creditCards.size() == 1) {
+                        targetCard = currentDb.creditCards.get(0).cardName;
                     }
                 }
                 cardNameForReversal = targetCard;
-
-                if (!targetCard.isEmpty() && database.creditCards != null) {
-                    double delta = (toRemove.debitWithoutSign > 0) ? (toRemove.debitWithoutSign - toRemove.credit) : -toRemove.credit;
-                    if (delta == 0 && toRemove.net != 0) delta = Math.abs(toRemove.net);
-                    for (com.samiy.financemanager.data.model.CreditCard cc : database.creditCards) {
-                        if (cc != null && cc.cardName != null && cc.cardName.trim().equalsIgnoreCase(targetCard)) {
-                            cc.unbilledAmount = Math.max(0, Math.round((cc.unbilledAmount - delta) * 100.0) / 100.0);
-                            break;
-                        }
-                    }
-                }
-
-                database.transactions.remove(foundIdx);
-            } else {
-                removedTx = null;
-                cardNameForReversal = "";
+                return null;
             }
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        } else {
-            removedTx = null;
-            cardNameForReversal = "";
-        }
 
-        notifySyncStarted("Deleting transaction from Google Sheets...");
-        executor.execute(() -> {
-            try {
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject payload = new JsonObject();
                 payload.addProperty("action", "deleteTransaction");
                 payload.addProperty("id", transactionId);
 
-                if (removedTx != null) {
+                if (toRemove != null) {
                     JsonObject txObj = new JsonObject();
                     txObj.addProperty("id", transactionId);
-                    txObj.addProperty("date", removedTx.date);
-                    txObj.addProperty("subCategory", removedTx.subCategory);
-                    txObj.addProperty("loans", removedTx.loans);
-                    txObj.addProperty("account", removedTx.account);
-                    txObj.addProperty("debitWithoutSign", removedTx.debitWithoutSign);
-                    txObj.addProperty("credit", removedTx.credit);
-                    txObj.addProperty("debit", removedTx.debit);
-                    txObj.addProperty("net", removedTx.net);
+                    txObj.addProperty("date", toRemove.date);
+                    txObj.addProperty("subCategory", toRemove.subCategory);
+                    txObj.addProperty("loans", toRemove.loans);
+                    txObj.addProperty("account", toRemove.account);
+                    txObj.addProperty("debitWithoutSign", toRemove.debitWithoutSign);
+                    txObj.addProperty("credit", toRemove.credit);
+                    txObj.addProperty("debit", toRemove.debit);
+                    txObj.addProperty("net", toRemove.net);
                     if (!cardNameForReversal.isEmpty()) {
                         txObj.addProperty("taggedCreditCard", cardNameForReversal);
                     }
@@ -607,18 +670,17 @@ public class FinanceRepository {
                 }
 
                 String postBody = gson.toJson(payload);
-                FinanceDatabase syncedDb = executePostAndSync(postBody);
-                notifySyncFinished("Transaction deleted successfully", false);
+                return executePostAndSync(postBody);
+            }
 
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error deleting transaction from Google Sheets", e);
-                notifySyncFinished("Failed to delete transaction: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to delete from sheet: " + e.getMessage());
-                });
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
@@ -631,47 +693,61 @@ public class FinanceRepository {
             return;
         }
 
-        notifySyncStarted("Updating SIP status in Google Sheets...");
-        executor.execute(() -> {
-            try {
+        enqueueMutation("Updating SIP status in Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "update SIP status";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (fundName == null || fundName.trim().isEmpty()) {
+                    return "Fund name cannot be empty";
+                }
+                if (currentDb == null || currentDb.sips == null) {
+                    return "No SIPs found in database";
+                }
+                SipItem found = null;
+                for (SipItem s : currentDb.sips) {
+                    if (s != null && s.fundName != null && s.fundName.trim().equalsIgnoreCase(fundName.trim())) {
+                        found = s;
+                        break;
+                    }
+                }
+                if (found == null) {
+                    return "SIP for fund '" + fundName + "' not found in current database";
+                }
+                boolean isNext = "next".equalsIgnoreCase(targetMonth);
+                String currentStatus = isNext ? found.nextStatus : found.currentStatus;
+                if (status != null && status.equalsIgnoreCase(currentStatus)) {
+                    return "SIP for " + fundName + " (" + (isNext ? "next" : "current") + " month) is already " + status;
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject postBody = new JsonObject();
                 postBody.addProperty("action", "updateSipStatus");
                 postBody.addProperty("fundName", fundName);
                 postBody.addProperty("targetMonth", targetMonth);
                 postBody.addProperty("status", status);
+                return executePostAndSync(postBody.toString());
+            }
 
-                FinanceDatabase syncedDb = executePostAndSync(postBody.toString());
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
 
-                // Update locally
-                if (database != null && database.sips != null) {
-                    for (com.samiy.financemanager.data.model.SipItem sip : database.sips) {
-                        if (sip.fundName != null && sip.fundName.trim().equalsIgnoreCase(fundName.trim())) {
-                            if ("next".equalsIgnoreCase(targetMonth)) {
-                                sip.nextStatus = status;
-                            } else {
-                                sip.currentStatus = status;
-                            }
-                            break;
-                        }
-                    }
-                    saveLocalCache();
-                }
-
-                notifySyncFinished("SIP status updated to " + status, false);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error updating SIP status", e);
-                notifySyncFinished("Failed to update SIP status: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError(e.getMessage());
-                });
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
 
-    public void updateSip(com.samiy.financemanager.data.model.SipItem updatedSip, DataCallback callback) {
+    public void updateSip(SipItem updatedSip, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
                 if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
@@ -679,9 +755,38 @@ public class FinanceRepository {
             return;
         }
 
-        notifySyncStarted("Updating SIP details in Google Sheets...");
-        executor.execute(() -> {
-            try {
+        enqueueMutation("Updating SIP details in Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "update SIP";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (updatedSip == null || updatedSip.fundName == null || updatedSip.fundName.trim().isEmpty()) {
+                    return "SIP fund name is required";
+                }
+                if (currentDb == null || currentDb.sips == null) {
+                    return "No SIPs found in database";
+                }
+                boolean found = false;
+                for (SipItem s : currentDb.sips) {
+                    if (s != null && s.fundName != null && s.fundName.trim().equalsIgnoreCase(updatedSip.fundName.trim())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return "SIP for '" + updatedSip.fundName + "' does not exist";
+                }
+                if (updatedSip.currentSip < 0 || updatedSip.nextSip < 0) {
+                    return "SIP amount cannot be negative";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject postBody = new JsonObject();
                 postBody.addProperty("action", "updateSip");
 
@@ -697,35 +802,22 @@ public class FinanceRepository {
                 sipObj.addProperty("platform", updatedSip.platform);
                 postBody.add("sip", sipObj);
 
-                FinanceDatabase syncedDb = executePostAndSync(postBody.toString());
+                return executePostAndSync(postBody.toString());
+            }
 
-                // Update locally
-                if (database != null && database.sips != null) {
-                    for (int i = 0; i < database.sips.size(); i++) {
-                        com.samiy.financemanager.data.model.SipItem s = database.sips.get(i);
-                        if (s.fundName != null && s.fundName.trim().equalsIgnoreCase(updatedSip.fundName.trim())) {
-                            database.sips.set(i, updatedSip);
-                            break;
-                        }
-                    }
-                    saveLocalCache();
-                }
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
 
-                notifySyncFinished("SIP updated successfully", false);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error updating SIP", e);
-                notifySyncFinished("Failed to update SIP: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError(e.getMessage());
-                });
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
 
-    public void addSip(com.samiy.financemanager.data.model.SipItem newSip, DataCallback callback) {
+    public void addSip(SipItem newSip, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
                 if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
@@ -733,9 +825,32 @@ public class FinanceRepository {
             return;
         }
 
-        notifySyncStarted("Adding SIP to Google Sheets...");
-        executor.execute(() -> {
-            try {
+        enqueueMutation("Adding SIP to Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "add SIP";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (newSip == null || newSip.fundName == null || newSip.fundName.trim().isEmpty()) {
+                    return "SIP fund name is required";
+                }
+                if (currentDb != null && currentDb.sips != null) {
+                    for (SipItem s : currentDb.sips) {
+                        if (s != null && s.fundName != null && s.fundName.trim().equalsIgnoreCase(newSip.fundName.trim())) {
+                            return "A SIP for fund '" + newSip.fundName + "' already exists";
+                        }
+                    }
+                }
+                if (newSip.currentSip < 0) {
+                    return "SIP amount cannot be negative";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject postBody = new JsonObject();
                 postBody.addProperty("action", "addSip");
 
@@ -752,27 +867,17 @@ public class FinanceRepository {
                 sipObj.addProperty("platform", newSip.platform);
                 postBody.add("sip", sipObj);
 
-                FinanceDatabase syncedDb = executePostAndSync(postBody.toString());
+                return executePostAndSync(postBody.toString());
+            }
 
-                // Update locally
-                if (database != null) {
-                    if (database.sips == null) {
-                        database.sips = new java.util.ArrayList<>();
-                    }
-                    database.sips.add(newSip);
-                    saveLocalCache();
-                }
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
 
-                notifySyncFinished("SIP added successfully", false);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error adding SIP", e);
-                notifySyncFinished("Failed to add SIP: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError(e.getMessage());
-                });
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
@@ -785,42 +890,54 @@ public class FinanceRepository {
             return;
         }
 
-        notifySyncStarted("Deleting SIP from Google Sheets...");
-        executor.execute(() -> {
-            try {
+        enqueueMutation("Deleting SIP from Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "delete SIP";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (fundName == null || fundName.trim().isEmpty()) {
+                    return "SIP fund name is required";
+                }
+                if (currentDb == null || currentDb.sips == null) {
+                    return "No SIPs found in database";
+                }
+                boolean found = false;
+                for (SipItem s : currentDb.sips) {
+                    if (s != null && s.fundName != null && s.fundName.trim().equalsIgnoreCase(fundName.trim())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return "SIP for '" + fundName + "' does not exist or was already deleted";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject postBody = new JsonObject();
                 postBody.addProperty("action", "deleteSip");
                 postBody.addProperty("fundName", fundName);
+                return executePostAndSync(postBody.toString());
+            }
 
-                FinanceDatabase syncedDb = executePostAndSync(postBody.toString());
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
 
-                // Update locally
-                if (database != null && database.sips != null) {
-                    for (int i = 0; i < database.sips.size(); i++) {
-                        com.samiy.financemanager.data.model.SipItem s = database.sips.get(i);
-                        if (s.fundName != null && s.fundName.trim().equalsIgnoreCase(fundName.trim())) {
-                            database.sips.remove(i);
-                            break;
-                        }
-                    }
-                    saveLocalCache();
-                }
-
-                notifySyncFinished("SIP deleted successfully", false);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error deleting SIP", e);
-                notifySyncFinished("Failed to delete SIP: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError(e.getMessage());
-                });
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
 
-    public void addMutualFundTransaction(com.samiy.financemanager.data.model.MutualFundTransaction mfTx, DataCallback callback) {
+    public void addMutualFundTransaction(MutualFundTransaction mfTx, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {
                 if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
@@ -828,34 +945,39 @@ public class FinanceRepository {
             return;
         }
 
-        if (database != null) {
-            if (database.mutualFundTransactions == null) {
-                database.mutualFundTransactions = new java.util.ArrayList<>();
+        enqueueMutation("Recording mutual fund transaction in Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "record mutual fund transaction";
             }
-            mfTx.id = System.currentTimeMillis();
-            database.mutualFundTransactions.add(0, mfTx);
 
-            if (database.holdings != null) {
-                for (com.samiy.financemanager.data.model.Holding h : database.holdings) {
-                    if (h.schemeName.equalsIgnoreCase(mfTx.schemeName) ||
-                            (mfTx.schemeCode != null && !mfTx.schemeCode.isEmpty() && mfTx.schemeCode.equals(h.schemeCode))) {
-                        h.units += mfTx.units;
-                        h.investedValue += mfTx.amount;
-                        if (mfTx.nav > 0) h.nav = mfTx.nav;
-                        h.currentValue = h.units * (h.nav > 0 ? h.nav : h.avgBuyingNav);
-                        h.returns = h.currentValue - h.investedValue;
-                        break;
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (mfTx == null || mfTx.schemeName == null || mfTx.schemeName.trim().isEmpty()) {
+                    return "Mutual fund scheme name is required";
+                }
+                if (mfTx.units == 0) {
+                    return "Units must not be zero";
+                }
+                if (mfTx.date == null || mfTx.date.trim().isEmpty()) {
+                    return "Transaction date is required";
+                }
+                if (mfTx.units < 0 && currentDb != null && currentDb.holdings != null) {
+                    for (Holding h : currentDb.holdings) {
+                        if (h != null && (h.schemeName.equalsIgnoreCase(mfTx.schemeName) ||
+                                (mfTx.schemeCode != null && !mfTx.schemeCode.isEmpty() && mfTx.schemeCode.equals(h.schemeCode)))) {
+                            if (h.units < Math.abs(mfTx.units) - 0.0001) {
+                                return "Insufficient units to redeem: holding has " + h.units + " units, cannot redeem " + Math.abs(mfTx.units);
+                            }
+                            break;
+                        }
                     }
                 }
+                return null;
             }
 
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-        }
-
-        notifySyncStarted("Recording mutual fund transaction in Google Sheets...");
-        executor.execute(() -> {
-            try {
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject payload = new JsonObject();
                 payload.addProperty("action", "addMutualFundTransaction");
                 JsonObject txObj = new JsonObject();
@@ -893,22 +1015,20 @@ public class FinanceRepository {
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
-                FinanceDatabase syncedDb = executePostAndSync(postBody);
-                notifySyncFinished("Mutual fund transaction recorded successfully", false);
+                return executePostAndSync(postBody);
+            }
 
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error posting mutual fund transaction to Google Sheets", e);
-                notifySyncFinished("Failed to sync MF transaction: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to sync MF transaction: " + e.getMessage());
-                });
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
-
 
     public void updatePolicy(InsurancePolicy updatedPolicy, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
@@ -918,21 +1038,35 @@ public class FinanceRepository {
             return;
         }
 
-        // Update in-memory database immediately
-        if (database != null && database.insurance != null) {
-            for (InsurancePolicy p : database.insurance) {
-                if (p.policyNumber != null && p.policyNumber.equalsIgnoreCase(updatedPolicy.policyNumber)) {
-                    p.lastPaid = updatedPolicy.lastPaid;
-                    p.dueDate = updatedPolicy.dueDate;
-                    break;
-                }
+        enqueueMutation("Updating policy in Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "update policy";
             }
-            saveLocalCache();
-        }
 
-        notifySyncStarted("Updating policy in Google Sheets...");
-        executor.execute(() -> {
-            try {
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (updatedPolicy == null || updatedPolicy.policyNumber == null || updatedPolicy.policyNumber.trim().isEmpty()) {
+                    return "Policy number is required";
+                }
+                if (currentDb == null || currentDb.insurance == null) {
+                    return "No policies found in database";
+                }
+                boolean found = false;
+                for (InsurancePolicy p : currentDb.insurance) {
+                    if (p != null && p.policyNumber != null && p.policyNumber.equalsIgnoreCase(updatedPolicy.policyNumber.trim())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return "Policy '" + updatedPolicy.policyNumber + "' does not exist in database";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject postBody = new JsonObject();
                 postBody.addProperty("action", "updatePolicy");
 
@@ -944,430 +1078,17 @@ public class FinanceRepository {
                 postBody.add("policy", policyObj);
 
                 String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Policy updated successfully", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error updating policy in Google Sheets", e);
-                notifySyncFinished("Failed to update policy: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to update policy: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void addCreditCard(com.samiy.financemanager.data.model.CreditCard newCard, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        // Uniqueness check
-        if (database != null && database.creditCards != null) {
-            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
-                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(newCard.cardName.trim())) {
-                    mainHandler.post(() -> {
-                        if (callback != null) callback.onError("A credit card named '" + newCard.cardName + "' already exists");
-                    });
-                    return;
-                }
-            }
-            // Pre-append to in-memory list
-            newCard.id = database.creditCards.size() + 1;
-            database.creditCards.add(newCard);
-            saveLocalCache();
-        }
-
-        notifySyncStarted("Adding credit card to Google Sheets...");
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "addCreditCard");
-
-                JsonObject cardObj = new JsonObject();
-                cardObj.addProperty("cardName", newCard.cardName);
-                cardObj.addProperty("dueDate", newCard.dueDate);
-                cardObj.addProperty("billedAmount", newCard.billedAmount);
-
-                postBody.add("card", cardObj);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Credit card added successfully", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error adding credit card to Google Sheets", e);
-                notifySyncFinished("Failed to add credit card: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to add credit card: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void updateCreditCard(com.samiy.financemanager.data.model.CreditCard updatedCard, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        // Update in-memory database immediately
-        if (database != null && database.creditCards != null) {
-            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
-                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(updatedCard.cardName.trim())) {
-                    c.dueDate = updatedCard.dueDate;
-                    c.billedAmount = updatedCard.billedAmount;
-                    if (c.billedAmount > 0) {
-                        c.status = "Unpaid";
-                    }
-                    break;
-                }
-            }
-            saveLocalCache();
-        }
-
-        notifySyncStarted("Updating credit card in Google Sheets...");
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "updateCreditCard");
-
-                JsonObject cardObj = new JsonObject();
-                cardObj.addProperty("cardName", updatedCard.cardName);
-                cardObj.addProperty("dueDate", updatedCard.dueDate);
-                cardObj.addProperty("billedAmount", updatedCard.billedAmount);
-
-                postBody.add("card", cardObj);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Credit card updated successfully", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error updating credit card in Google Sheets", e);
-                notifySyncFinished("Failed to update credit card: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to update credit card: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void markCreditCardBillGenerated(com.samiy.financemanager.data.model.CreditCard card, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        final double billedAmountCaptured = card.unbilledAmount;
-        // Update in-memory database immediately:
-        // billedAmount = unbilledAmount, unbilledAmount = 0
-        if (database != null && database.creditCards != null) {
-            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
-                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(card.cardName.trim())) {
-                    c.billedAmount = c.unbilledAmount;
-                    c.unbilledAmount = 0.0;
-                    if (c.billedAmount > 0) {
-                        c.status = "Unpaid";
-                    }
-                    break;
-                }
-            }
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        }
-
-        notifySyncStarted("Generating bill for " + card.cardName + " in Google Sheets...");
-
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "markCreditCardBillGenerated");
-
-                JsonObject cardObj = new JsonObject();
-                cardObj.addProperty("cardName", card.cardName);
-                cardObj.addProperty("unbilledAmount", billedAmountCaptured);
-                postBody.add("card", cardObj);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished(card.cardName + " bill generated successfully!", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error generating credit card bill in Google Sheets", e);
-                notifySyncFinished("Failed to generate bill: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to generate bill: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void markCreditCardPaid(com.samiy.financemanager.data.model.CreditCard cardToPay, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        final String todayStr = new java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US).format(new java.util.Date());
-        String advancedDueDate = "";
-
-        // Update in-memory database immediately:
-        // Set billedAmount = 0, advance dueDate by 1 month, lastPaid = today, status = Paid
-        if (database != null && database.creditCards != null) {
-            for (com.samiy.financemanager.data.model.CreditCard c : database.creditCards) {
-                if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(cardToPay.cardName.trim())) {
-                    c.billedAmount = 0;
-                    c.dueDate = com.samiy.financemanager.util.DateTimeHelper.advanceDateByOneMonth(c.dueDate);
-                    advancedDueDate = c.dueDate;
-                    c.lastPaid = todayStr;
-                    c.status = "Paid";
-                    break;
-                }
-            }
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        }
-
-        notifySyncStarted("Recording payment for " + cardToPay.cardName + " in Google Sheets...");
-        final String finalNextDueDate = advancedDueDate;
-
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "markCreditCardPaid");
-
-                JsonObject cardObj = new JsonObject();
-                cardObj.addProperty("cardName", cardToPay.cardName);
-                postBody.add("card", cardObj);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished(cardToPay.cardName + " marked as paid!", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error marking credit card paid in Google Sheets", e);
-                notifySyncFinished("Failed to mark card paid: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to mark card paid: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void addGoal(com.samiy.financemanager.data.model.GoalItem newGoal, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        // Uniqueness check & Pre-append in-memory
-        if (database != null) {
-            if (database.goals == null) database.goals = new java.util.ArrayList<>();
-            for (com.samiy.financemanager.data.model.GoalItem existing : database.goals) {
-                if (existing != null && existing.name != null && existing.name.trim().equalsIgnoreCase(newGoal.name.trim())) {
-                    mainHandler.post(() -> {
-                        if (callback != null) callback.onError("A goal named '" + newGoal.name + "' already exists");
-                    });
-                    return;
-                }
+                return executePostAndSync(jsonStr);
             }
 
-            // Allocation <= 100% check across existing goals
-            String allocError = CalculationEngine.validateGoalAllocations(newGoal, database.goals);
-            if (allocError != null) {
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError(allocError);
-                });
-                return;
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
             }
 
-            database.goals.add(newGoal);
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        }
-
-        notifySyncStarted("Adding goal '" + newGoal.name + "'...");
-
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "addGoal");
-
-                JsonObject goalObj = new JsonObject();
-                goalObj.addProperty("name", newGoal.name);
-                goalObj.addProperty("targetAmount", newGoal.targetAmount);
-                goalObj.addProperty("currentAmount", newGoal.currentAmount);
-                goalObj.addProperty("contributionJson", newGoal.contributionJson != null ? newGoal.contributionJson : "{}");
-
-                postBody.add("goal", goalObj);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Goal added successfully", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error adding goal in Google Sheets", e);
-                notifySyncFinished("Failed to add goal: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to add goal: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void updateGoal(String oldGoalName, com.samiy.financemanager.data.model.GoalItem updatedGoal, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        if (database != null) {
-            if (database.goals == null) database.goals = new java.util.ArrayList<>();
-
-            // If name changed, check uniqueness
-            if (!oldGoalName.trim().equalsIgnoreCase(updatedGoal.name.trim())) {
-                for (com.samiy.financemanager.data.model.GoalItem existing : database.goals) {
-                    if (existing != null && existing.name != null && existing.name.trim().equalsIgnoreCase(updatedGoal.name.trim())) {
-                        mainHandler.post(() -> {
-                            if (callback != null) callback.onError("A goal named '" + updatedGoal.name + "' already exists");
-                        });
-                        return;
-                    }
-                }
-            }
-
-            // Allocation <= 100% check across existing goals (excluding oldGoalName)
-            String allocError = CalculationEngine.validateGoalAllocations(updatedGoal, database.goals);
-            if (allocError != null) {
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError(allocError);
-                });
-                return;
-            }
-
-            // Optimistic in-memory update
-            boolean found = false;
-            for (int i = 0; i < database.goals.size(); i++) {
-                com.samiy.financemanager.data.model.GoalItem g = database.goals.get(i);
-                if (g != null && g.name != null && g.name.trim().equalsIgnoreCase(oldGoalName.trim())) {
-                    database.goals.set(i, updatedGoal);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                database.goals.add(updatedGoal);
-            }
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        }
-
-        notifySyncStarted("Updating goal '" + updatedGoal.name + "'...");
-
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "updateGoal");
-                postBody.addProperty("oldName", oldGoalName);
-
-                JsonObject goalObj = new JsonObject();
-                goalObj.addProperty("name", updatedGoal.name);
-                goalObj.addProperty("targetAmount", updatedGoal.targetAmount);
-                goalObj.addProperty("currentAmount", updatedGoal.currentAmount);
-                goalObj.addProperty("contributionJson", updatedGoal.contributionJson != null ? updatedGoal.contributionJson : "{}");
-
-                postBody.add("goal", goalObj);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Goal updated successfully", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error updating goal in Google Sheets", e);
-                notifySyncFinished("Failed to update goal: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to update goal: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    public void deleteGoal(String goalName, DataCallback callback) {
-        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
-            mainHandler.post(() -> {
-                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
-            });
-            return;
-        }
-
-        // Optimistically remove from in-memory database
-        if (database != null && database.goals != null) {
-            database.goals.removeIf(g -> g != null && g.name != null && g.name.trim().equalsIgnoreCase(goalName.trim()));
-            CalculationEngine.recalculate(database);
-            saveLocalCache();
-            notifySyncListeners();
-        }
-
-        notifySyncStarted("Deleting goal '" + goalName + "'...");
-
-        executor.execute(() -> {
-            try {
-                JsonObject postBody = new JsonObject();
-                postBody.addProperty("action", "deleteGoal");
-                postBody.addProperty("name", goalName);
-
-                String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Goal removed successfully", false);
-
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error deleting goal in Google Sheets", e);
-                notifySyncFinished("Failed to delete goal: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to delete goal: " + e.getMessage());
-                });
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }
@@ -1380,16 +1101,29 @@ public class FinanceRepository {
             return;
         }
 
-        // Pre-append to in-memory database
-        if (database != null) {
-            if (database.insurance == null) database.insurance = new java.util.ArrayList<>();
-            database.insurance.add(newPolicy);
-            saveLocalCache();
-        }
+        enqueueMutation("Adding policy to Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "add policy";
+            }
 
-        notifySyncStarted("Adding policy to Google Sheets...");
-        executor.execute(() -> {
-            try {
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (newPolicy == null || newPolicy.policyNumber == null || newPolicy.policyNumber.trim().isEmpty()) {
+                    return "Policy number is required";
+                }
+                if (currentDb != null && currentDb.insurance != null) {
+                    for (InsurancePolicy p : currentDb.insurance) {
+                        if (p != null && p.policyNumber != null && p.policyNumber.equalsIgnoreCase(newPolicy.policyNumber.trim())) {
+                            return "A policy with number '" + newPolicy.policyNumber + "' already exists";
+                        }
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
                 JsonObject postBody = new JsonObject();
                 postBody.addProperty("action", "addPolicy");
 
@@ -1411,18 +1145,465 @@ public class FinanceRepository {
                 postBody.add("policy", policyObj);
 
                 String jsonStr = gson.toJson(postBody);
-                FinanceDatabase syncedDb = executePostAndSync(jsonStr);
-                notifySyncFinished("Policy added successfully", false);
+                return executePostAndSync(jsonStr);
+            }
 
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : database);
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Error adding policy in Google Sheets", e);
-                notifySyncFinished("Failed to add policy: " + e.getMessage(), true);
-                mainHandler.post(() -> {
-                    if (callback != null) callback.onError("Failed to add policy: " + e.getMessage());
-                });
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void addCreditCard(CreditCard newCard, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Adding credit card to Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "add credit card";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (newCard == null || newCard.cardName == null || newCard.cardName.trim().isEmpty()) {
+                    return "Credit card name is required";
+                }
+                if (currentDb != null && currentDb.creditCards != null) {
+                    for (CreditCard c : currentDb.creditCards) {
+                        if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(newCard.cardName.trim())) {
+                            return "A credit card named '" + newCard.cardName + "' already exists";
+                        }
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "addCreditCard");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", newCard.cardName);
+                cardObj.addProperty("dueDate", newCard.dueDate);
+                cardObj.addProperty("billedAmount", newCard.billedAmount);
+
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void updateCreditCard(CreditCard updatedCard, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Updating credit card in Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "update credit card";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (updatedCard == null || updatedCard.cardName == null || updatedCard.cardName.trim().isEmpty()) {
+                    return "Credit card name is required";
+                }
+                if (currentDb == null || currentDb.creditCards == null) {
+                    return "No credit cards found in database";
+                }
+                boolean found = false;
+                for (CreditCard c : currentDb.creditCards) {
+                    if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(updatedCard.cardName.trim())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return "Credit card '" + updatedCard.cardName + "' does not exist in database";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updateCreditCard");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", updatedCard.cardName);
+                cardObj.addProperty("dueDate", updatedCard.dueDate);
+                cardObj.addProperty("billedAmount", updatedCard.billedAmount);
+
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void markCreditCardBillGenerated(CreditCard card, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Generating bill for " + (card != null ? card.cardName : "") + " in Google Sheets...", new QueuedMutation() {
+            private double unbilledToBill = 0.0;
+
+            @Override
+            public String getActionName() {
+                return "generate credit card bill";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (card == null || card.cardName == null || card.cardName.trim().isEmpty()) {
+                    return "Credit card name is required";
+                }
+                if (currentDb == null || currentDb.creditCards == null) {
+                    return "No credit cards found in database";
+                }
+                CreditCard found = null;
+                for (CreditCard c : currentDb.creditCards) {
+                    if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(card.cardName.trim())) {
+                        found = c;
+                        break;
+                    }
+                }
+                if (found == null) {
+                    return "Credit card '" + card.cardName + "' does not exist in database";
+                }
+                if (found.unbilledAmount <= 0) {
+                    return "Credit card '" + card.cardName + "' has no unbilled amount (current unbilled: 0)";
+                }
+                unbilledToBill = found.unbilledAmount;
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "markCreditCardBillGenerated");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", card.cardName);
+                cardObj.addProperty("unbilledAmount", unbilledToBill);
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void markCreditCardPaid(CreditCard cardToPay, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Recording payment for " + (cardToPay != null ? cardToPay.cardName : "") + " in Google Sheets...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "mark credit card paid";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (cardToPay == null || cardToPay.cardName == null || cardToPay.cardName.trim().isEmpty()) {
+                    return "Credit card name is required";
+                }
+                if (currentDb == null || currentDb.creditCards == null) {
+                    return "No credit cards found in database";
+                }
+                CreditCard found = null;
+                for (CreditCard c : currentDb.creditCards) {
+                    if (c != null && c.cardName != null && c.cardName.trim().equalsIgnoreCase(cardToPay.cardName.trim())) {
+                        found = c;
+                        break;
+                    }
+                }
+                if (found == null) {
+                    return "Credit card '" + cardToPay.cardName + "' does not exist in database";
+                }
+                if (found.billedAmount <= 0) {
+                    return "Credit card '" + cardToPay.cardName + "' is already paid (billed amount is 0)";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "markCreditCardPaid");
+
+                JsonObject cardObj = new JsonObject();
+                cardObj.addProperty("cardName", cardToPay.cardName);
+                postBody.add("card", cardObj);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void addGoal(GoalItem newGoal, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Adding goal '" + (newGoal != null ? newGoal.name : "") + "'...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "add goal";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (newGoal == null || newGoal.name == null || newGoal.name.trim().isEmpty()) {
+                    return "Goal name is required";
+                }
+                if (currentDb != null && currentDb.goals != null) {
+                    for (GoalItem existing : currentDb.goals) {
+                        if (existing != null && existing.name != null && existing.name.trim().equalsIgnoreCase(newGoal.name.trim())) {
+                            return "A goal named '" + newGoal.name + "' already exists";
+                        }
+                    }
+                    String allocError = CalculationEngine.validateGoalAllocations(newGoal, currentDb.goals);
+                    if (allocError != null) {
+                        return allocError;
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "addGoal");
+
+                JsonObject goalObj = new JsonObject();
+                goalObj.addProperty("name", newGoal.name);
+                goalObj.addProperty("targetAmount", newGoal.targetAmount);
+                goalObj.addProperty("currentAmount", newGoal.currentAmount);
+                goalObj.addProperty("contributionJson", newGoal.contributionJson != null ? newGoal.contributionJson : "{}");
+
+                postBody.add("goal", goalObj);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void updateGoal(String oldGoalName, GoalItem updatedGoal, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Updating goal '" + (updatedGoal != null ? updatedGoal.name : "") + "'...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "update goal";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (updatedGoal == null || updatedGoal.name == null || updatedGoal.name.trim().isEmpty()) {
+                    return "Goal name is required";
+                }
+                if (oldGoalName == null || oldGoalName.trim().isEmpty()) {
+                    return "Original goal name is required";
+                }
+                if (currentDb == null || currentDb.goals == null) {
+                    return "No goals found in database";
+                }
+                boolean foundOld = false;
+                java.util.List<GoalItem> otherGoals = new java.util.ArrayList<>();
+                for (GoalItem existing : currentDb.goals) {
+                    if (existing != null && existing.name != null) {
+                        if (existing.name.trim().equalsIgnoreCase(oldGoalName.trim())) {
+                            foundOld = true;
+                        } else {
+                            otherGoals.add(existing);
+                            if (existing.name.trim().equalsIgnoreCase(updatedGoal.name.trim())) {
+                                return "A goal named '" + updatedGoal.name + "' already exists";
+                            }
+                        }
+                    }
+                }
+                if (!foundOld) {
+                    return "Goal '" + oldGoalName + "' does not exist in database";
+                }
+                String allocError = CalculationEngine.validateGoalAllocations(updatedGoal, otherGoals);
+                if (allocError != null) {
+                    return allocError;
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "updateGoal");
+                postBody.addProperty("oldName", oldGoalName);
+
+                JsonObject goalObj = new JsonObject();
+                goalObj.addProperty("name", updatedGoal.name);
+                goalObj.addProperty("targetAmount", updatedGoal.targetAmount);
+                goalObj.addProperty("currentAmount", updatedGoal.currentAmount);
+                goalObj.addProperty("contributionJson", updatedGoal.contributionJson != null ? updatedGoal.contributionJson : "{}");
+
+                postBody.add("goal", goalObj);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void deleteGoal(String goalName, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Deleting goal '" + goalName + "'...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "delete goal";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                if (goalName == null || goalName.trim().isEmpty()) {
+                    return "Goal name is required";
+                }
+                if (currentDb == null || currentDb.goals == null) {
+                    return "No goals found in database";
+                }
+                boolean found = false;
+                for (GoalItem g : currentDb.goals) {
+                    if (g != null && g.name != null && g.name.trim().equalsIgnoreCase(goalName.trim())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return "Goal '" + goalName + "' does not exist or was already deleted";
+                }
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "deleteGoal");
+                postBody.addProperty("name", goalName);
+
+                String jsonStr = gson.toJson(postBody);
+                return executePostAndSync(jsonStr);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
             }
         });
     }

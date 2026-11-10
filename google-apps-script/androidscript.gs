@@ -111,6 +111,17 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  const lock = LockService.getScriptLock();
+  try {
+    // Wait up to 30 seconds for any running request to complete and release lock
+    lock.waitLock(30000);
+  } catch (lockErr) {
+    return jsonResponse({
+      status: 'error',
+      message: 'Server is currently busy processing another queued update. Please try again shortly.'
+    });
+  }
+
   try {
     const data = JSON.parse(e.postData.contents || '{}');
     const action = data.action || (e.parameter && e.parameter.action);
@@ -1024,6 +1035,12 @@ function doPost(e) {
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (eRel) {
+      console.warn('Error releasing script lock: ' + eRel);
+    }
   }
 }
 
