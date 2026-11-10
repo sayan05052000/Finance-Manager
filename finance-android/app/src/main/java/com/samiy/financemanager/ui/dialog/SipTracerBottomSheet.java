@@ -81,6 +81,11 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
             btnClose.setOnClickListener(view -> dismiss());
         }
 
+        View btnSipRefresh = v.findViewById(R.id.btnSipRefresh);
+        if (btnSipRefresh != null) {
+            btnSipRefresh.setOnClickListener(view -> refreshSips());
+        }
+
         View btnAddSip = v.findViewById(R.id.btnAddSip);
         if (btnAddSip != null) {
             btnAddSip.setOnClickListener(view -> {
@@ -189,8 +194,55 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
         });
 
         loadData();
+        refreshSips();
 
         return v;
+    }
+
+    private final FinanceRepository.SyncListener syncListener = new FinanceRepository.SyncListener() {
+        @Override
+        public void onDatabaseSynced(FinanceDatabase database) {
+            if (isAdded()) {
+                loadData();
+            }
+        }
+    };
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getContext() != null) {
+            FinanceRepository.getInstance(requireContext()).addSyncListener(syncListener);
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (getContext() != null) {
+            FinanceRepository.getInstance(requireContext()).removeSyncListener(syncListener);
+        }
+    }
+
+    private void refreshSips() {
+        showUpdatingState("Syncing SIPs with Google Sheets...");
+        FinanceRepository.getInstance(requireContext()).syncSips(new FinanceRepository.DataCallback() {
+            @Override
+            public void onLoaded(FinanceDatabase db) {
+                if (isAdded()) {
+                    hideUpdatingState();
+                    loadData();
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                if (isAdded()) {
+                    hideUpdatingState();
+                    com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Sync notice: " + error, Toast.LENGTH_SHORT);
+                }
+            }
+        });
     }
 
     private void showUpdatingState(String message) {

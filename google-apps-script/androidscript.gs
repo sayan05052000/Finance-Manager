@@ -75,11 +75,27 @@ function doGet(e) {
       });
     }
 
-    if (action === 'all' || action === 'resync') {
+    if (action === 'resync') {
       runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
         data: getFullDatabase(ss)
+      });
+    }
+
+    if (action === 'all') {
+      SpreadsheetApp.flush();
+      return jsonResponse({
+        status: 'success',
+        data: getFullDatabase(ss)
+      });
+    }
+
+    if (action === 'sips') {
+      SpreadsheetApp.flush();
+      return jsonResponse({
+        status: 'success',
+        data: getSips(ss)
       });
     }
 
@@ -114,7 +130,7 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
     // Wait up to 30 seconds for any running request to complete and release lock
-    lock.waitLock(30000);
+    lock.waitLock(15000);
   } catch (lockErr) {
     return jsonResponse({
       status: 'error',

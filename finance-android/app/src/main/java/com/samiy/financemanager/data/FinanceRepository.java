@@ -277,28 +277,27 @@ public class FinanceRepository {
      * Updates this.database, recalculates with CalculationEngine, saves to local cache,
      * and notifies listeners.
      */
-    public FinanceDatabase performSyncInternal() {
-        try {
-            long ts = System.currentTimeMillis();
+    public FinanceDatabase performSyncInternal() throws Exception {
+        long ts = System.currentTimeMillis();
 
-            String nonce = UUID.randomUUID().toString().substring(0, 8);
+        String nonce = UUID.randomUUID().toString().substring(0, 8);
 
-            String url = GAS_URL + (GAS_URL.contains("?") ? "&" : "?") + "action=all&_t=" + ts + "&_nonce=" + nonce;
+        String url = GAS_URL + (GAS_URL.contains("?") ? "&" : "?") + "action=all&_t=" + ts + "&_nonce=" + nonce;
 
-            String resultJson = executeHttpGetWithRedirect(url);
+        String resultJson = executeHttpGetWithRedirect(url);
 
-            if (resultJson != null && !resultJson.isEmpty()) {
-                JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
-                if (root.has("data") && root.get("data").isJsonObject()) {
-                    JsonObject dataObj = root.getAsJsonObject("data");
-                    FinanceDatabase freshDb = gson.fromJson(dataObj, FinanceDatabase.class);
-                    if (freshDb != null) {
-                        return applyFreshDatabase(freshDb);
-                    }
+        if (resultJson != null && !resultJson.isEmpty()) {
+            JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
+            if (root.has("data") && root.get("data").isJsonObject()) {
+                JsonObject dataObj = root.getAsJsonObject("data");
+                FinanceDatabase freshDb = gson.fromJson(dataObj, FinanceDatabase.class);
+                if (freshDb != null) {
+                    return applyFreshDatabase(freshDb);
                 }
+            } else if (root.has("status") && "error".equalsIgnoreCase(root.get("status").getAsString())) {
+                String msg = root.has("message") ? root.get("message").getAsString() : "Error from Google Sheets";
+                throw new Exception(msg);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error in performSyncInternal", e);
         }
         return this.database;
     }
@@ -347,6 +346,58 @@ public class FinanceRepository {
             } catch (Exception e) {
                 Log.e(TAG, "Error syncing with Google Sheets", e);
                 notifySyncFinished("Sync error: " + e.getMessage(), true);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void syncSips(DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        notifySyncStarted("Syncing SIPs with Google Sheets...");
+        executor.execute(() -> {
+            try {
+                long ts = System.currentTimeMillis();
+                String nonce = UUID.randomUUID().toString().substring(0, 8);
+                String url = GAS_URL + (GAS_URL.contains("?") ? "&" : "?") + "action=sips&_t=" + ts + "&_nonce=" + nonce;
+                String resultJson = executeHttpGetWithRedirect(url);
+                if (resultJson != null && !resultJson.isEmpty()) {
+                    JsonObject root = JsonParser.parseString(resultJson).getAsJsonObject();
+                    if (root.has("data") && root.get("data").isJsonArray()) {
+                        Type sipListType = new com.google.gson.reflect.TypeToken<java.util.List<SipItem>>(){}.getType();
+                        java.util.List<SipItem> freshSips = gson.fromJson(root.get("data"), sipListType);
+                        if (freshSips != null) {
+                            if (this.database == null) {
+                                loadLocalCache();
+                                if (this.database == null) this.database = new FinanceDatabase();
+                            }
+                            this.database.sips = freshSips;
+                            CalculationEngine.recalculate(this.database);
+                            saveLocalCache();
+                            notifySyncListeners();
+                            notifySyncFinished("SIPs synced successfully!", false);
+                            mainHandler.post(() -> {
+                                if (callback != null) callback.onLoaded(this.database);
+                            });
+                            return;
+                        }
+                    }
+                }
+                FinanceDatabase fresh = performSyncInternal();
+                notifySyncFinished("SIPs synced successfully!", false);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(fresh != null ? fresh : this.database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error syncing SIPs", e);
+                notifySyncFinished("Failed to sync SIPs: " + e.getMessage(), true);
                 mainHandler.post(() -> {
                     if (callback != null) callback.onError(e.getMessage());
                 });
@@ -1692,9 +1743,9 @@ public class FinanceRepository {
 
         conn.setRequestProperty("Expires", "0");
 
-        conn.setConnectTimeout(20000);
+        conn.setConnectTimeout(30000);
 
-        conn.setReadTimeout(20000);
+        conn.setReadTimeout(90000);
 
 
 
@@ -1754,9 +1805,9 @@ public class FinanceRepository {
 
         conn.setDefaultUseCaches(false);
 
-        conn.setConnectTimeout(20000);
+        conn.setConnectTimeout(30000);
 
-        conn.setReadTimeout(20000);
+        conn.setReadTimeout(90000);
 
         conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 
