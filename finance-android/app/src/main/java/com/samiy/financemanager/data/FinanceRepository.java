@@ -440,10 +440,17 @@ public class FinanceRepository {
      * Ensures strict FIFO execution: each mutation waits for the preceding mutation
      * to completely execute, trigger Google Sheets calculation, and resync the entire database.
      * Before executing, the mutation revalidates against the updated database state.
+     *
+     * NOTE: notifySyncStarted is called inside the executor task so it fires only when
+     * this mutation actually begins running — not when it is merely enqueued. This ensures
+     * that if two mutations are submitted back-to-back the UI progress indicator reflects
+     * whichever mutation is currently executing, and no mutation is skipped or cancelled.
      */
     private void enqueueMutation(String startMessage, QueuedMutation mutation) {
-        notifySyncStarted(startMessage);
         executor.execute(() -> {
+            // Notify AFTER any preceding queued task has finished, so the UI
+            // accurately reflects the mutation that is actually running now.
+            notifySyncStarted(startMessage);
             try {
                 // Ensure in-memory database is initialized
                 if (this.database == null) {

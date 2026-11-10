@@ -127,17 +127,6 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const lock = LockService.getScriptLock();
-  try {
-    // Wait up to 30 seconds for any running request to complete and release lock
-    lock.waitLock(15000);
-  } catch (lockErr) {
-    return jsonResponse({
-      status: 'error',
-      message: 'Server is currently busy processing another queued update. Please try again shortly.'
-    });
-  }
-
   try {
     const data = JSON.parse(e.postData.contents || '{}');
     const action = data.action || (e.parameter && e.parameter.action);
@@ -749,7 +738,7 @@ function doPost(e) {
       const todayStr = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy');
       // Set billed amount to 0
       sheet.getRange(matchedRow, cols.colBilled).setValue(0);
-      
+
       // Advance due date by +1 month automatically
       let currDueDate = values[matchedRow - 1][cols.colDueDate - 1];
       if (currDueDate instanceof Date) {
@@ -770,8 +759,8 @@ function doPost(e) {
       }
 
       runCalculationScriptsAndFlush();
-      return jsonResponse({ 
-        status: 'success', 
+      return jsonResponse({
+        status: 'success',
         message: cardName + ' marked as paid! Next due date moved 1 month to ' + nextDueDate,
         nextDueDate: nextDueDate,
         data: getFullDatabase(ss)
@@ -1052,11 +1041,7 @@ function doPost(e) {
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
   } finally {
-    try {
-      lock.releaseLock();
-    } catch (eRel) {
-      console.warn('Error releasing script lock: ' + eRel);
-    }
+
   }
 }
 
