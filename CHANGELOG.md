@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.3] - 2026-11-10
 
 ### Added
+- **Automated Resync Preprocessing in Google Apps Script (`androidscript.gs`)**:
+  - Enhanced `doGet` (`action === 'all'` and `action === 'resync'`) and `doPost` to automatically invoke backend preprocessing functions `processTransactionsRows()` and `processMutualFunds()` located in separate `.gs` files prior to fetching sheet datasets.
+  - Added safe function existence guards (`typeof ... === 'function'`) and isolated try-catch wrappers so scripts execute reliably across environments.
+  - Embedded `SpreadsheetApp.flush()` to ensure all calculated transaction rows, balance derivations, and mutual fund valuation formulas are fully computed and committed before reading `accounts`, `holdings`, `transactions`, and `budget` data.
+  - Linked post-mutation actions (`addTransaction`, `deleteTransaction` to `processTransactionsRows`; `addMutualFundTransaction` to `processMutualFunds`) for instant calculation updates.
 - **Multi-Criteria Sorting in Holdings Portfolio**:
   - Implemented an interactive sort dropdown selector in [`HoldingsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/HoldingsFragment.java) and [`fragment_holdings.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_holdings.xml) next to the holdings header.
   - **Default**: **Current Value** (highest valuation to lowest descending).

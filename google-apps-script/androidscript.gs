@@ -24,7 +24,29 @@ function doGet(e) {
       });
     }
 
-    if (action === 'all') {
+    if (action === 'all' || action === 'resync') {
+      // 1. Process Transactions rows if present in any .gs file in Apps Script project
+      if (typeof processTransactionsRows === 'function') {
+        try {
+          processTransactionsRows();
+        } catch (eProcTx) {
+          console.warn('processTransactionsRows error: ' + eProcTx);
+        }
+      }
+
+      // 2. Process Mutual Funds if present in any .gs file in Apps Script project
+      if (typeof processMutualFunds === 'function') {
+        try {
+          processMutualFunds();
+        } catch (eProcMf) {
+          console.warn('processMutualFunds error: ' + eProcMf);
+        }
+      }
+
+      // 3. Flush spreadsheet changes so updated formulas and rows are committed
+      SpreadsheetApp.flush();
+
+      // 4. Fetch the updated data across all sheets
       return jsonResponse({
         status: 'success',
         data: {
@@ -76,6 +98,42 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents || '{}');
     const action = data.action || (e.parameter && e.parameter.action);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    if (action === 'resync' || action === 'all') {
+      if (typeof processTransactionsRows === 'function') {
+        try {
+          processTransactionsRows();
+        } catch (eProcTx) {
+          console.warn('processTransactionsRows error: ' + eProcTx);
+        }
+      }
+      if (typeof processMutualFunds === 'function') {
+        try {
+          processMutualFunds();
+        } catch (eProcMf) {
+          console.warn('processMutualFunds error: ' + eProcMf);
+        }
+      }
+      SpreadsheetApp.flush();
+
+      return jsonResponse({
+        status: 'success',
+        data: {
+          accounts: getAccounts(ss),
+          loans: getLoans(ss),
+          budget: getBudget(ss),
+          goals: getGoals(ss),
+          holdings: getHoldings(ss),
+          mutualFundTransactions: getMutualFundTransactions(ss),
+          insurance: getInsurance(ss),
+          sips: getSips(ss),
+          categories: getCategories(ss),
+          expenseTracker: getExpenseTracker(ss),
+          transactions: getTransactions(ss),
+          creditCards: getCreditCards(ss)
+        }
+      });
+    }
 
     if (action === 'addTransaction') {
       const sheet = ss.getSheetByName('Transactions');
@@ -167,6 +225,15 @@ function doPost(e) {
           SpreadsheetApp.flush();
         } catch (err) {
           console.warn('calculateRemainders error: ' + err);
+        }
+      }
+
+      if (typeof processTransactionsRows === 'function') {
+        try {
+          processTransactionsRows();
+          SpreadsheetApp.flush();
+        } catch (err) {
+          console.warn('processTransactionsRows error: ' + err);
         }
       }
 
@@ -271,6 +338,15 @@ function doPost(e) {
           SpreadsheetApp.flush();
         } catch (err) {
           console.warn('calculateRemainders error: ' + err);
+        }
+      }
+
+      if (typeof processTransactionsRows === 'function') {
+        try {
+          processTransactionsRows();
+          SpreadsheetApp.flush();
+        } catch (err) {
+          console.warn('processTransactionsRows error: ' + err);
         }
       }
 
@@ -462,6 +538,15 @@ function doPost(e) {
         '',              // 17: Processed at sheet
         schemeCode       // 18: Scheme Code
       ]);
+
+      if (typeof processMutualFunds === 'function') {
+        try {
+          processMutualFunds();
+          SpreadsheetApp.flush();
+        } catch (err) {
+          console.warn('processMutualFunds error: ' + err);
+        }
+      }
 
       return jsonResponse({ status: 'success', message: 'Mutual Fund transaction recorded successfully' });
     }
