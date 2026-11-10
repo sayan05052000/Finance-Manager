@@ -9,6 +9,56 @@
  * 4. Execute as: "Me" | Who has access: "Anyone".
  */
 
+/**
+ * Executes recalculation functions if present in the Apps Script project
+ * and flushes spreadsheet modifications.
+ */
+function runCalculationScriptsAndFlush() {
+  if (typeof calculateRemainders === 'function') {
+    try {
+      calculateRemainders();
+    } catch (eCalc) {
+      console.warn('calculateRemainders error: ' + eCalc);
+    }
+  }
+  if (typeof processTransactionsRows === 'function') {
+    try {
+      processTransactionsRows();
+    } catch (eProcTx) {
+      console.warn('processTransactionsRows error: ' + eProcTx);
+    }
+  }
+  if (typeof processMutualFunds === 'function') {
+    try {
+      processMutualFunds();
+    } catch (eProcMf) {
+      console.warn('processMutualFunds error: ' + eProcMf);
+    }
+  }
+  SpreadsheetApp.flush();
+}
+
+/**
+ * Retrieves the full synchronized database across all sheets.
+ */
+function getFullDatabase(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+  return {
+    accounts: getAccounts(ss),
+    loans: getLoans(ss),
+    budget: getBudget(ss),
+    goals: getGoals(ss),
+    holdings: getHoldings(ss),
+    mutualFundTransactions: getMutualFundTransactions(ss),
+    insurance: getInsurance(ss),
+    sips: getSips(ss),
+    categories: getCategories(ss),
+    expenseTracker: getExpenseTracker(ss),
+    transactions: getTransactions(ss),
+    creditCards: getCreditCards(ss)
+  };
+}
+
 function doGet(e) {
   try {
     const action = (e && e.parameter && e.parameter.action) || 'all';
@@ -18,6 +68,7 @@ function doGet(e) {
       if (typeof calculateRemainders === 'function') {
         calculateRemainders();
       }
+      SpreadsheetApp.flush();
       return jsonResponse({
         status: 'success',
         message: 'Remainders and account/loan balances recalculated successfully'
@@ -25,44 +76,10 @@ function doGet(e) {
     }
 
     if (action === 'all' || action === 'resync') {
-      // 1. Process Transactions rows if present in any .gs file in Apps Script project
-      if (typeof processTransactionsRows === 'function') {
-        try {
-          processTransactionsRows();
-        } catch (eProcTx) {
-          console.warn('processTransactionsRows error: ' + eProcTx);
-        }
-      }
-
-      // 2. Process Mutual Funds if present in any .gs file in Apps Script project
-      if (typeof processMutualFunds === 'function') {
-        try {
-          processMutualFunds();
-        } catch (eProcMf) {
-          console.warn('processMutualFunds error: ' + eProcMf);
-        }
-      }
-
-      // 3. Flush spreadsheet changes so updated formulas and rows are committed
-      SpreadsheetApp.flush();
-
-      // 4. Fetch the updated data across all sheets
+      runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
-        data: {
-          accounts: getAccounts(ss),
-          loans: getLoans(ss),
-          budget: getBudget(ss),
-          goals: getGoals(ss),
-          holdings: getHoldings(ss),
-          mutualFundTransactions: getMutualFundTransactions(ss),
-          insurance: getInsurance(ss),
-          sips: getSips(ss),
-          categories: getCategories(ss),
-          expenseTracker: getExpenseTracker(ss),
-          transactions: getTransactions(ss),
-          creditCards: getCreditCards(ss)
-        }
+        data: getFullDatabase(ss)
       });
     }
 
@@ -100,38 +117,10 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (action === 'resync' || action === 'all') {
-      if (typeof processTransactionsRows === 'function') {
-        try {
-          processTransactionsRows();
-        } catch (eProcTx) {
-          console.warn('processTransactionsRows error: ' + eProcTx);
-        }
-      }
-      if (typeof processMutualFunds === 'function') {
-        try {
-          processMutualFunds();
-        } catch (eProcMf) {
-          console.warn('processMutualFunds error: ' + eProcMf);
-        }
-      }
-      SpreadsheetApp.flush();
-
+      runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
-        data: {
-          accounts: getAccounts(ss),
-          loans: getLoans(ss),
-          budget: getBudget(ss),
-          goals: getGoals(ss),
-          holdings: getHoldings(ss),
-          mutualFundTransactions: getMutualFundTransactions(ss),
-          insurance: getInsurance(ss),
-          sips: getSips(ss),
-          categories: getCategories(ss),
-          expenseTracker: getExpenseTracker(ss),
-          transactions: getTransactions(ss),
-          creditCards: getCreditCards(ss)
-        }
+        data: getFullDatabase(ss)
       });
     }
 
@@ -219,25 +208,12 @@ function doPost(e) {
         }
       }
 
-      if (typeof calculateRemainders === 'function') {
-        try {
-          calculateRemainders();
-          SpreadsheetApp.flush();
-        } catch (err) {
-          console.warn('calculateRemainders error: ' + err);
-        }
-      }
-
-      if (typeof processTransactionsRows === 'function') {
-        try {
-          processTransactionsRows();
-          SpreadsheetApp.flush();
-        } catch (err) {
-          console.warn('processTransactionsRows error: ' + err);
-        }
-      }
-
-      return jsonResponse({ status: 'success', message: 'Transaction added successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Transaction added successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'deleteTransaction') {
@@ -331,26 +307,12 @@ function doPost(e) {
       }
 
       sheet.deleteRow(rowId);
-
-      if (typeof calculateRemainders === 'function') {
-        try {
-          calculateRemainders();
-          SpreadsheetApp.flush();
-        } catch (err) {
-          console.warn('calculateRemainders error: ' + err);
-        }
-      }
-
-      if (typeof processTransactionsRows === 'function') {
-        try {
-          processTransactionsRows();
-          SpreadsheetApp.flush();
-        } catch (err) {
-          console.warn('processTransactionsRows error: ' + err);
-        }
-      }
-
-      return jsonResponse({ status: 'success', message: 'Transaction deleted successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Transaction deleted successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'updateSipStatus') {
@@ -376,8 +338,12 @@ function doPost(e) {
       }
 
       sheet.getRange(matchedRow, col).setValue(status);
-      SpreadsheetApp.flush();
-      return jsonResponse({ status: 'success', message: 'SIP status updated to ' + status });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'SIP status updated to ' + status,
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'updatePolicy') {
@@ -412,7 +378,12 @@ function doPost(e) {
         sheet.getRange(matchedRow, 7).setValue('0');
       }
 
-      return jsonResponse({ status: 'success', message: 'Policy dates updated successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Policy dates updated successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'addPolicy') {
@@ -450,7 +421,12 @@ function doPost(e) {
         notes            // Col 13: Notes / Remarks
       ]);
 
-      return jsonResponse({ status: 'success', message: 'Policy added successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Policy added successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'updateSip') {
@@ -501,8 +477,12 @@ function doPost(e) {
         sheet.getRange(matchedRow, 10).setValue(String(sip.platform).trim());
       }
 
-      SpreadsheetApp.flush();
-      return jsonResponse({ status: 'success', message: 'SIP updated successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'SIP updated successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'addSip') {
@@ -536,8 +516,12 @@ function doPost(e) {
         platform        // 10: Platform
       ]);
 
-      SpreadsheetApp.flush();
-      return jsonResponse({ status: 'success', message: 'SIP added successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'SIP added successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'deleteSip') {
@@ -561,8 +545,12 @@ function doPost(e) {
       }
 
       sheet.deleteRow(matchedRow);
-      SpreadsheetApp.flush();
-      return jsonResponse({ status: 'success', message: 'SIP deleted successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'SIP deleted successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'addMutualFundTransaction') {
@@ -604,16 +592,12 @@ function doPost(e) {
         schemeCode       // 18: Scheme Code
       ]);
 
-      if (typeof processMutualFunds === 'function') {
-        try {
-          processMutualFunds();
-          SpreadsheetApp.flush();
-        } catch (err) {
-          console.warn('processMutualFunds error: ' + err);
-        }
-      }
-
-      return jsonResponse({ status: 'success', message: 'Mutual Fund transaction recorded successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Mutual Fund transaction recorded successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'addCreditCard') {
@@ -650,11 +634,12 @@ function doPost(e) {
       if (cols.colStatus > 0) newRow[cols.colStatus - 1] = status;
 
       sheet.appendRow(newRow);
-      SpreadsheetApp.flush();
+      runCalculationScriptsAndFlush();
 
       return jsonResponse({
         status: 'success',
         message: 'Credit card ' + cardName + ' added successfully',
+        data: getFullDatabase(ss),
         card: {
           id: sheet.getLastRow() - 1,
           cardName: cardName,
@@ -703,8 +688,12 @@ function doPost(e) {
         }
       }
 
-      SpreadsheetApp.flush();
-      return jsonResponse({ status: 'success', message: 'Credit card details updated successfully' });
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Credit card details updated successfully',
+        data: getFullDatabase(ss)
+      });
     }
 
     if (action === 'markCreditCardPaid') {
@@ -753,11 +742,12 @@ function doPost(e) {
         sheet.getRange(matchedRow, cols.colStatus).setValue('Paid');
       }
 
-      SpreadsheetApp.flush();
+      runCalculationScriptsAndFlush();
       return jsonResponse({ 
         status: 'success', 
         message: cardName + ' marked as paid! Next due date moved 1 month to ' + nextDueDate,
-        nextDueDate: nextDueDate
+        nextDueDate: nextDueDate,
+        data: getFullDatabase(ss)
       });
     }
 
@@ -798,12 +788,13 @@ function doPost(e) {
         sheet.getRange(matchedRow, cols.colStatus).setValue(unbilledVal > 0 ? 'Unpaid' : 'Paid');
       }
 
-      SpreadsheetApp.flush();
+      runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
         message: cardName + ' bill generated: ₹' + unbilledVal + ' billed, unbilled reset to ₹0',
         billedAmount: unbilledVal,
-        unbilledAmount: 0
+        unbilledAmount: 0,
+        data: getFullDatabase(ss)
       });
     }
 
@@ -889,10 +880,11 @@ function doPost(e) {
         '',
         contributionJson
       ]);
-      SpreadsheetApp.flush();
+      runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
-        message: 'Goal "' + goalName + '" added successfully'
+        message: 'Goal "' + goalName + '" added successfully',
+        data: getFullDatabase(ss)
       });
     }
 
@@ -991,11 +983,12 @@ function doPost(e) {
       sheet.getRange(matchedRow, 2).setValue(goalAmount);
       sheet.getRange(matchedRow, 3).setValue(currentAmount);
       sheet.getRange(matchedRow, 5).setValue(contributionJson);
-      SpreadsheetApp.flush();
+      runCalculationScriptsAndFlush();
 
       return jsonResponse({
         status: 'success',
-        message: 'Goal "' + newName + '" updated successfully'
+        message: 'Goal "' + newName + '" updated successfully',
+        data: getFullDatabase(ss)
       });
     }
 
@@ -1020,10 +1013,11 @@ function doPost(e) {
       }
 
       sheet.deleteRow(rowToDelete);
-      SpreadsheetApp.flush();
+      runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
-        message: 'Goal "' + goalName + '" deleted successfully'
+        message: 'Goal "' + goalName + '" deleted successfully',
+        data: getFullDatabase(ss)
       });
     }
 

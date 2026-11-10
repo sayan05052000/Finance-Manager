@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.3] - 2026-11-10
 
 ### Added
+- **Universal Automatic Sheet Post Mutation Resync Across the Entire Project**:
+  - **Google Apps Script Backend (`androidscript.gs`)**:
+    - Centralized `runCalculationScriptsAndFlush()` executing `calculateRemainders()`, `processTransactionsRows()`, `processMutualFunds()`, and `SpreadsheetApp.flush()`.
+    - Every single POST mutation (`addTransaction`, `deleteTransaction`, `updateSipStatus`, `updateSip`, `addSip`, `deleteSip`, `addMutualFundTransaction`, `updatePolicy`, `addPolicy`, `addCreditCard`, `updateCreditCard`, `markCreditCardBillGenerated`, `markCreditCardPaid`, `addGoal`, `updateGoal`, `deleteGoal`) triggers full calculation and sheet flushing before responding.
+    - Added `getFullDatabase(ss)` into all 16 POST responses returning the fresh, fully calculated data payload directly.
+  - **Android Architecture (`FinanceRepository.java`)**:
+    - Implemented `executePostAndSync(jsonBody)` helper that verifies the POST response, extracts returned fresh database objects, guarantees a fresh GET sync with cache-busting timestamp and nonce via `performSyncInternal()`, recalculates balances with `CalculationEngine`, saves to local persistent cache, and triggers `notifySyncListeners()`.
+    - Integrated `notifySyncStarted` and `notifySyncFinished` across all 16 repository mutations, ensuring `MainActivity` displays the global progress bar, rotating sync icon, and in-app status toasts consistently across the entire project.
+    - All active fragments (`Overview`, `Holdings`, `Ledger`, `Cycle`, `Accounts`) and bottom sheets immediately reflect the updated sheet calculations.
 - **Live Updating Indicators & Progress States in SIP Tracer**:
   - **Item-Level Real-Time Feedback**: When a SIP is marked as `Paid`, `Not Paid`, or cycle-advanced, the clicked action pill immediately transforms into an active `⏳ Updating...` or `⏳ Advancing...` state with disabled interaction, preventing double-clicks and reassuring the user that the operation was received.
   - **Modal Top Progress Bar & Sync Banner**: Added a horizontal progress bar (`pbSipLoading`) and a live status pill (`layoutSipUpdatingBanner`) in [`dialog_sip_tracer.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_sip_tracer.xml) displaying the exact operation in progress (e.g., `"Updating ICICI PRU SILVER FOF to Not Paid in Google Sheets..."`).
