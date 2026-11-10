@@ -151,7 +151,7 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
         if (btnSelectCurrentMonth != null) {
             btnSelectCurrentMonth.setOnClickListener(view -> {
                 hideKeyboard();
-                showSingleChoiceDialog("Select Current Month", MONTHS, tvCurrentMonth.getText().toString(), selected -> {
+                FinMngrDialog.showSingleChoice(requireContext(), "Select Current Month", MONTHS, tvCurrentMonth.getText().toString(), selected -> {
                     tvCurrentMonth.setText(selected);
                 });
             });
@@ -161,7 +161,7 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
         if (btnSelectNextMonth != null) {
             btnSelectNextMonth.setOnClickListener(view -> {
                 hideKeyboard();
-                showSingleChoiceDialog("Select Next Month", MONTHS, tvNextMonth.getText().toString(), selected -> {
+                FinMngrDialog.showSingleChoice(requireContext(), "Select Next Month", MONTHS, tvNextMonth.getText().toString(), selected -> {
                     tvNextMonth.setText(selected);
                 });
             });
@@ -178,7 +178,7 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
                     platforms.add(curPlat);
                 }
                 String[] platArray = platforms.toArray(new String[0]);
-                showSingleChoiceDialog("Select Platform / Mode", platArray, curPlat, selected -> {
+                FinMngrDialog.showSingleChoice(requireContext(), "Select Platform / Mode", platArray, curPlat, selected -> {
                     tvSelectedPlatform.setText(selected);
                 });
             });
@@ -203,30 +203,86 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
                     banks.add(curBank);
                 }
                 String[] bankArray = banks.toArray(new String[0]);
-                showSingleChoiceDialog("Select Linked Bank Account", bankArray, curBank, selected -> {
+                FinMngrDialog.showSingleChoice(requireContext(), "Select Linked Bank Account", bankArray, curBank, selected -> {
                     tvSelectedBankAccount.setText(selected);
                 });
             });
         }
 
-        // Status Toggles
+        // Status Toggles with Confirmation Dialogs
         btnToggleCurrentNotPaid.setOnClickListener(view -> {
             hideKeyboard();
-            setCurrentStatus("Not Paid");
+            if ("Paid".equalsIgnoreCase(currentStatus)) {
+                FinMngrDialog.showConfirmation(requireContext(),
+                        "Mark Current Month as Not Paid?",
+                        "Are you sure you want to mark " + tvCurrentMonth.getText() + " SIP as Not Paid?",
+                        "Confirm",
+                        () -> setCurrentStatus("Not Paid"));
+            } else {
+                setCurrentStatus("Not Paid");
+            }
         });
+
         btnToggleCurrentPaid.setOnClickListener(view -> {
             hideKeyboard();
-            setCurrentStatus("Paid");
+            String cMonth = tvCurrentMonth.getText().toString().trim();
+            String nMonth = tvNextMonth.getText().toString().trim();
+            String afterNextMonth = com.samiy.financemanager.util.SipHelper.getNextMonthName(nMonth);
+            String nextAmtStr = etNextAmount.getText().toString().trim();
+
+            FinMngrDialog.showConfirmation(requireContext(),
+                    "Mark SIP as Paid?",
+                    "Marking " + (originalSip.fundName != null ? originalSip.fundName : "SIP") + " as Paid for " + cMonth + " will advance the cycle:\n\n• Current Month becomes " + nMonth + " (Not Paid)\n• Next Month becomes " + afterNextMonth + " (Not Paid)",
+                    "Confirm & Advance",
+                    () -> {
+                        tvCurrentMonth.setText(nMonth);
+                        if (!nextAmtStr.isEmpty()) {
+                            etCurrentAmount.setText(nextAmtStr);
+                        }
+                        setCurrentStatus("Not Paid");
+
+                        tvNextMonth.setText(afterNextMonth);
+                        setNextStatus("Not Paid");
+                        com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Cycle advanced to " + nMonth, android.widget.Toast.LENGTH_SHORT);
+                    });
         });
 
         btnToggleNextNotPaid.setOnClickListener(view -> {
             hideKeyboard();
-            setNextStatus("Not Paid");
+            if ("Paid".equalsIgnoreCase(nextStatus)) {
+                FinMngrDialog.showConfirmation(requireContext(),
+                        "Mark Next Month as Not Paid?",
+                        "Are you sure you want to mark " + tvNextMonth.getText() + " SIP as Not Paid?",
+                        "Confirm",
+                        () -> setNextStatus("Not Paid"));
+            } else {
+                setNextStatus("Not Paid");
+            }
         });
+
         btnToggleNextPaid.setOnClickListener(view -> {
             hideKeyboard();
-            setNextStatus("Paid");
+            FinMngrDialog.showConfirmation(requireContext(),
+                    "Mark Next Month as Paid?",
+                    "Are you sure you want to mark " + tvNextMonth.getText() + " SIP as Paid?",
+                    "Confirm",
+                    () -> setNextStatus("Paid"));
         });
+
+        // Delete SIP Button
+        View.OnClickListener deleteClickListener = view -> {
+            hideKeyboard();
+            FinMngrDialog.showDestructiveConfirmation(requireContext(),
+                    "Delete SIP",
+                    "Are you sure you want to delete '" + originalSip.fundName + "' from SIP Tracer? This will permanently remove it from your Google Sheet.",
+                    "Delete",
+                    this::deleteSip);
+        };
+
+        View btnEditSipDelete = v.findViewById(R.id.btnEditSipDelete);
+        View btnSipDelete = v.findViewById(R.id.btnSipDelete);
+        if (btnEditSipDelete != null) btnEditSipDelete.setOnClickListener(deleteClickListener);
+        if (btnSipDelete != null) btnSipDelete.setOnClickListener(deleteClickListener);
 
         // Setup dismiss keyboard when clicking anywhere outside of EditTexts
         setupKeyboardDismissOnTouch(v);
@@ -276,35 +332,36 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
         }
     }
 
-    private interface OnChoiceSelectedListener {
-        void onSelected(String selected);
-    }
-
-    private void showSingleChoiceDialog(String title, String[] items, String currentSelection, OnChoiceSelectedListener onSelected) {
-        int checkedItem = -1;
-        for (int i = 0; i < items.length; i++) {
-            if (items[i].equalsIgnoreCase(currentSelection.trim())) {
-                checkedItem = i;
-                break;
-            }
+    private void deleteSip() {
+        if (originalSip == null || originalSip.fundName == null || originalSip.fundName.trim().isEmpty()) {
+            dismiss();
+            return;
         }
 
-        AlertDialog singleChoiceDialog = new AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
-                .setTitle(title)
-                .setSingleChoiceItems(items, checkedItem, (dialog, which) -> {
-                    if (which >= 0 && which < items.length) {
-                        onSelected.onSelected(items[which]);
+        if (btnSave != null) btnSave.setEnabled(false);
+        if (btnCancel != null) btnCancel.setEnabled(false);
+
+        FinanceRepository.getInstance(requireContext()).deleteSip(originalSip.fundName, new FinanceRepository.DataCallback() {
+            @Override
+            public void onLoaded(FinanceDatabase db) {
+                if (isAdded()) {
+                    com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), "SIP deleted successfully");
+                    if (listener != null) {
+                        listener.onSipUpdated(null);
                     }
-                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(getView());
-                    dialog.dismiss();
-                })
-                .setNegativeButton("Cancel", (dialog, which) -> {
-                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(getView());
-                    dialog.dismiss();
-                })
-                .create();
-        com.samiy.financemanager.util.KeyboardHelper.setupOutsideTouchDismiss(singleChoiceDialog);
-        singleChoiceDialog.show();
+                    dismiss();
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                if (isAdded()) {
+                    if (btnSave != null) btnSave.setEnabled(true);
+                    if (btnCancel != null) btnCancel.setEnabled(true);
+                    com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to delete: " + error, android.widget.Toast.LENGTH_LONG);
+                }
+            }
+        });
     }
 
     private void setCurrentStatus(String status) {

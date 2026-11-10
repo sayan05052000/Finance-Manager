@@ -46,6 +46,23 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/btnAddSip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_pill_dark"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:layout_marginEnd="8dp"
+            android:text="＋ Add SIP"
+            android:textColor="@color/colorPrimary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
             android:id="@+id/btnSipClose"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -61,7 +78,7 @@
             android:focusable="true" />
     </LinearLayout>
 
-    <!-- Prominent Informational Notice: Direct Sheet Entry Requirement -->
+    <!-- Prominent Informational Notice -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -82,7 +99,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="Tap Paid / Not Paid to toggle status. New SIPs cannot be added from the app — they require direct Google Sheet entry."
+            android:text="Tap Paid / Not Paid to advance cycle or update status. Tap ＋ Add SIP to track a new fund."
             android:textColor="@color/amber_gold"
             android:textSize="11sp" />
     </LinearLayout>

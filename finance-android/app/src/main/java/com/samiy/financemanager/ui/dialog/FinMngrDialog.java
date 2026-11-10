@@ -21,6 +21,91 @@ public class FinMngrDialog {
         void onConfirm();
     }
 
+    public interface OnChoiceSelectedListener {
+        void onSelected(String selected);
+    }
+
+    public static Dialog showSingleChoice(Context context, String title, String[] items, String currentSelection, OnChoiceSelectedListener onSelected) {
+        Dialog dialog = new Dialog(context);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        View v = LayoutInflater.from(context).inflate(R.layout.dialog_finmngr_single_choice, null);
+        dialog.setContentView(v);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            int width = (int) (context.getResources().getDisplayMetrics().widthPixels * 0.90);
+            dialog.getWindow().setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        TextView tvTitle = v.findViewById(R.id.tvChoiceTitle);
+        android.widget.ListView lvList = v.findViewById(R.id.lvChoiceList);
+        MaterialButton btnCancel = v.findViewById(R.id.btnChoiceCancel);
+
+        tvTitle.setText(title);
+
+        int checkedIndex = -1;
+        if (currentSelection != null) {
+            for (int i = 0; i < items.length; i++) {
+                if (items[i].equalsIgnoreCase(currentSelection.trim())) {
+                    checkedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        final int selectedPos = checkedIndex;
+        android.widget.BaseAdapter adapter = new android.widget.BaseAdapter() {
+            @Override
+            public int getCount() {
+                return items.length;
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return items[position];
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return position;
+            }
+
+            @Override
+            public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                if (convertView == null) {
+                    convertView = LayoutInflater.from(context).inflate(R.layout.item_dialog_single_choice, parent, false);
+                }
+                android.widget.RadioButton rb = convertView.findViewById(R.id.rbChoiceItem);
+                TextView tv = convertView.findViewById(R.id.tvChoiceLabel);
+
+                String item = items[position];
+                tv.setText(item);
+                rb.setChecked(position == selectedPos);
+
+                convertView.setOnClickListener(view -> {
+                    dialog.dismiss();
+                    if (onSelected != null) {
+                        onSelected.onSelected(item);
+                    }
+                });
+
+                return convertView;
+            }
+        };
+
+        lvList.setAdapter(adapter);
+        if (selectedPos >= 0) {
+            lvList.setSelection(selectedPos);
+        }
+
+        btnCancel.setOnClickListener(view -> dialog.dismiss());
+        com.samiy.financemanager.util.KeyboardHelper.setupOutsideTouchDismiss(dialog);
+
+        dialog.show();
+        return dialog;
+    }
+
     public static Dialog showConfirmation(Context context, String title, String message, String positiveText, OnConfirmListener onConfirm) {
         Dialog dialog = new Dialog(context);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);

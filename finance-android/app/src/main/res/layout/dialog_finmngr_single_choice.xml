@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_card"
+    android:padding="20dp">
+
+    <!-- Header Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/ic_finmngr_piggy"
+            android:contentDescription="FinMngr Choice" />
+
+        <TextView
+            android:id="@+id/tvChoiceTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:text="Select Option"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border_dark"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="6dp" />
+
+    <!-- Choice List Container with scrollbar -->
+    <ListView
+        android:id="@+id/lvChoiceList"
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:divider="@color/border_dark"
+        android:dividerHeight="0.8dp"
+        android:scrollbars="vertical" />
+
+    <!-- Footer Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnChoiceCancel"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="14dp"
+        app:cornerRadius="22dp"
+        app:backgroundTint="@color/bg_card_secondary"
+        app:strokeColor="@color/border_dark"
+        app:strokeWidth="1dp"
+        android:text="Cancel"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textAllCaps="false" />
+
+</LinearLayout>

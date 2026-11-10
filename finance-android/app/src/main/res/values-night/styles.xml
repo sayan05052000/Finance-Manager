@@ -37,8 +37,12 @@
     <style name="CustomDarkDialog" parent="Theme.MaterialComponents.Dialog.Alert">
         <item name="android:background">@color/bg_card</item>
         <item name="colorSurface">@color/bg_card</item>
+        <item name="android:textColor">@color/text_primary</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
-        <item name="colorPrimary">@color/green_emerald</item>
+        <item name="android:textColorAlertDialogListItem">@color/text_primary</item>
+        <item name="textColorAlertDialogListItem">@color/text_primary</item>
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorAccent">@color/colorPrimary</item>
     </style>
 </resources>

@@ -114,13 +114,14 @@ public class AddPolicyBottomSheet extends BaseBottomSheetDialogFragment {
         };
         btnSelectSubCategory.setOnClickListener(view -> {
             com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(view);
-            new AlertDialog.Builder(requireContext(), R.style.CustomDarkDialog)
-                    .setTitle("Select Policy Provider / Sub-Category")
-                    .setItems(subCategoryOptions, (dialog, which) -> {
-                        tvSubCategory.setText(subCategoryOptions[which]);
+            FinMngrDialog.showSingleChoice(requireContext(),
+                    "Select Policy Provider / Sub-Category",
+                    subCategoryOptions,
+                    tvSubCategory.getText().toString(),
+                    selected -> {
+                        tvSubCategory.setText(selected);
                         com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(view);
-                    })
-                    .show();
+                    });
         });
 
         btnSubmit.setOnClickListener(view -> {

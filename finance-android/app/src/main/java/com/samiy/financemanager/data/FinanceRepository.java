@@ -698,6 +698,101 @@ public class FinanceRepository {
         });
     }
 
+    public void addSip(com.samiy.financemanager.data.model.SipItem newSip, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "addSip");
+
+                JsonObject sipObj = new JsonObject();
+                sipObj.addProperty("fundName", newSip.fundName);
+                sipObj.addProperty("role", newSip.role);
+                sipObj.addProperty("currentSip", newSip.currentSip);
+                sipObj.addProperty("currentMonth", newSip.currentMonth);
+                sipObj.addProperty("currentStatus", newSip.currentStatus);
+                sipObj.addProperty("nextSip", newSip.nextSip);
+                sipObj.addProperty("nextMonth", newSip.nextMonth);
+                sipObj.addProperty("nextStatus", newSip.nextStatus);
+                sipObj.addProperty("bankAccount", newSip.bankAccount);
+                sipObj.addProperty("platform", newSip.platform);
+                postBody.add("sip", sipObj);
+
+                executeHttpPost(GAS_URL, postBody.toString());
+
+                // Update locally
+                if (database != null) {
+                    if (database.sips == null) {
+                        database.sips = new java.util.ArrayList<>();
+                    }
+                    database.sips.add(newSip);
+                    saveLocalCache();
+                }
+
+                // Auto-sync from Google Sheets after addition
+                FinanceDatabase syncedDb = performSyncInternal();
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding SIP", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(e.getMessage());
+                });
+            }
+        });
+    }
+
+    public void deleteSip(String fundName, DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                JsonObject postBody = new JsonObject();
+                postBody.addProperty("action", "deleteSip");
+                postBody.addProperty("fundName", fundName);
+
+                executeHttpPost(GAS_URL, postBody.toString());
+
+                // Update locally
+                if (database != null && database.sips != null) {
+                    for (int i = 0; i < database.sips.size(); i++) {
+                        com.samiy.financemanager.data.model.SipItem s = database.sips.get(i);
+                        if (s.fundName != null && s.fundName.trim().equalsIgnoreCase(fundName.trim())) {
+                            database.sips.remove(i);
+                            break;
+                        }
+                    }
+                    saveLocalCache();
+                }
+
+                // Auto-sync from Google Sheets after deletion
+                FinanceDatabase syncedDb = performSyncInternal();
+
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onLoaded(syncedDb != null ? syncedDb : this.database);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error deleting SIP", e);
+                mainHandler.post(() -> {
+                    if (callback != null) callback.onError(e.getMessage());
+                });
+            }
+        });
+    }
+
     public void addMutualFundTransaction(com.samiy.financemanager.data.model.MutualFundTransaction mfTx, DataCallback callback) {
         if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
             mainHandler.post(() -> {

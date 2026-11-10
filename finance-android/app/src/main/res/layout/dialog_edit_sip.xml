@@ -69,6 +69,23 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/btnEditSipDelete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_pill_dark"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:layout_marginEnd="8dp"
+                android:text="🗑️ Delete"
+                android:textColor="@color/red_rose"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
                 android:id="@+id/btnEditSipClose"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -490,10 +507,27 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSipDelete"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                app:cornerRadius="24dp"
+                app:backgroundTint="@color/red_bg"
+                app:strokeColor="@color/red_rose"
+                app:strokeWidth="1dp"
+                android:text="Delete"
+                android:textColor="@color/red_rose"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textAllCaps="false" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSipCancel"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
-                android:layout_marginEnd="8dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
                 app:cornerRadius="24dp"
                 app:backgroundTint="@color/bg_card_secondary"
@@ -509,11 +543,11 @@
                 android:id="@+id/btnSipSave"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1.5"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1.4"
                 app:cornerRadius="24dp"
                 app:backgroundTint="@color/colorPrimary"
-                android:text="Save Changes"
+                android:text="Save"
                 android:textColor="@color/text_on_primary"
                 android:textSize="13sp"
                 android:textStyle="bold"

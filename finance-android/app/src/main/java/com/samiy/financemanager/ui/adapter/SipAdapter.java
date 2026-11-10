@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.samiy.financemanager.R;
 import com.samiy.financemanager.data.model.SipItem;
+import com.samiy.financemanager.ui.dialog.FinMngrDialog;
+import com.samiy.financemanager.util.SipHelper;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -20,7 +22,9 @@ import java.util.Locale;
 public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
     public interface OnSipActionListener {
         void onStatusChange(SipItem item, String targetMonth, String newStatus);
+        void onAdvanceCycle(SipItem originalItem, SipItem advancedItem);
         void onEditSip(SipItem item);
+        void onDeleteSip(SipItem item);
     }
 
     private List<SipItem> items = new ArrayList<>();
@@ -70,15 +74,6 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         holder.btnCurrentStatus.setText(cStatus);
         bindStatusStyle(holder.btnCurrentStatus, cStatus);
 
-        holder.btnCurrentStatus.setOnClickListener(v -> {
-            String newStatus = "Paid".equalsIgnoreCase(cStatus) ? "Not Paid" : "Paid";
-            sip.currentStatus = newStatus;
-            notifyItemChanged(position);
-            if (listener != null) {
-                listener.onStatusChange(sip, "current", newStatus);
-            }
-        });
-
         // Next Month
         String nMonth = (sip.nextMonth != null && !sip.nextMonth.trim().isEmpty()) ? sip.nextMonth.trim() : "Dec";
         holder.tvNextLabel.setText(nMonth + " SIP: " + formatCurrency(sip.nextSip));
@@ -87,21 +82,79 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         holder.btnNextStatus.setText(nStatus);
         bindStatusStyle(holder.btnNextStatus, nStatus);
 
-        holder.btnNextStatus.setOnClickListener(v -> {
-            String newStatus = "Paid".equalsIgnoreCase(nStatus) ? "Not Paid" : "Paid";
-            sip.nextStatus = newStatus;
-            notifyItemChanged(position);
-            if (listener != null) {
-                listener.onStatusChange(sip, "next", newStatus);
+        // Current Month Status Click with Confirmation & Cycle Advancement
+        holder.btnCurrentStatus.setOnClickListener(v -> {
+            if ("Not Paid".equalsIgnoreCase(cStatus)) {
+                String afterNext = SipHelper.getNextMonthName(nMonth);
+                FinMngrDialog.showConfirmation(v.getContext(),
+                        "Mark SIP as Paid?",
+                        "Mark " + sip.fundName + " as Paid for " + cMonth + " (" + formatCurrency(sip.currentSip) + ")?\n\nThis will advance the cycle:\n• Current Month becomes " + nMonth + " (" + formatCurrency(sip.nextSip) + ", Not Paid)\n• Next Month becomes " + afterNext + " (" + formatCurrency(sip.nextSip) + ", Not Paid)",
+                        "Confirm & Advance",
+                        () -> {
+                            SipItem advanced = SipHelper.advanceSipCycle(sip);
+                            if (listener != null) {
+                                listener.onAdvanceCycle(sip, advanced);
+                            }
+                        });
+            } else {
+                FinMngrDialog.showConfirmation(v.getContext(),
+                        "Mark SIP as Not Paid?",
+                        "Are you sure you want to mark " + sip.fundName + " as Not Paid for " + cMonth + "?",
+                        "Confirm",
+                        () -> {
+                            if (listener != null) {
+                                listener.onStatusChange(sip, "current", "Not Paid");
+                            }
+                        });
             }
         });
 
-        // Edit button & Item Click
+        // Next Month Status Click with Confirmation
+        holder.btnNextStatus.setOnClickListener(v -> {
+            if ("Not Paid".equalsIgnoreCase(nStatus)) {
+                FinMngrDialog.showConfirmation(v.getContext(),
+                        "Mark Next Month as Paid?",
+                        "Are you sure you want to mark " + sip.fundName + " as Paid for " + nMonth + " (" + formatCurrency(sip.nextSip) + ")?",
+                        "Confirm",
+                        () -> {
+                            if (listener != null) {
+                                listener.onStatusChange(sip, "next", "Paid");
+                            }
+                        });
+            } else {
+                FinMngrDialog.showConfirmation(v.getContext(),
+                        "Mark Next Month as Not Paid?",
+                        "Are you sure you want to mark " + sip.fundName + " as Not Paid for " + nMonth + "?",
+                        "Confirm",
+                        () -> {
+                            if (listener != null) {
+                                listener.onStatusChange(sip, "next", "Not Paid");
+                            }
+                        });
+            }
+        });
+
+        // Edit button
         if (holder.btnEditSip != null) {
             holder.btnEditSip.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onEditSip(sip);
                 }
+            });
+        }
+
+        // Delete button
+        if (holder.btnDeleteSipItem != null) {
+            holder.btnDeleteSipItem.setOnClickListener(v -> {
+                FinMngrDialog.showDestructiveConfirmation(v.getContext(),
+                        "Delete SIP",
+                        "Are you sure you want to delete '" + sip.fundName + "' from SIP Tracer? This will permanently remove it from your Google Sheet.",
+                        "Delete",
+                        () -> {
+                            if (listener != null) {
+                                listener.onDeleteSip(sip);
+                            }
+                        });
             });
         }
 
@@ -124,7 +177,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        return items.size();
+        return items != null ? items.size() : 0;
     }
 
     private String formatCurrency(double amount) {
@@ -132,7 +185,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvFundName, tvRoleBadge, tvAccountPlatform, btnEditSip;
+        TextView tvFundName, tvRoleBadge, tvAccountPlatform, btnEditSip, btnDeleteSipItem;
         TextView tvCurrentLabel, btnCurrentStatus;
         TextView tvNextLabel, btnNextStatus;
 
@@ -141,6 +194,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
             tvFundName = itemView.findViewById(R.id.tvSipFundName);
             tvRoleBadge = itemView.findViewById(R.id.tvSipRoleBadge);
             btnEditSip = itemView.findViewById(R.id.btnEditSip);
+            btnDeleteSipItem = itemView.findViewById(R.id.btnDeleteSipItem);
             tvAccountPlatform = itemView.findViewById(R.id.tvSipAccountPlatform);
             tvCurrentLabel = itemView.findViewById(R.id.tvSipCurrentLabel);
             btnCurrentStatus = itemView.findViewById(R.id.btnSipCurrentStatus);

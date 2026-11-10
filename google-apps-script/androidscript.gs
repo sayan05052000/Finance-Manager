@@ -376,6 +376,7 @@ function doPost(e) {
       }
 
       sheet.getRange(matchedRow, col).setValue(status);
+      SpreadsheetApp.flush();
       return jsonResponse({ status: 'success', message: 'SIP status updated to ' + status });
     }
 
@@ -472,6 +473,9 @@ function doPost(e) {
         throw new Error('Fund not found in SIP Tracer: ' + fundName);
       }
 
+      if (sip.role !== undefined && sip.role !== null) {
+        sheet.getRange(matchedRow, 2).setValue(String(sip.role).trim());
+      }
       if (sip.currentSip !== undefined && sip.currentSip !== null) {
         sheet.getRange(matchedRow, 3).setValue(Number(sip.currentSip) || 0);
       }
@@ -497,7 +501,68 @@ function doPost(e) {
         sheet.getRange(matchedRow, 10).setValue(String(sip.platform).trim());
       }
 
+      SpreadsheetApp.flush();
       return jsonResponse({ status: 'success', message: 'SIP updated successfully' });
+    }
+
+    if (action === 'addSip') {
+      const sheet = ss.getSheetByName('SIP Tracer');
+      if (!sheet) throw new Error('SIP Tracer sheet not found');
+
+      const sip = data.sip || {};
+      const fundName = String(sip.fundName || '').trim();
+      if (!fundName) throw new Error('Fund Name is required');
+
+      const role = String(sip.role || '').trim();
+      const currentSip = Number(sip.currentSip) || 0;
+      const currentMonth = String(sip.currentMonth || '').trim();
+      const currentStatus = String(sip.currentStatus || 'Not Paid').trim();
+      const nextSip = Number(sip.nextSip) || currentSip;
+      const nextMonth = String(sip.nextMonth || '').trim();
+      const nextStatus = String(sip.nextStatus || 'Not Paid').trim();
+      const bankAccount = String(sip.bankAccount || '').trim();
+      const platform = String(sip.platform || '').trim();
+
+      sheet.appendRow([
+        fundName,       // 1: Fund Name
+        role,           // 2: Role in Architecture
+        currentSip,     // 3: This Month's SIP
+        currentMonth,   // 4: This Month
+        currentStatus,  // 5: Payment Status
+        nextSip,        // 6: Next SIP (Final)
+        nextMonth,      // 7: Next Month
+        nextStatus,     // 8: Next Month's Payment Status
+        bankAccount,    // 9: Linked Bank Account
+        platform        // 10: Platform
+      ]);
+
+      SpreadsheetApp.flush();
+      return jsonResponse({ status: 'success', message: 'SIP added successfully' });
+    }
+
+    if (action === 'deleteSip') {
+      const sheet = ss.getSheetByName('SIP Tracer');
+      if (!sheet) throw new Error('SIP Tracer sheet not found');
+
+      const fundName = String(data.fundName || (data.sip && data.sip.fundName) || '').toLowerCase().trim();
+      if (!fundName) throw new Error('Fund Name is required to delete SIP');
+
+      const values = sheet.getDataRange().getValues();
+      let matchedRow = -1;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][0]).toLowerCase().trim() === fundName) {
+          matchedRow = i + 1;
+          break;
+        }
+      }
+
+      if (matchedRow === -1) {
+        throw new Error('Fund not found in SIP Tracer: ' + fundName);
+      }
+
+      sheet.deleteRow(matchedRow);
+      SpreadsheetApp.flush();
+      return jsonResponse({ status: 'success', message: 'SIP deleted successfully' });
     }
 
     if (action === 'addMutualFundTransaction') {

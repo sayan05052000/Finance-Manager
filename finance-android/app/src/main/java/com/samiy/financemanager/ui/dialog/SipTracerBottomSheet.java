@@ -74,6 +74,15 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
             btnClose.setOnClickListener(view -> dismiss());
         }
 
+        View btnAddSip = v.findViewById(R.id.btnAddSip);
+        if (btnAddSip != null) {
+            btnAddSip.setOnClickListener(view -> {
+                AddSipBottomSheet addDialog = AddSipBottomSheet.newInstance();
+                addDialog.setListener(newSip -> loadData());
+                addDialog.show(getParentFragmentManager(), "AddSipDialog");
+            });
+        }
+
         adapter.setListener(new SipAdapter.OnSipActionListener() {
             @Override
             public void onStatusChange(SipItem item, String targetMonth, String newStatus) {
@@ -82,14 +91,38 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
                             @Override
                             public void onLoaded(FinanceDatabase db) {
                                 if (isAdded()) {
-                                    Toast.makeText(getContext(), item.fundName + " updated to " + newStatus, Toast.LENGTH_SHORT).show();
+                                    loadData();
+                                    com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), item.fundName + " updated to " + newStatus);
                                 }
                             }
 
                             @Override
                             public void onError(String error) {
                                 if (isAdded()) {
-                                    Toast.makeText(getContext(), "Failed to update: " + error, Toast.LENGTH_SHORT).show();
+                                    loadData();
+                                    com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to update: " + error, Toast.LENGTH_SHORT);
+                                }
+                            }
+                        });
+            }
+
+            @Override
+            public void onAdvanceCycle(SipItem originalItem, SipItem advancedItem) {
+                FinanceRepository.getInstance(requireContext()).updateSip(
+                        advancedItem, new FinanceRepository.DataCallback() {
+                            @Override
+                            public void onLoaded(FinanceDatabase db) {
+                                if (isAdded()) {
+                                    loadData();
+                                    com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), "Marked as Paid! Cycle advanced to " + advancedItem.currentMonth);
+                                }
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                if (isAdded()) {
+                                    loadData();
+                                    com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to advance cycle: " + error, Toast.LENGTH_LONG);
                                 }
                             }
                         });
@@ -102,6 +135,28 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
                     loadData();
                 });
                 dialog.show(getParentFragmentManager(), "EditSipDialog");
+            }
+
+            @Override
+            public void onDeleteSip(SipItem item) {
+                FinanceRepository.getInstance(requireContext()).deleteSip(
+                        item.fundName, new FinanceRepository.DataCallback() {
+                            @Override
+                            public void onLoaded(FinanceDatabase db) {
+                                if (isAdded()) {
+                                    loadData();
+                                    com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), "SIP deleted successfully");
+                                }
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                if (isAdded()) {
+                                    loadData();
+                                    com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG);
+                                }
+                            }
+                        });
             }
         });
 
