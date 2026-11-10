@@ -254,7 +254,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
         }
         java.util.Collections.sort(subCatList);
 
-        ArrayAdapter<String> subCatAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_dropdown, subCatList);
+        ArrayAdapter<String> subCatAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_autocomplete_dropdown, subCatList);
         actvSubCategory.setAdapter(subCatAdapter);
         if (!subCatList.isEmpty()) {
             actvSubCategory.setText(subCatList.get(0));

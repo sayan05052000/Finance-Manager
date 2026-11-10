@@ -941,10 +941,12 @@ public class AccountsFragment extends Fragment {
 
             if (btnRemoveGoal != null) {
                 btnRemoveGoal.setOnClickListener(vItem -> {
-                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                            .setTitle("Remove Goal")
-                            .setMessage("Are you sure you want to remove goal \"" + g.name + "\"? This will delete this goal from your Goals tracker and Google Sheets.")
-                            .setPositiveButton("Remove", (dialog, which) -> {
+                    com.samiy.financemanager.ui.dialog.FinMngrDialog.showDestructiveConfirmation(
+                            requireContext(),
+                            "Remove Goal",
+                            "Are you sure you want to remove goal \"" + g.name + "\"? This will delete this goal from your Goals tracker and Google Sheets.",
+                            "Remove",
+                            () -> {
                                 FinanceRepository.getInstance(requireContext()).deleteGoal(g.name, new FinanceRepository.DataCallback() {
                                     @Override
                                     public void onLoaded(FinanceDatabase updatedDb) {
@@ -962,9 +964,8 @@ public class AccountsFragment extends Fragment {
                                         }
                                     }
                                 });
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
+                            }
+                    );
                 });
             }
 

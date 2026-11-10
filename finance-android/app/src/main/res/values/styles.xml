@@ -12,6 +12,8 @@
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="bottomSheetDialogTheme">@style/FinMngrBottomSheetDialogTheme</item>
+        <item name="autoCompleteTextViewStyle">@style/FinMngrAutoCompleteTextView</item>
+        <item name="android:autoCompleteTextViewStyle">@style/FinMngrAutoCompleteTextView</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="AppTheme">
@@ -26,7 +28,17 @@
         <item name="bottomSheetStyle">@style/FinMngrBottomSheetModal</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackground">@android:color/transparent</item>
+        <item name="colorSurface">@color/bg_card</item>
+        <item name="autoCompleteTextViewStyle">@style/FinMngrAutoCompleteTextView</item>
+        <item name="android:autoCompleteTextViewStyle">@style/FinMngrAutoCompleteTextView</item>
         <item name="android:windowIsFloating">false</item>
+    </style>
+
+    <style name="FinMngrAutoCompleteTextView" parent="Widget.AppCompat.AutoCompleteTextView">
+        <item name="android:popupBackground">@drawable/bg_dropdown_popup</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
     </style>
 
     <style name="FinMngrBottomSheetModal" parent="Widget.MaterialComponents.BottomSheet.Modal">

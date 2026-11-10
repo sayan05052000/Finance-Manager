@@ -289,7 +289,7 @@ public class AddSipBottomSheet extends BaseBottomSheetDialogFragment {
 
         List<String> suggestions = new ArrayList<>(schemeNames);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_dropdown_item_1line, suggestions);
+                R.layout.item_autocomplete_dropdown, suggestions);
         actvFundName.setAdapter(adapter);
 
         KeyboardHelper.setupAutoComplete(actvFundName, (parent, view, position, id) -> {
@@ -380,6 +380,18 @@ public class AddSipBottomSheet extends BaseBottomSheetDialogFragment {
             actvFundName.requestFocus();
             FinMngrToast.show(getContext(), "Please enter or select a Fund Name", Toast.LENGTH_SHORT);
             return;
+        }
+
+        FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+        if (db != null && db.sips != null) {
+            for (SipItem s : db.sips) {
+                if (s != null && s.fundName != null && s.fundName.trim().equalsIgnoreCase(fundName)) {
+                    actvFundName.setError("A SIP for this fund already exists");
+                    actvFundName.requestFocus();
+                    FinMngrToast.show(getContext(), "A SIP for '" + fundName + "' already exists", Toast.LENGTH_SHORT);
+                    return;
+                }
+            }
         }
 
         String curAmtStr = etCurrentAmount.getText().toString().trim();

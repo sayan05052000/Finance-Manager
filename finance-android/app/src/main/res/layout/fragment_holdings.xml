@@ -422,7 +422,8 @@
                     android:id="@+id/spHoldingsSort"
                     android:layout_width="145dp"
                     android:layout_height="38dp"
-                    android:background="@drawable/bg_spinner_dark" />
+                    android:background="@drawable/bg_spinner_dark"
+                    android:popupBackground="@drawable/bg_dropdown_popup" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView

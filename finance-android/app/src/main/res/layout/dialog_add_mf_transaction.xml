@@ -147,8 +147,10 @@
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
                 android:inputType="text"
-            android:imeOptions="actionDone"
+                android:imeOptions="actionDone"
                 android:completionThreshold="1"
+                android:popupBackground="@drawable/bg_dropdown_popup"
+                android:dropDownVerticalOffset="4dp"
                 android:textSize="14sp" />
 
             <ImageView

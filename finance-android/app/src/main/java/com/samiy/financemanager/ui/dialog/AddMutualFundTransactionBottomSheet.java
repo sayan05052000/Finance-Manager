@@ -499,7 +499,7 @@ public class AddMutualFundTransactionBottomSheet extends BaseBottomSheetDialogFr
 
                 // Update autocomplete suggestions for folio (strictly for this same scheme)
                 List<String> suggestions = getFolioSuggestions.apply(selected);
-                ArrayAdapter<String> folioAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_dropdown, suggestions);
+                ArrayAdapter<String> folioAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_autocomplete_dropdown, suggestions);
                 etMfFolio.setAdapter(folioAdapter);
 
                 if (tvMfFolioHint != null) {

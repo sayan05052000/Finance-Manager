@@ -13,6 +13,8 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
+
+import com.samiy.financemanager.R;
 import android.widget.ScrollView;
 
 import androidx.annotation.NonNull;
@@ -24,6 +26,11 @@ public class KeyboardHelper {
 
     public static void hideKeyboard(View view) {
         if (view == null) return;
+        if (view instanceof AutoCompleteTextView) {
+            try {
+                ((AutoCompleteTextView) view).dismissDropDown();
+            } catch (Exception ignored) {}
+        }
         InputMethodManager imm = (InputMethodManager) view.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm != null) {
             imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
@@ -87,6 +94,9 @@ public class KeyboardHelper {
     public static void setupAutoComplete(AutoCompleteTextView actv, AdapterView.OnItemClickListener extraListener) {
         if (actv == null) return;
         setupDoneAction(actv);
+        try {
+            actv.setDropDownBackgroundResource(R.drawable.bg_dropdown_popup);
+        } catch (Exception ignored) {}
         actv.setOnItemClickListener((parent, view, position, id) -> {
             if (extraListener != null) {
                 extraListener.onItemClick(parent, view, position, id);

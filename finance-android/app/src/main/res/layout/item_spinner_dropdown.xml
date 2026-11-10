@@ -9,6 +9,6 @@
     android:paddingBottom="14dp"
     android:singleLine="true"
     android:ellipsize="end"
-    android:background="@color/bg_card_secondary"
+    android:background="@drawable/bg_autocomplete_item"
     android:textColor="@color/text_primary"
     android:textSize="14sp" />

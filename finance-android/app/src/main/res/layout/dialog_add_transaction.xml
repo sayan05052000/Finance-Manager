@@ -204,7 +204,8 @@
                 android:imeOptions="actionDone"
                 android:completionThreshold="1"
                 android:dropDownVerticalOffset="4dp"
-                android:popupBackground="@color/bg_card_secondary" />
+                android:dropDownHeight="240dp"
+                android:popupBackground="@drawable/bg_dropdown_popup" />
 
             <ImageView
                 android:id="@+id/btnSubCategoryDropdown"

@@ -116,7 +116,10 @@
                 android:paddingEnd="12dp"
                 android:imeOptions="actionNext"
                 android:singleLine="true"
-                android:completionThreshold="1" />
+                android:completionThreshold="1"
+                android:popupBackground="@drawable/bg_dropdown_popup"
+                android:dropDownVerticalOffset="4dp"
+                android:dropDownHeight="220dp" />
 
             <!-- Role in Architecture -->
             <TextView
