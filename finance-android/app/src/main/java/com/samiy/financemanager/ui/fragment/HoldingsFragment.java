@@ -4,8 +4,11 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,15 +29,20 @@ import com.samiy.financemanager.data.model.SavingsTypeSummary;
 import com.samiy.financemanager.ui.adapter.HoldingsAdapter;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class HoldingsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
     private TextView tvTotalInvested, tvMarketValue, tvOneDayChange, tvOneDayChangePercent;
     private TextView tvTotalReturns, tvTotalReturnsRoi, tvPostTaxEstimate, tvActiveSchemes;
+    private TextView tvHoldingsHeader;
+    private Spinner spHoldingsSort;
     private LinearLayout layoutSavingsTypeBreakdown;
     private RecyclerView rvHoldings;
     private HoldingsAdapter adapter;
+    private int currentSortIndex = 0; // 0: Current Value (Default), 1: Invested Amount, 2: Day Change, 3: Name
 
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
@@ -54,6 +62,35 @@ public class HoldingsFragment extends Fragment {
         tvActiveSchemes = v.findViewById(R.id.tvActiveSchemes);
         layoutSavingsTypeBreakdown = v.findViewById(R.id.layoutSavingsTypeBreakdown);
         rvHoldings = v.findViewById(R.id.rvHoldings);
+        tvHoldingsHeader = v.findViewById(R.id.tvHoldingsHeader);
+        spHoldingsSort = v.findViewById(R.id.spHoldingsSort);
+
+        if (spHoldingsSort != null) {
+            String[] sortOptions = new String[] {
+                    "Current Value",
+                    "Invested Amount",
+                    "Day Change",
+                    "Name"
+            };
+            ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, sortOptions);
+            sortAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
+            spHoldingsSort.setAdapter(sortAdapter);
+            spHoldingsSort.setSelection(currentSortIndex);
+
+            spHoldingsSort.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
+                    if (currentSortIndex != position) {
+                        currentSortIndex = position;
+                        applySortingAndSubmit();
+                    }
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {}
+            });
+        }
 
         rvHoldings.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new HoldingsAdapter();
@@ -170,9 +207,47 @@ public class HoldingsFragment extends Fragment {
 
         // Holdings List
         if (db.holdings != null) {
-            adapter.setItems(db.holdings);
+            if (tvHoldingsHeader != null) {
+                tvHoldingsHeader.setText("Holdings Portfolio (" + db.holdings.size() + ")");
+            }
+            applySortingAndSubmit();
             adapter.setMutualFundTransactions(db.mutualFundTransactions);
         }
+    }
+
+    private void applySortingAndSubmit() {
+        if (!isAdded()) return;
+        FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+        if (db == null || db.holdings == null) return;
+
+        List<Holding> sortedList = new ArrayList<>(db.holdings);
+        sortedList.sort((h1, h2) -> {
+            int cmp = 0;
+            switch (currentSortIndex) {
+                case 0: // Current Value (High to Low)
+                    cmp = Double.compare(h2.currentValue, h1.currentValue);
+                    break;
+                case 1: // Invested Amount (High to Low)
+                    cmp = Double.compare(h2.investedValue, h1.investedValue);
+                    break;
+                case 2: // Day Change (High to Low)
+                    cmp = Double.compare(h2.oneDayChange, h1.oneDayChange);
+                    break;
+                case 3: // Name (A to Z)
+                    String name1 = h1.schemeName != null ? h1.schemeName.trim() : "";
+                    String name2 = h2.schemeName != null ? h2.schemeName.trim() : "";
+                    cmp = name1.compareToIgnoreCase(name2);
+                    break;
+            }
+            if (cmp == 0 && currentSortIndex != 3) {
+                String name1 = h1.schemeName != null ? h1.schemeName.trim() : "";
+                String name2 = h2.schemeName != null ? h2.schemeName.trim() : "";
+                cmp = name1.compareToIgnoreCase(name2);
+            }
+            return cmp;
+        });
+
+        adapter.setItems(sortedList);
     }
 
     private void refreshData() {

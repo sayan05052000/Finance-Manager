@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [v2.3] - 2026-11-09
+## [v2.3] - 2026-11-10
 
 ### Added
+- **Multi-Criteria Sorting in Holdings Portfolio**:
+  - Implemented an interactive sort dropdown selector in [`HoldingsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/HoldingsFragment.java) and [`fragment_holdings.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_holdings.xml) next to the holdings header.
+  - **Default**: **Current Value** (highest valuation to lowest descending).
+  - **Other Sort Criteria**:
+    - **Invested Amount**: sorts by `investedValue` descending (highest invested capital first).
+    - **Day Change**: sorts by `oneDayChange` descending (highest 1-day profit to lowest/loss).
+    - **Name**: sorts alphabetically (A to Z) by `schemeName`.
+  - Selected sort criteria is remembered across data re-syncs and tab switches.
+  - Dynamically updates the header count to reflect active assets (e.g. `Holdings Portfolio (N)`).
 - **Universal Dropdown Option Selection Keyboard Auto-Dismissal**:
   - Integrated `KeyboardHelper.setupAutoComplete` and `setOnItemClickListener` across all searchable `AutoCompleteTextView` dropdowns (e.g. `actvSubCategory` in [`AddTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddTransactionBottomSheet.java), `etMfFolio` in [`AddMutualFundTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddMutualFundTransactionBottomSheet.java)) and modal selection dialogs ([`dialog_select_subcategory.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_subcategory.xml), [`dialog_select_folio.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_select_folio.xml)). Selecting any option immediately closes the soft keyboard and clears focus.
   - Selecting any item in Spinners across all bottom sheets (`spSourceSelector`, `spCreditCardSelector`, `spMfFund`, `spMfCategory`, etc.) also automatically hides the keyboard.

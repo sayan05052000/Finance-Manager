@@ -391,16 +391,39 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
-            <!-- Holdings List Header -->
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Holdings List Header & Sort Option -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginTop="20dp"
-                android:layout_marginBottom="8dp"
-                android:text="Holdings Portfolio (13)"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:id="@+id/tvHoldingsHeader"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Holdings Portfolio"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sort by: "
+                    android:textColor="@color/text_muted"
+                    android:textSize="11.5sp"
+                    android:layout_marginEnd="6dp" />
+
+                <Spinner
+                    android:id="@+id/spHoldingsSort"
+                    android:layout_width="145dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_spinner_dark" />
+            </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvHoldings"
