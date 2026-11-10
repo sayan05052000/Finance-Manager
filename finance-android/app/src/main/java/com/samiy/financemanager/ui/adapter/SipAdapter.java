@@ -16,8 +16,12 @@ import com.samiy.financemanager.util.SipHelper;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
     public interface OnSipActionListener {
@@ -31,6 +35,9 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
     private OnSipActionListener listener;
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
+    private final Set<String> deletingFundNames = new HashSet<>();
+    private final Map<String, String> updatingFundTarget = new HashMap<>(); // fundName -> "current", "next", "cycle"
+
     public void setItems(List<SipItem> items) {
         this.items = items != null ? items : new ArrayList<>();
         notifyDataSetChanged();
@@ -38,6 +45,40 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
 
     public void setListener(OnSipActionListener listener) {
         this.listener = listener;
+    }
+
+    public void markUpdating(String fundName, String target) {
+        if (fundName == null) return;
+        updatingFundTarget.put(fundName.toLowerCase().trim(), target);
+        notifyFundChanged(fundName);
+    }
+
+    public void unmarkUpdating(String fundName) {
+        if (fundName == null) return;
+        updatingFundTarget.remove(fundName.toLowerCase().trim());
+        notifyFundChanged(fundName);
+    }
+
+    public void markDeleting(String fundName) {
+        if (fundName == null) return;
+        deletingFundNames.add(fundName.toLowerCase().trim());
+        notifyFundChanged(fundName);
+    }
+
+    public void unmarkDeleting(String fundName) {
+        if (fundName == null) return;
+        deletingFundNames.remove(fundName.toLowerCase().trim());
+        notifyFundChanged(fundName);
+    }
+
+    private void notifyFundChanged(String fundName) {
+        for (int i = 0; i < items.size(); i++) {
+            SipItem item = items.get(i);
+            if (item.fundName != null && item.fundName.trim().equalsIgnoreCase(fundName.trim())) {
+                notifyItemChanged(i);
+                break;
+            }
+        }
     }
 
     @NonNull
@@ -82,8 +123,61 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         holder.btnNextStatus.setText(nStatus);
         bindStatusStyle(holder.btnNextStatus, nStatus);
 
+        // Check updating & deleting states for this specific SIP
+        String fKey = sip.fundName != null ? sip.fundName.toLowerCase().trim() : "";
+        boolean isDeleting = deletingFundNames.contains(fKey);
+        String updatingTarget = updatingFundTarget.get(fKey); // null, "current", "next", "cycle"
+        boolean isUpdating = updatingTarget != null;
+
+        if (isDeleting) {
+            holder.itemView.setAlpha(0.35f);
+            if (holder.btnDeleteSipItem != null) {
+                holder.btnDeleteSipItem.setText("⏳ Deleting...");
+                holder.btnDeleteSipItem.setEnabled(false);
+            }
+            holder.btnCurrentStatus.setEnabled(false);
+            holder.btnNextStatus.setEnabled(false);
+            if (holder.btnEditSip != null) holder.btnEditSip.setEnabled(false);
+            holder.itemView.setEnabled(false);
+        } else if (isUpdating) {
+            holder.itemView.setAlpha(0.92f);
+            if (holder.btnDeleteSipItem != null) holder.btnDeleteSipItem.setEnabled(false);
+            if (holder.btnEditSip != null) holder.btnEditSip.setEnabled(false);
+
+            if ("current".equalsIgnoreCase(updatingTarget)) {
+                holder.btnCurrentStatus.setText("⏳ Updating...");
+                holder.btnCurrentStatus.setTextColor(ContextCompat.getColor(holder.btnCurrentStatus.getContext(), R.color.amber_gold));
+                holder.btnCurrentStatus.setBackgroundResource(R.drawable.bg_pill_dark);
+                holder.btnCurrentStatus.setEnabled(false);
+                holder.btnNextStatus.setEnabled(false);
+            } else if ("cycle".equalsIgnoreCase(updatingTarget)) {
+                holder.btnCurrentStatus.setText("⏳ Advancing...");
+                holder.btnCurrentStatus.setTextColor(ContextCompat.getColor(holder.btnCurrentStatus.getContext(), R.color.green_mint));
+                holder.btnCurrentStatus.setBackgroundResource(R.drawable.bg_pill_dark);
+                holder.btnCurrentStatus.setEnabled(false);
+                holder.btnNextStatus.setEnabled(false);
+            } else if ("next".equalsIgnoreCase(updatingTarget)) {
+                holder.btnNextStatus.setText("⏳ Updating...");
+                holder.btnNextStatus.setTextColor(ContextCompat.getColor(holder.btnNextStatus.getContext(), R.color.amber_gold));
+                holder.btnNextStatus.setBackgroundResource(R.drawable.bg_pill_dark);
+                holder.btnNextStatus.setEnabled(false);
+                holder.btnCurrentStatus.setEnabled(false);
+            }
+        } else {
+            holder.itemView.setAlpha(1.0f);
+            holder.itemView.setEnabled(true);
+            if (holder.btnDeleteSipItem != null) {
+                holder.btnDeleteSipItem.setText("🗑️ Delete");
+                holder.btnDeleteSipItem.setEnabled(true);
+            }
+            holder.btnCurrentStatus.setEnabled(true);
+            holder.btnNextStatus.setEnabled(true);
+            if (holder.btnEditSip != null) holder.btnEditSip.setEnabled(true);
+        }
+
         // Current Month Status Click with Confirmation & Cycle Advancement
         holder.btnCurrentStatus.setOnClickListener(v -> {
+            if (isUpdating || isDeleting) return;
             if ("Not Paid".equalsIgnoreCase(cStatus)) {
                 String afterNext = SipHelper.getNextMonthName(nMonth);
                 FinMngrDialog.showConfirmation(v.getContext(),
@@ -111,6 +205,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
 
         // Next Month Status Click with Confirmation
         holder.btnNextStatus.setOnClickListener(v -> {
+            if (isUpdating || isDeleting) return;
             if ("Not Paid".equalsIgnoreCase(nStatus)) {
                 FinMngrDialog.showConfirmation(v.getContext(),
                         "Mark Next Month as Paid?",
@@ -137,6 +232,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         // Edit button
         if (holder.btnEditSip != null) {
             holder.btnEditSip.setOnClickListener(v -> {
+                if (isUpdating || isDeleting) return;
                 if (listener != null) {
                     listener.onEditSip(sip);
                 }
@@ -146,6 +242,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         // Delete button
         if (holder.btnDeleteSipItem != null) {
             holder.btnDeleteSipItem.setOnClickListener(v -> {
+                if (isUpdating || isDeleting) return;
                 FinMngrDialog.showDestructiveConfirmation(v.getContext(),
                         "Delete SIP",
                         "Are you sure you want to delete '" + sip.fundName + "' from SIP Tracer? This will permanently remove it from your Google Sheet.",
@@ -159,6 +256,7 @@ public class SipAdapter extends RecyclerView.Adapter<SipAdapter.ViewHolder> {
         }
 
         holder.itemView.setOnClickListener(v -> {
+            if (isUpdating || isDeleting) return;
             if (listener != null) {
                 listener.onEditSip(sip);
             }

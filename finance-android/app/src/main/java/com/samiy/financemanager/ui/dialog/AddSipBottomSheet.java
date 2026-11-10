@@ -424,7 +424,8 @@ public class AddSipBottomSheet extends BaseBottomSheetDialogFragment {
         newSip.bankAccount = tvSelectedBankAccount.getText().toString().trim();
 
         btnSubmit.setEnabled(false);
-        btnSubmit.setText("Adding...");
+        btnSubmit.setText("⏳ Adding to Google Sheet...");
+        if (btnCancel != null) btnCancel.setEnabled(false);
 
         FinanceRepository.getInstance(requireContext()).addSip(newSip, new FinanceRepository.DataCallback() {
             @Override

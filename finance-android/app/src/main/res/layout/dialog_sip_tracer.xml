@@ -78,6 +78,50 @@
             android:focusable="true" />
     </LinearLayout>
 
+    <!-- Updating Progress Bar -->
+    <ProgressBar
+        android:id="@+id/pbSipLoading"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="8dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/colorPrimary"
+        android:visibility="gone" />
+
+    <!-- Live Updating Notification Pill -->
+    <LinearLayout
+        android:id="@+id/layoutSipUpdatingBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_chip_green"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="7dp"
+        android:paddingBottom="7dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/green_mint"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/tvSipUpdatingText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Syncing update with Google Sheets..."
+            android:textColor="@color/green_mint"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <!-- Prominent Informational Notice -->
     <LinearLayout
         android:layout_width="match_parent"

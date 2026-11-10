@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,6 +28,9 @@ import java.util.Locale;
 public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
     private TextView tvSipSubtitle, tvEmptySips;
     private RecyclerView rvSipList;
+    private ProgressBar pbSipLoading;
+    private View layoutSipUpdatingBanner;
+    private TextView tvSipUpdatingText;
     private SipAdapter adapter;
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
@@ -64,6 +68,9 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
         tvSipSubtitle = v.findViewById(R.id.tvSipSubtitle);
         tvEmptySips = v.findViewById(R.id.tvEmptySips);
         rvSipList = v.findViewById(R.id.rvSipList);
+        pbSipLoading = v.findViewById(R.id.pbSipLoading);
+        layoutSipUpdatingBanner = v.findViewById(R.id.layoutSipUpdatingBanner);
+        tvSipUpdatingText = v.findViewById(R.id.tvSipUpdatingText);
 
         rvSipList.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new SipAdapter();
@@ -86,11 +93,16 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
         adapter.setListener(new SipAdapter.OnSipActionListener() {
             @Override
             public void onStatusChange(SipItem item, String targetMonth, String newStatus) {
+                showUpdatingState("Updating " + item.fundName + " to " + newStatus + " in Google Sheets...");
+                adapter.markUpdating(item.fundName, targetMonth);
+
                 FinanceRepository.getInstance(requireContext()).updateSipStatus(
                         item.fundName, targetMonth, newStatus, new FinanceRepository.DataCallback() {
                             @Override
                             public void onLoaded(FinanceDatabase db) {
                                 if (isAdded()) {
+                                    hideUpdatingState();
+                                    adapter.unmarkUpdating(item.fundName);
                                     loadData();
                                     com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), item.fundName + " updated to " + newStatus);
                                 }
@@ -99,6 +111,8 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
                             @Override
                             public void onError(String error) {
                                 if (isAdded()) {
+                                    hideUpdatingState();
+                                    adapter.unmarkUpdating(item.fundName);
                                     loadData();
                                     com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to update: " + error, Toast.LENGTH_SHORT);
                                 }
@@ -108,11 +122,16 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
 
             @Override
             public void onAdvanceCycle(SipItem originalItem, SipItem advancedItem) {
+                showUpdatingState("Advancing cycle for " + originalItem.fundName + " to " + advancedItem.currentMonth + "...");
+                adapter.markUpdating(originalItem.fundName, "cycle");
+
                 FinanceRepository.getInstance(requireContext()).updateSip(
                         advancedItem, new FinanceRepository.DataCallback() {
                             @Override
                             public void onLoaded(FinanceDatabase db) {
                                 if (isAdded()) {
+                                    hideUpdatingState();
+                                    adapter.unmarkUpdating(originalItem.fundName);
                                     loadData();
                                     com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), "Marked as Paid! Cycle advanced to " + advancedItem.currentMonth);
                                 }
@@ -121,6 +140,8 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
                             @Override
                             public void onError(String error) {
                                 if (isAdded()) {
+                                    hideUpdatingState();
+                                    adapter.unmarkUpdating(originalItem.fundName);
                                     loadData();
                                     com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to advance cycle: " + error, Toast.LENGTH_LONG);
                                 }
@@ -139,11 +160,16 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
 
             @Override
             public void onDeleteSip(SipItem item) {
+                showUpdatingState("Deleting " + item.fundName + " from Google Sheets...");
+                adapter.markDeleting(item.fundName);
+
                 FinanceRepository.getInstance(requireContext()).deleteSip(
                         item.fundName, new FinanceRepository.DataCallback() {
                             @Override
                             public void onLoaded(FinanceDatabase db) {
                                 if (isAdded()) {
+                                    hideUpdatingState();
+                                    adapter.unmarkDeleting(item.fundName);
                                     loadData();
                                     com.samiy.financemanager.util.FinMngrToast.showSuccess(getContext(), "SIP deleted successfully");
                                 }
@@ -152,6 +178,8 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
                             @Override
                             public void onError(String error) {
                                 if (isAdded()) {
+                                    hideUpdatingState();
+                                    adapter.unmarkDeleting(item.fundName);
                                     loadData();
                                     com.samiy.financemanager.util.FinMngrToast.show(getContext(), "Failed to delete: " + error, Toast.LENGTH_LONG);
                                 }
@@ -163,6 +191,17 @@ public class SipTracerBottomSheet extends BaseBottomSheetDialogFragment {
         loadData();
 
         return v;
+    }
+
+    private void showUpdatingState(String message) {
+        if (pbSipLoading != null) pbSipLoading.setVisibility(View.VISIBLE);
+        if (layoutSipUpdatingBanner != null) layoutSipUpdatingBanner.setVisibility(View.VISIBLE);
+        if (tvSipUpdatingText != null) tvSipUpdatingText.setText(message);
+    }
+
+    private void hideUpdatingState() {
+        if (pbSipLoading != null) pbSipLoading.setVisibility(View.GONE);
+        if (layoutSipUpdatingBanner != null) layoutSipUpdatingBanner.setVisibility(View.GONE);
     }
 
     private void loadData() {

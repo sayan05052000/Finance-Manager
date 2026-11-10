@@ -338,6 +338,11 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
             return;
         }
 
+        View btnSipDelete = getView() != null ? getView().findViewById(R.id.btnSipDelete) : null;
+        if (btnSipDelete instanceof Button) {
+            ((Button) btnSipDelete).setText("⏳ Deleting...");
+            btnSipDelete.setEnabled(false);
+        }
         if (btnSave != null) btnSave.setEnabled(false);
         if (btnCancel != null) btnCancel.setEnabled(false);
 
@@ -473,7 +478,10 @@ public class EditSipBottomSheet extends BaseBottomSheetDialogFragment {
         updated.bankAccount = tvSelectedBankAccount.getText().toString().trim();
 
         btnSave.setEnabled(false);
-        btnSave.setText("Saving...");
+        btnSave.setText("⏳ Saving to Google Sheet...");
+        View btnSipDelete = getView() != null ? getView().findViewById(R.id.btnSipDelete) : null;
+        if (btnSipDelete != null) btnSipDelete.setEnabled(false);
+        if (btnCancel != null) btnCancel.setEnabled(false);
 
         FinanceRepository.getInstance(requireContext()).updateSip(updated, new FinanceRepository.DataCallback() {
             @Override
