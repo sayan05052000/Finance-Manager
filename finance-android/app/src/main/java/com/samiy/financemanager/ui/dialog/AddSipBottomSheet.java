@@ -263,7 +263,7 @@ public class AddSipBottomSheet extends BaseBottomSheetDialogFragment {
         });
 
         // Setup Autocomplete suggestions from Mutual Fund holdings
-        setupFundSuggestions();
+        setupFundSuggestions(v);
 
         // Setup outside touch dismiss
         setupKeyboardDismissOnTouch(v);
@@ -274,7 +274,7 @@ public class AddSipBottomSheet extends BaseBottomSheetDialogFragment {
         return v;
     }
 
-    private void setupFundSuggestions() {
+    private void setupFundSuggestions(View v) {
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         if (db == null) return;
 
@@ -292,7 +292,8 @@ public class AddSipBottomSheet extends BaseBottomSheetDialogFragment {
                 R.layout.item_autocomplete_dropdown, suggestions);
         actvFundName.setAdapter(adapter);
 
-        KeyboardHelper.setupAutoComplete(actvFundName, (parent, view, position, id) -> {
+        View btnFundNameDropdown = v != null ? v.findViewById(R.id.btnFundNameDropdown) : null;
+        KeyboardHelper.setupAutoComplete(actvFundName, btnFundNameDropdown, suggestions, (parent, view, position, id) -> {
             String selected = (String) parent.getItemAtPosition(position);
             actvFundName.setText(selected);
             actvFundName.setSelection(selected.length());

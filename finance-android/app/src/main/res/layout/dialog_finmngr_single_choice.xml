@@ -43,7 +43,7 @@
     <ListView
         android:id="@+id/lvChoiceList"
         android:layout_width="match_parent"
-        android:layout_height="320dp"
+        android:layout_height="wrap_content"
         android:divider="@color/border_dark"
         android:dividerHeight="0.8dp"
         android:scrollbars="vertical" />

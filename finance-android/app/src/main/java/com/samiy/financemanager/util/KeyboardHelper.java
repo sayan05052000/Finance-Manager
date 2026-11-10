@@ -86,17 +86,77 @@ public class KeyboardHelper {
      * Configures an AutoCompleteTextView:
      * 1. Setting Done IME action to hide keyboard and clear focus.
      * 2. When an option is clicked from the dropdown, immediately hides keyboard and clears focus.
+     * 3. Sets drop down height to WRAP_CONTENT so it only allocates as much space as required.
      */
     public static void setupAutoComplete(AutoCompleteTextView actv) {
-        setupAutoComplete(actv, null);
+        setupAutoComplete(actv, null, null, null);
     }
 
     public static void setupAutoComplete(AutoCompleteTextView actv, AdapterView.OnItemClickListener extraListener) {
+        setupAutoComplete(actv, null, null, extraListener);
+    }
+
+    public static void setupAutoComplete(AutoCompleteTextView actv, View dropdownArrow, java.util.List<String> allItems, AdapterView.OnItemClickListener extraListener) {
         if (actv == null) return;
         setupDoneAction(actv);
         try {
             actv.setDropDownBackgroundResource(R.drawable.bg_dropdown_popup);
+            actv.setDropDownHeight(android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
         } catch (Exception ignored) {}
+
+        actv.setOnClickListener(v -> {
+            if (!actv.isPopupShowing()) {
+                if (allItems != null && actv.getText().toString().trim().isEmpty()) {
+                    android.widget.ArrayAdapter<String> fresh = new android.widget.ArrayAdapter<>(
+                            actv.getContext(), R.layout.item_autocomplete_dropdown, new java.util.ArrayList<>(allItems));
+                    actv.setAdapter(fresh);
+                }
+                try {
+                    actv.showDropDown();
+                } catch (Exception ignored) {}
+            }
+        });
+
+        if (dropdownArrow != null) {
+            dropdownArrow.setOnClickListener(v -> {
+                if (actv.isPopupShowing()) {
+                    actv.dismissDropDown();
+                } else {
+                    if (allItems != null && actv.getText().toString().trim().isEmpty()) {
+                        android.widget.ArrayAdapter<String> fresh = new android.widget.ArrayAdapter<>(
+                                actv.getContext(), R.layout.item_autocomplete_dropdown, new java.util.ArrayList<>(allItems));
+                        actv.setAdapter(fresh);
+                    }
+                    try {
+                        actv.showDropDown();
+                    } catch (Exception ignored) {}
+                }
+            });
+        } else {
+            // If no dedicated dropdown arrow View, allow tapping the right chevron area of the AutoCompleteTextView
+            actv.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                    int rightEdge = actv.getWidth() - actv.getPaddingEnd() - 48;
+                    if (event.getX() >= rightEdge) {
+                        if (actv.isPopupShowing()) {
+                            actv.dismissDropDown();
+                        } else {
+                            if (allItems != null && actv.getText().toString().trim().isEmpty()) {
+                                android.widget.ArrayAdapter<String> fresh = new android.widget.ArrayAdapter<>(
+                                        actv.getContext(), R.layout.item_autocomplete_dropdown, new java.util.ArrayList<>(allItems));
+                                actv.setAdapter(fresh);
+                            }
+                            try {
+                                actv.showDropDown();
+                            } catch (Exception ignored) {}
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
+
         actv.setOnItemClickListener((parent, view, position, id) -> {
             if (extraListener != null) {
                 extraListener.onItemClick(parent, view, position, id);

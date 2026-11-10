@@ -260,22 +260,11 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             actvSubCategory.setText(subCatList.get(0));
         }
 
-        // Configure AutoCompleteTextView: close keyboard on selecting an option and on IME done action
-        com.samiy.financemanager.util.KeyboardHelper.setupAutoComplete(actvSubCategory, (parent, view, position, id) -> {
+        // Configure AutoCompleteTextView: close keyboard on selecting an option, handle down arrow click, and wrap content height
+        com.samiy.financemanager.util.KeyboardHelper.setupAutoComplete(
+                actvSubCategory, btnSubCategoryDropdown, subCatList, (parent, view, position, id) -> {
             actvSubCategory.setError(null);
         });
-
-        actvSubCategory.setOnClickListener(view -> actvSubCategory.showDropDown());
-        if (btnSubCategoryDropdown != null) {
-            btnSubCategoryDropdown.setOnClickListener(view -> {
-                com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(actvSubCategory);
-                if (actvSubCategory.isPopupShowing()) {
-                    actvSubCategory.dismissDropDown();
-                } else {
-                    actvSubCategory.showDropDown();
-                }
-            });
-        }
 
         // Real-time TextWatcher on Sub-Category: alert user if query does not match any available option
         actvSubCategory.addTextChangedListener(new android.text.TextWatcher() {
@@ -371,6 +360,18 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                         tvEmpty.setTextSize(12);
                         tvEmpty.setPadding(0, 24, 0, 24);
                         layoutItems.addView(tvEmpty);
+                    }
+                    if (scrollSubCategories != null) {
+                        scrollSubCategories.post(() -> {
+                            int maxAllowed = (int) (requireContext().getResources().getDisplayMetrics().heightPixels * 0.45);
+                            android.view.ViewGroup.LayoutParams lp = scrollSubCategories.getLayoutParams();
+                            if (layoutItems.getHeight() > maxAllowed) {
+                                lp.height = maxAllowed;
+                            } else {
+                                lp.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+                            }
+                            scrollSubCategories.setLayoutParams(lp);
+                        });
                     }
                 };
 

@@ -102,24 +102,41 @@
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
 
-            <AutoCompleteTextView
-                android:id="@+id/actvAddSipFundName"
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
-                android:hint="e.g. Bandhan Small Cap"
-                android:textColorHint="@color/text_muted"
-                android:textColor="@color/text_primary"
-                android:textSize="13sp"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:imeOptions="actionNext"
-                android:singleLine="true"
-                android:completionThreshold="1"
-                android:popupBackground="@drawable/bg_dropdown_popup"
-                android:dropDownVerticalOffset="4dp"
-                android:dropDownHeight="220dp" />
+                android:layout_marginTop="4dp">
+
+                <AutoCompleteTextView
+                    android:id="@+id/actvAddSipFundName"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_pill_dark"
+                    android:hint="e.g. Bandhan Small Cap"
+                    android:textColorHint="@color/text_muted"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="42dp"
+                    android:imeOptions="actionNext"
+                    android:singleLine="true"
+                    android:completionThreshold="1"
+                    android:popupBackground="@drawable/bg_dropdown_popup"
+                    android:dropDownVerticalOffset="4dp" />
+
+                <ImageView
+                    android:id="@+id/btnFundNameDropdown"
+                    android:layout_width="44dp"
+                    android:layout_height="match_parent"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_chevron_down"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="Select Fund" />
+            </RelativeLayout>
 
             <!-- Role in Architecture -->
             <TextView
@@ -135,7 +152,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:hint="e.g. Aggressor / Emergency Corpus Build"
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
@@ -180,7 +197,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:hint="₹ 0"
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
@@ -205,7 +222,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center_vertical"
@@ -309,7 +326,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:hint="₹ 0"
                 android:textColorHint="@color/text_muted"
                 android:textColor="@color/text_primary"
@@ -334,7 +351,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center_vertical"
@@ -438,7 +455,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center_vertical"
@@ -475,7 +492,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/bg_spinner_dark"
+                android:background="@drawable/bg_pill_dark"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center_vertical"

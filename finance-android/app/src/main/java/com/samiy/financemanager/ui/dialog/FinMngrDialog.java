@@ -99,6 +99,30 @@ public class FinMngrDialog {
             lvList.setSelection(selectedPos);
         }
 
+        // Only allocate that much space which is required:
+        lvList.post(() -> {
+            int totalHeight = 0;
+            int maxAllowed = (int) (context.getResources().getDisplayMetrics().heightPixels * 0.50);
+            int widthSpec = View.MeasureSpec.makeMeasureSpec(
+                    lvList.getWidth() > 0 ? lvList.getWidth() : (int) (context.getResources().getDisplayMetrics().widthPixels * 0.80),
+                    View.MeasureSpec.AT_MOST);
+            int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+            for (int i = 0; i < adapter.getCount(); i++) {
+                View item = adapter.getView(i, null, lvList);
+                item.measure(widthSpec, heightSpec);
+                totalHeight += item.getMeasuredHeight();
+                if (totalHeight >= maxAllowed) {
+                    totalHeight = maxAllowed;
+                    break;
+                }
+            }
+            if (totalHeight > 0) {
+                android.view.ViewGroup.LayoutParams lp = lvList.getLayoutParams();
+                lp.height = Math.min(totalHeight + (int) (adapter.getCount() * 1.5f), maxAllowed);
+                lvList.setLayoutParams(lp);
+            }
+        });
+
         btnCancel.setOnClickListener(view -> dialog.dismiss());
         com.samiy.financemanager.util.KeyboardHelper.setupOutsideTouchDismiss(dialog);
 
