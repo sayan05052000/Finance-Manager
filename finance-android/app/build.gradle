@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+if (project.hasProperty('project.buildDir')) {
+    buildDir = "${project.properties['project.buildDir']}/${project.name}"
+}
+
 android {
     namespace "com.samiy.financemanager"
     compileSdk rootProject.ext.compileSdkVersion
