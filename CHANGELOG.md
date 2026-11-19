@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Net Debit Transactions (`net <= 0` / expenses)**: Checkbox is **checked by default and locked/disabled** (cannot be unchecked), guaranteeing that all debit spends affect the card's unbilled balance.
     - **Credit Transactions (`net > 0` / inflows / bill payments)**: Checkbox is **unchecked by default**, allowing the payment to offset the card's **billed amount** directly. Users can manually check it if they wish to offset the unbilled balance instead.
     - Updates dynamically in real-time as debit/credit amounts or transaction types (`Expense`, `Income`, `Do not Consider`) change.
+  - **Google Sheets `Is Effecting Unbilled Amount` Column Integration**:
+    - Persists the state to Google Sheets under column **`Is Effecting Unbilled Amount`** as boolean **`TRUE`** (offsets unbilled) or **`FALSE`** (offsets billed).
+    - Fully resilient dynamic header matching in `findTransactionsColumnIndices` (`androidscript.gs`) automatically detects the column anywhere in the sheet.
   - **Billed Amount Settlement & Automatic Paid Status**:
     - When offsetting the billed amount (`ccOffsetTarget == "billed"`), the payment reduces `billedAmount`. If the billed amount is fully cleared, the card is automatically marked as `'Paid'`, advancing the due date by `+1 month` via [`advanceDateByOneMonth`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/util/DateTimeHelper.java) and recording today as the last paid date. Unbilled balance remains completely untouched.
 - **Exact Credit Card Reversal on Transaction Deletion**:

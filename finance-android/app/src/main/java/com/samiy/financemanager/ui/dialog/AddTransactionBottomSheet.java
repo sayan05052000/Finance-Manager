@@ -841,7 +841,9 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     } else if (creditCardNames != null && !creditCardNames.isEmpty()) {
                         tx.taggedCreditCard = creditCardNames.get(0).trim();
                     }
-                    tx.ccOffsetTarget = (cbOffsetUnbilled != null && cbOffsetUnbilled.isChecked()) ? "unbilled" : "billed";
+                    boolean offsetUnbilled = (cbOffsetUnbilled != null && cbOffsetUnbilled.isChecked());
+                    tx.isEffectingUnbilled = offsetUnbilled;
+                    tx.ccOffsetTarget = offsetUnbilled ? "unbilled" : "billed";
                 }
             } else {
                 tx.account = selectedSource;

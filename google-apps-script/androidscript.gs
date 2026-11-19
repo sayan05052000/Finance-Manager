@@ -185,13 +185,18 @@ function doPost(e) {
         }
       }
 
-      const offsetTarget = String(tx.ccOffsetTarget || '').toLowerCase().trim() === 'billed' ? 'Billed' : 'Unbilled';
+      let isEffectingUnbilled = true;
+      if (tx.isEffectingUnbilled !== undefined && tx.isEffectingUnbilled !== null) {
+        isEffectingUnbilled = (tx.isEffectingUnbilled === true || String(tx.isEffectingUnbilled).toLowerCase().trim() === 'true');
+      } else if (tx.ccOffsetTarget !== undefined && tx.ccOffsetTarget !== null) {
+        isEffectingUnbilled = (String(tx.ccOffsetTarget).toLowerCase().trim() !== 'billed');
+      }
 
       if (cols.colTaggedCard > sheet.getLastColumn() || !sheet.getRange(1, cols.colTaggedCard).getValue()) {
         sheet.getRange(1, cols.colTaggedCard).setValue('Tagged Credit Card');
       }
       if (cols.colCcOffsetTarget > sheet.getLastColumn() || !sheet.getRange(1, cols.colCcOffsetTarget).getValue()) {
-        sheet.getRange(1, cols.colCcOffsetTarget).setValue('CC Offset Target');
+        sheet.getRange(1, cols.colCcOffsetTarget).setValue('Is Effecting Unbilled Amount');
       }
 
       const maxCol = Math.max(
@@ -212,7 +217,13 @@ function doPost(e) {
       if (cols.colAccount > 0) newRow[cols.colAccount - 1] = account;
       if (cols.colDebitWithoutSign > 0) newRow[cols.colDebitWithoutSign - 1] = (debitWithoutSign !== '' ? debitWithoutSign : 0);
       if (cols.colTaggedCard > 0 && taggedCard) newRow[cols.colTaggedCard - 1] = taggedCard;
-      if (cols.colCcOffsetTarget > 0) newRow[cols.colCcOffsetTarget - 1] = offsetTarget;
+      if (cols.colCcOffsetTarget > 0) {
+        if (taggedCard || String(loans).toUpperCase() === 'CREDIT CARD' || tx.isEffectingUnbilled !== undefined) {
+          newRow[cols.colCcOffsetTarget - 1] = isEffectingUnbilled ? true : false;
+        } else {
+          newRow[cols.colCcOffsetTarget - 1] = '';
+        }
+      }
 
       sheet.appendRow(newRow);
 
@@ -241,7 +252,7 @@ function doPost(e) {
                 const isCreditTx = txNet > 0;
                 const creditAmount = (credit > 0 ? credit : (txNet > 0 ? txNet : 0));
 
-                if (offsetTarget === 'Billed') {
+                if (!isEffectingUnbilled) {
                   // Offset Billed Amount
                   const newBilled = currBilled - creditAmount;
                   if (newBilled <= 0 || Math.abs(creditAmount - currBilled) < 0.01) {
@@ -338,12 +349,23 @@ function doPost(e) {
         }
       }
 
-      let rowOffsetTarget = (cols.colCcOffsetTarget > 0 && rowValues.length >= cols.colCcOffsetTarget && rowValues[cols.colCcOffsetTarget - 1]) ? String(rowValues[cols.colCcOffsetTarget - 1]).toLowerCase().trim() : '';
-      if (!rowOffsetTarget && tx.ccOffsetTarget) {
-        rowOffsetTarget = String(tx.ccOffsetTarget).toLowerCase().trim();
-      }
-      if (!rowOffsetTarget) {
-        rowOffsetTarget = 'unbilled';
+      let rawOffsetVal = (cols.colCcOffsetTarget > 0 && rowValues.length >= cols.colCcOffsetTarget) ? rowValues[cols.colCcOffsetTarget - 1] : '';
+      let isEffectingUnbilled = true;
+      if (rawOffsetVal !== '' && rawOffsetVal !== null && rawOffsetVal !== undefined) {
+        if (typeof rawOffsetVal === 'boolean') {
+          isEffectingUnbilled = rawOffsetVal;
+        } else {
+          const s = String(rawOffsetVal).toLowerCase().trim();
+          if (s === 'false' || s === 'billed' || s === 'no' || s === '0') {
+            isEffectingUnbilled = false;
+          } else {
+            isEffectingUnbilled = true;
+          }
+        }
+      } else if (tx.isEffectingUnbilled !== undefined && tx.isEffectingUnbilled !== null) {
+        isEffectingUnbilled = (tx.isEffectingUnbilled === true || String(tx.isEffectingUnbilled).toLowerCase().trim() === 'true');
+      } else if (tx.ccOffsetTarget) {
+        isEffectingUnbilled = String(tx.ccOffsetTarget).toLowerCase().trim() !== 'billed';
       }
 
       // Reverse effect on target Credit Card
@@ -358,7 +380,7 @@ function doPost(e) {
             for (let i = 1; i < ccValues.length; i++) {
               const rowCardName = String(ccValues[i][ccCols.colCardName - 1] || '').toLowerCase().trim();
               if (rowCardName === targetName) {
-                if (rowOffsetTarget === 'billed') {
+                if (!isEffectingUnbilled) {
                   // Reverse Billed Amount
                   const currBilled = Number(ccValues[i][ccCols.colBilled - 1]) || 0;
                   const currStatus = String(ccValues[i][ccCols.colStatus - 1] || '').trim();
@@ -1255,9 +1277,23 @@ function getTransactions(ss, limit, page) {
         }
         return card;
       })(),
+      isEffectingUnbilled: (() => {
+        if (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget) {
+          const val = row[cols.colCcOffsetTarget - 1];
+          if (typeof val === 'boolean') return val;
+          const s = String(val || '').toLowerCase().trim();
+          if (s === 'false' || s === 'billed' || s === 'no' || s === '0') return false;
+        }
+        return true;
+      })(),
       ccOffsetTarget: (() => {
-        let target = (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget && row[cols.colCcOffsetTarget - 1]) ? String(row[cols.colCcOffsetTarget - 1]).trim() : '';
-        return target ? target.toLowerCase() : 'unbilled';
+        if (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget) {
+          const val = row[cols.colCcOffsetTarget - 1];
+          if (typeof val === 'boolean') return val ? 'unbilled' : 'billed';
+          const s = String(val || '').toLowerCase().trim();
+          if (s === 'false' || s === 'billed' || s === 'no' || s === '0') return 'billed';
+        }
+        return 'unbilled';
       })(),
       isProcessed: procVal === 'Done' || (procVal !== '' && procVal !== null && procVal !== undefined)
     };
@@ -1773,8 +1809,13 @@ function findTransactionsColumnIndices(headers) {
       )) {
         colProcessed = idx;
       }
-      // 16. CC Offset Target
+      // 16. Is Effecting Unbilled Amount
       else if (colCcOffsetTarget === -1 && (
+        h.includes('effecting unbilled') ||
+        h.includes('affecting unbilled') ||
+        h.includes('effect unbilled') ||
+        h.includes('affect unbilled') ||
+        (h.includes('unbilled') && (h.includes('amount') || h.includes('is'))) ||
         h.includes('offset') ||
         h.includes('target') ||
         h === 'cc offset' ||

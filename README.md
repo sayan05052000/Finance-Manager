@@ -177,7 +177,7 @@ To safeguard financial audit integrity, prevent historical balance corruption, a
      - To delete a transaction, the user must explicitly click the **"🗑️ Delete Transaction"** button in the details modal or the **"🗑️ Delete"** button on the card.
      - Tapping the card body solely opens the details view, preventing unintended deletions.
    - **Exact Credit Card Reversal on Transaction Deletion**:
-     - If the deleted transaction was tagged to a credit card, FinMngr automatically and accurately reverses its exact effect based on its offset target (`ccOffsetTarget`):
+     - If the deleted transaction was tagged to a credit card, FinMngr automatically and accurately reverses its exact effect based on its offset target (`Is Effecting Unbilled Amount` = `TRUE` / `FALSE`):
        - **Unbilled Target**: Reverses the spend/refund delta from the card's unbilled statement:
          $$\text{Unbilled Amount}_{\text{new}} = \max(0, \text{Unbilled Amount}_{\text{current}} - \text{Net Delta})$$
        - **Billed Target**: Restores the billed amount:
@@ -358,9 +358,9 @@ The application features a dedicated Credit Cards management engine to track mon
     - Formatted in Row 2 category description (e.g. `Shopping • Personal • 💳 Tata Neu Infinity`).
     - Visible with full metadata and deletion warning in the **Transaction Details modal** (`TransactionDetailsBottomSheet`).
   - **Offset Unbilled vs. Billed Target Option (`AddTransactionBottomSheet`)**:
-    - When tagging a transaction to a Credit Card, an interactive option allows choosing whether the transaction offsets the **Unbilled Amount** or the **Billed Amount**:
-      - **Net Debit (`net <= 0`)**: Checked by default and locked/disabled (cannot be unchecked), ensuring debit spending always accumulates in unbilled balance.
-      - **Credit Transactions (`net > 0`)**: Unchecked by default, allowing payments to directly reduce/settle the billed statement balance. The user can check it if they wish to offset unbilled instead.
+    - When tagging a transaction to a Credit Card, an interactive option allows choosing whether the transaction offsets the **Unbilled Amount** or the **Billed Amount** (saved to the sheet under column **`Is Effecting Unbilled Amount`** as `TRUE` or `FALSE`):
+      - **Net Debit (`net <= 0`)**: Checked by default and locked/disabled (cannot be unchecked, writes `TRUE`), ensuring debit spending always accumulates in unbilled balance.
+      - **Credit Transactions (`net > 0`)**: Unchecked by default (writes `FALSE`), allowing payments to directly reduce/settle the billed statement balance. The user can check it if they wish to offset unbilled instead (writes `TRUE`).
       - If settling the billed amount reduces it to zero, the card is automatically marked as `Paid`, advancing the due date by `+1 month` automatically.
   - **Exact Credit Card Reversal on Transaction Deletion**:
     - Deleting a transaction tagged to a credit card reverses its exact effect:

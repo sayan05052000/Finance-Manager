@@ -661,6 +661,7 @@ public class FinanceRepository {
                 if (tx.taggedCreditCard != null && !tx.taggedCreditCard.trim().isEmpty()) {
                     txObj.addProperty("taggedCreditCard", tx.taggedCreditCard.trim());
                 }
+                txObj.addProperty("isEffectingUnbilled", tx.isOffsetUnbilled());
                 if (tx.ccOffsetTarget != null && !tx.ccOffsetTarget.trim().isEmpty()) {
                     txObj.addProperty("ccOffsetTarget", tx.ccOffsetTarget.trim());
                 }
@@ -757,6 +758,7 @@ public class FinanceRepository {
                     if (!cardNameForReversal.isEmpty()) {
                         txObj.addProperty("taggedCreditCard", cardNameForReversal);
                     }
+                    txObj.addProperty("isEffectingUnbilled", toRemove.isOffsetUnbilled());
                     if (toRemove.ccOffsetTarget != null && !toRemove.ccOffsetTarget.trim().isEmpty()) {
                         txObj.addProperty("ccOffsetTarget", toRemove.ccOffsetTarget.trim());
                     }
