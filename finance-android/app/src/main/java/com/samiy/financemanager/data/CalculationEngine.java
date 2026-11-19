@@ -100,42 +100,12 @@ public class CalculationEngine {
             db.currentCycle = new CurrentCycle();
         }
 
-        // Determine current date in Asia/Kolkata timezone
+        // Determine current date in Asia/Kolkata timezone (current cycle is always based on current date)
         Calendar now = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"));
-
-        // Check latest transaction date to anchor properly
-        int latestTxYear = 0;
-        int latestTxMonth = 0;
-        int latestTxDay = 0;
-        if (db.transactions != null && !db.transactions.isEmpty()) {
-            for (Transaction t : db.transactions) {
-                if (t.date != null && t.date.contains("/")) {
-                    String[] parts = t.date.trim().split("/");
-                    if (parts.length == 3) {
-                        try {
-                            int d = Integer.parseInt(parts[0].trim());
-                            int m = Integer.parseInt(parts[1].trim());
-                            int y = Integer.parseInt(parts[2].trim());
-                            if (y > latestTxYear || (y == latestTxYear && m > latestTxMonth) || (y == latestTxYear && m == latestTxMonth && d > latestTxDay)) {
-                                latestTxYear = y;
-                                latestTxMonth = m;
-                                latestTxDay = d;
-                            }
-                        } catch (Exception ignored) {}
-                    }
-                }
-            }
-        }
 
         int currYear = now.get(Calendar.YEAR);
         int currMonth = now.get(Calendar.MONTH) + 1;
         int currDay = now.get(Calendar.DAY_OF_MONTH);
-
-        if (latestTxYear > currYear || (latestTxYear == currYear && latestTxMonth > currMonth)) {
-            currYear = latestTxYear;
-            currMonth = latestTxMonth;
-            currDay = latestTxDay;
-        }
 
         // Cycle rule: starts on 6th of month and ends on 5th of next month
         int cMonth, cYear;

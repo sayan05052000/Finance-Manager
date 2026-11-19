@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `2.1` (`versionCode 12`)  
+**Version:** `2.4` (`versionCode 13`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -10,7 +10,7 @@ A robust, offline-capable native Android application paired with a **Google Shee
 > [!TIP]
 > **Quick Build One-Liner (Windows PowerShell):**
 > ```powershell
-> cd finance-android; .\gradlew.bat assembleDebug; Copy-Item "C:\Users\samiy\AppData\Local\Temp\FinanceManagerBuild\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force; cd ..
+> cd finance-android; .\gradlew.bat assembleDebug; Copy-Item "C:\build\FinanceManager\app\outputs\apk\debug\app-debug.apk" -Destination "..\FinanceManager.apk" -Force; cd ..
 > ```
 > The freshly compiled ready-to-install binary is always maintained at the repository root as [**`FinanceManager.apk`**](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/FinanceManager.apk).
 
@@ -117,6 +117,10 @@ The application manages sensitive personal financial data, investment balances, 
   }
   ```
   *(Never use string matching like `date.contains("11/2026")` because it erroneously assigns Nov 1-5 to the November cycle).*
+* **Active Cycle Determination**:
+  - The active billing cycle is **strictly anchored to the real-world current calendar date** (`now` in `Asia/Kolkata` timezone).
+  - It is **never** pushed forward or determined by the latest/maximum transaction date present in the Google Sheet (preventing advance recurring bills, future SIPs, or test transactions from prematurely marking the current cycle as completed).
+  - In `CycleChartView.java`, the interactive cycle analytics chart automatically focuses and highlights the active cycle bar (`isActiveCycle`) upon loading.
 
 ---
 

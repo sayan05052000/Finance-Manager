@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.4] - 2026-11-19
+
+### Fixed
+- **Current Calendar Date-Based Active Cycle Resolution**:
+  - Removed the `latestTxYear` / `latestTxMonth` / `latestTxDay` override logic in [`CalculationEngine.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/CalculationEngine.java) that was prematurely pushing the active billing cycle forward whenever future-dated transactions existed in the database.
+  - The active cycle period (`cycleMonth`, `cycleStart`, `cycleEnd`), days left countdown (`daysLeft`), and daily spending limit (`canSpendPerDay`) are now strictly determined by the real-world current date in `Asia/Kolkata` timezone following the 6th-to-5th monthly cycle rule.
+  - Fixed an issue where the current month was incorrectly displayed as "Completed Cycle" while a future month was marked as "Active Cycle ★".
+
+### Added
+- **Cycle Analytics Chart Active Bar Focus**:
+  - In [`CycleChartView.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/view/CycleChartView.java), enhanced initial dataset binding (`setData`) to automatically focus and highlight the bar corresponding to the active cycle (`isActiveCycle`) rather than merely defaulting to the last bar in the dataset.
+
+---
+
 ## [v2.3] - 2026-11-10
 
 ### Added

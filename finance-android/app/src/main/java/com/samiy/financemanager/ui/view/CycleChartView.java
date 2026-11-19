@@ -149,8 +149,15 @@ public class CycleChartView extends View {
             items.addAll(newItems);
         }
         if (!items.isEmpty()) {
-            // Select the last/active item by default
-            selectedIndex = items.size() - 1;
+            // Select the active cycle item by default, or fallback to the last item
+            int defaultIndex = items.size() - 1;
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).isActiveCycle) {
+                    defaultIndex = i;
+                    break;
+                }
+            }
+            selectedIndex = defaultIndex;
             if (selectedListener != null) {
                 selectedListener.onCycleSelected(items.get(selectedIndex));
             }
