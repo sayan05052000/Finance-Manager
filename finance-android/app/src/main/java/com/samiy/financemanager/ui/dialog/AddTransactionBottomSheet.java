@@ -197,6 +197,87 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
         Spinner spSourceSelector = v.findViewById(R.id.spSourceSelector);
         LinearLayout layoutCreditCardTagSection = v.findViewById(R.id.layoutCreditCardTagSection);
         Spinner spCreditCardSelector = v.findViewById(R.id.spCreditCardSelector);
+        com.google.android.material.checkbox.MaterialCheckBox cbOffsetUnbilled = v.findViewById(R.id.cbOffsetUnbilled);
+        TextView tvOffsetUnbilledDescription = v.findViewById(R.id.tvOffsetUnbilledDescription);
+
+        final boolean[] wasPreviouslyCredit = {false};
+
+        Runnable updateOffsetCheckboxState = () -> {
+            if (cbOffsetUnbilled == null || tvOffsetUnbilledDescription == null) return;
+
+            String currentType = "Expense";
+            if (rbIncome.isChecked()) currentType = "Income";
+            else if (rbDoNotConsider.isChecked()) currentType = "Do not Consider";
+
+            double dVal = 0.0;
+            double cVal = 0.0;
+            try {
+                String dStr = etDebit.getText().toString().trim();
+                if (!dStr.isEmpty()) dVal = Double.parseDouble(dStr);
+            } catch (Exception ignored) {}
+            try {
+                String cStr = etCredit.getText().toString().trim();
+                if (!cStr.isEmpty()) cVal = Double.parseDouble(cStr);
+            } catch (Exception ignored) {}
+
+            double calculatedNet;
+            if ("Expense".equals(currentType)) {
+                calculatedNet = -dVal;
+            } else if ("Income".equals(currentType)) {
+                calculatedNet = cVal;
+            } else {
+                calculatedNet = cVal - dVal;
+            }
+
+            boolean isCreditTx = (calculatedNet > 0);
+
+            if (isCreditTx) {
+                cbOffsetUnbilled.setEnabled(true);
+                if (!wasPreviouslyCredit[0]) {
+                    cbOffsetUnbilled.setChecked(false);
+                    wasPreviouslyCredit[0] = true;
+                }
+                if (cbOffsetUnbilled.isChecked()) {
+                    tvOffsetUnbilledDescription.setText("Checked: Credit will offset the card's unbilled balance.");
+                } else {
+                    tvOffsetUnbilledDescription.setText("Unchecked: Credit will pay/reduce the card's billed amount.");
+                }
+            } else {
+                wasPreviouslyCredit[0] = false;
+                cbOffsetUnbilled.setChecked(true);
+                cbOffsetUnbilled.setEnabled(false);
+                tvOffsetUnbilledDescription.setText("Net debit transactions always offset the unbilled balance.");
+            }
+        };
+
+        if (cbOffsetUnbilled != null) {
+            cbOffsetUnbilled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (!buttonView.isEnabled()) return;
+                if (isChecked) {
+                    if (tvOffsetUnbilledDescription != null) {
+                        tvOffsetUnbilledDescription.setText("Checked: Credit will offset the card's unbilled balance.");
+                    }
+                } else {
+                    if (tvOffsetUnbilledDescription != null) {
+                        tvOffsetUnbilledDescription.setText("Unchecked: Credit will pay/reduce the card's billed amount.");
+                    }
+                }
+            });
+        }
+
+        android.text.TextWatcher amountOffsetWatcher = new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updateOffsetCheckboxState.run();
+            }
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        };
+        etDebit.addTextChangedListener(amountOffsetWatcher);
+        etCredit.addTextChangedListener(amountOffsetWatcher);
+        updateOffsetCheckboxState.run();
 
         EditText etDate = v.findViewById(R.id.etDate);
         Button btnSubmit = v.findViewById(R.id.btnSubmitTransaction);
@@ -632,6 +713,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                 layoutDebitField.setVisibility(View.VISIBLE);
                 layoutCreditField.setVisibility(View.VISIBLE);
             }
+            updateOffsetCheckboxState.run();
         });
 
         btnSubmit.setOnClickListener(view -> {
@@ -759,6 +841,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     } else if (creditCardNames != null && !creditCardNames.isEmpty()) {
                         tx.taggedCreditCard = creditCardNames.get(0).trim();
                     }
+                    tx.ccOffsetTarget = (cbOffsetUnbilled != null && cbOffsetUnbilled.isChecked()) ? "unbilled" : "billed";
                 }
             } else {
                 tx.account = selectedSource;

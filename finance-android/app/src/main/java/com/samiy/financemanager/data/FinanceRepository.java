@@ -661,6 +661,9 @@ public class FinanceRepository {
                 if (tx.taggedCreditCard != null && !tx.taggedCreditCard.trim().isEmpty()) {
                     txObj.addProperty("taggedCreditCard", tx.taggedCreditCard.trim());
                 }
+                if (tx.ccOffsetTarget != null && !tx.ccOffsetTarget.trim().isEmpty()) {
+                    txObj.addProperty("ccOffsetTarget", tx.ccOffsetTarget.trim());
+                }
                 payload.add("transaction", txObj);
 
                 String postBody = gson.toJson(payload);
@@ -724,6 +727,18 @@ public class FinanceRepository {
 
             @Override
             public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                // Optimistic in-memory reversal of credit card effect and transaction list
+                if (toRemove != null && !cardNameForReversal.isEmpty()) {
+                    revertCreditCardTransactionEffect(currentDb, cardNameForReversal, toRemove);
+                    revertCreditCardTransactionEffect(FinanceRepository.this.database, cardNameForReversal, toRemove);
+                }
+                if (currentDb != null && currentDb.transactions != null && toRemove != null) {
+                    currentDb.transactions.remove(toRemove);
+                }
+                if (FinanceRepository.this.database != null && FinanceRepository.this.database.transactions != null && toRemove != null) {
+                    FinanceRepository.this.database.transactions.remove(toRemove);
+                }
+
                 JsonObject payload = new JsonObject();
                 payload.addProperty("action", "deleteTransaction");
                 payload.addProperty("id", transactionId);
@@ -741,6 +756,9 @@ public class FinanceRepository {
                     txObj.addProperty("net", toRemove.net);
                     if (!cardNameForReversal.isEmpty()) {
                         txObj.addProperty("taggedCreditCard", cardNameForReversal);
+                    }
+                    if (toRemove.ccOffsetTarget != null && !toRemove.ccOffsetTarget.trim().isEmpty()) {
+                        txObj.addProperty("ccOffsetTarget", toRemove.ccOffsetTarget.trim());
                     }
                     payload.add("transaction", txObj);
                 }
@@ -1752,28 +1770,65 @@ public class FinanceRepository {
         if (db == null || db.creditCards == null || cardName == null || tx == null) return;
         for (CreditCard card : db.creditCards) {
             if (card != null && card.cardName != null && card.cardName.trim().equalsIgnoreCase(cardName.trim())) {
-                boolean isCreditTx = (tx.net > 0);
-                double creditAmount = tx.net;
-                if (isCreditTx && card.unbilledAmount <= 0) {
-                    // Rule: If unbilled payment is 0 and credit transaction (net > 0) is tagged:
-                    // 1. Do NOT make any changes to unbilled balance.
-                    // 2. If equal to billed amount, mark as paid and advance due date +1 month.
-                    if (card.billedAmount > 0 && Math.abs(creditAmount - card.billedAmount) < 0.01) {
+                boolean offsetUnbilled = tx.isOffsetUnbilled();
+                if (offsetUnbilled) {
+                    double delta = 0.0;
+                    if (tx.debitWithoutSign > 0) delta += tx.debitWithoutSign;
+                    else if (tx.debit < 0) delta += Math.abs(tx.debit);
+                    if (tx.credit > 0) delta -= tx.credit;
+                    if (delta == 0 && tx.net != 0) {
+                        delta = -tx.net;
+                    }
+                    double newUnbilled = card.unbilledAmount + delta;
+                    if (card.unbilledAmount >= 0 && newUnbilled < 0) newUnbilled = 0;
+                    card.unbilledAmount = Math.round(newUnbilled * 100.0) / 100.0;
+                } else {
+                    // Offset Billed Amount
+                    double creditAmount = tx.credit > 0 ? tx.credit : (tx.net > 0 ? tx.net : 0);
+                    double newBilled = card.billedAmount - creditAmount;
+                    if (newBilled <= 0 || Math.abs(creditAmount - card.billedAmount) < 0.01) {
                         card.billedAmount = 0.0;
                         card.dueDate = DateTimeHelper.advanceDateByOneMonth(card.dueDate);
                         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
                         sdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
                         card.lastPaid = sdf.format(new Date());
                         card.status = "Paid";
+                    } else {
+                        card.billedAmount = Math.round(newBilled * 100.0) / 100.0;
+                        card.status = "Unpaid";
                     }
-                } else {
+                }
+                break;
+            }
+        }
+    }
+
+    private void revertCreditCardTransactionEffect(FinanceDatabase db, String cardName, Transaction tx) {
+        if (db == null || db.creditCards == null || cardName == null || tx == null) return;
+        for (CreditCard card : db.creditCards) {
+            if (card != null && card.cardName != null && card.cardName.trim().equalsIgnoreCase(cardName.trim())) {
+                boolean offsetUnbilled = tx.isOffsetUnbilled();
+                if (offsetUnbilled) {
                     double delta = 0.0;
                     if (tx.debitWithoutSign > 0) delta += tx.debitWithoutSign;
                     else if (tx.debit < 0) delta += Math.abs(tx.debit);
                     if (tx.credit > 0) delta -= tx.credit;
-                    double newUnbilled = card.unbilledAmount + delta;
-                    if (card.unbilledAmount >= 0 && newUnbilled < 0) newUnbilled = 0;
+                    if (delta == 0 && tx.net != 0) {
+                        delta = -tx.net;
+                    }
+                    double newUnbilled = card.unbilledAmount - delta;
+                    if (newUnbilled < 0) newUnbilled = 0;
                     card.unbilledAmount = Math.round(newUnbilled * 100.0) / 100.0;
+                } else {
+                    // Reversing effect on Billed Amount
+                    double creditAmount = tx.credit > 0 ? tx.credit : (tx.net > 0 ? tx.net : 0);
+                    double newBilled = card.billedAmount + creditAmount;
+                    boolean wasPaid = (card.billedAmount == 0 || "Paid".equalsIgnoreCase(card.status));
+                    card.billedAmount = Math.round(newBilled * 100.0) / 100.0;
+                    if (wasPaid) {
+                        card.dueDate = DateTimeHelper.rollbackDateByOneMonth(card.dueDate);
+                        card.status = "Unpaid";
+                    }
                 }
                 break;
             }

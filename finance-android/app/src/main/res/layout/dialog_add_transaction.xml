@@ -329,13 +329,37 @@
                 android:popupBackground="@color/bg_card_secondary"
                 android:dropDownVerticalOffset="4dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Option: Offset Unbilled Amount -->
+            <LinearLayout
+                android:id="@+id/layoutOffsetUnbilledContainer"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Unbilled amount of this card will be updated by transaction amount"
-                android:textColor="@color/text_muted"
-                android:textSize="10sp" />
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/cbOffsetUnbilled"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Offset Unbilled Amount"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:buttonTint="@color/green_mint" />
+
+                <TextView
+                    android:id="@+id/tvOffsetUnbilledDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="2dp"
+                    android:text="Net debit will affect the unbilled balance of this card."
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- 6. Date Field -->

@@ -257,4 +257,39 @@ public class DateTimeHelper {
         } catch (Exception ignored) {}
         return dateStr;
     }
+
+    /**
+     * Rolls back a "dd/MM/yyyy" date by exactly 1 month.
+     * Preserves day-of-month and handles month rollover (Jan -> Dec of previous year).
+     */
+    public static String rollbackDateByOneMonth(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return "";
+        String clean = formatDisplayDate(dateStr);
+        if (clean == null || !clean.contains("/")) return dateStr;
+        try {
+            String[] parts = clean.split("/");
+            if (parts.length == 3) {
+                int day = Integer.parseInt(parts[0].trim());
+                int month = Integer.parseInt(parts[1].trim());
+                int year = Integer.parseInt(parts[2].trim());
+
+                month -= 1;
+                if (month < 1) {
+                    month = 12;
+                    year -= 1;
+                }
+
+                Calendar cal = Calendar.getInstance();
+                cal.set(Calendar.YEAR, year);
+                cal.set(Calendar.MONTH, month - 1);
+                int maxDays = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
+                if (day > maxDays) {
+                    day = maxDays;
+                }
+
+                return String.format(Locale.US, "%02d/%02d/%04d", day, month, year);
+            }
+        } catch (Exception ignored) {}
+        return dateStr;
+    }
 }

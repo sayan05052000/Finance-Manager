@@ -64,6 +64,13 @@ public class Transaction implements Serializable {
     @SerializedName("taggedCreditCard")
     public String taggedCreditCard = "";
 
+    @SerializedName("ccOffsetTarget")
+    public String ccOffsetTarget = "unbilled"; // "unbilled" or "billed"
+
+    public boolean isOffsetUnbilled() {
+        return ccOffsetTarget == null || !"billed".equalsIgnoreCase(ccOffsetTarget.trim());
+    }
+
     public Transaction() {}
 
     public String getDisplaySource() {

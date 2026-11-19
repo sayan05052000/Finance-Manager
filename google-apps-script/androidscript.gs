@@ -185,8 +185,13 @@ function doPost(e) {
         }
       }
 
+      const offsetTarget = String(tx.ccOffsetTarget || '').toLowerCase().trim() === 'billed' ? 'Billed' : 'Unbilled';
+
       if (cols.colTaggedCard > sheet.getLastColumn() || !sheet.getRange(1, cols.colTaggedCard).getValue()) {
         sheet.getRange(1, cols.colTaggedCard).setValue('Tagged Credit Card');
+      }
+      if (cols.colCcOffsetTarget > sheet.getLastColumn() || !sheet.getRange(1, cols.colCcOffsetTarget).getValue()) {
+        sheet.getRange(1, cols.colCcOffsetTarget).setValue('CC Offset Target');
       }
 
       const maxCol = Math.max(
@@ -194,7 +199,8 @@ function doPost(e) {
         cols.colDate, cols.colCredit, cols.colDebit, cols.colNet,
         cols.colRemainder, cols.colSubCategory, cols.colType, cols.colLoans,
         cols.colAccount, cols.colCategory, cols.colYear, cols.colMonth,
-        cols.colDebitWithoutSign, cols.colProcessed, cols.colTaggedCard
+        cols.colDebitWithoutSign, cols.colProcessed, cols.colTaggedCard,
+        cols.colCcOffsetTarget
       );
       const newRow = new Array(maxCol).fill('');
 
@@ -206,23 +212,24 @@ function doPost(e) {
       if (cols.colAccount > 0) newRow[cols.colAccount - 1] = account;
       if (cols.colDebitWithoutSign > 0) newRow[cols.colDebitWithoutSign - 1] = (debitWithoutSign !== '' ? debitWithoutSign : 0);
       if (cols.colTaggedCard > 0 && taggedCard) newRow[cols.colTaggedCard - 1] = taggedCard;
+      if (cols.colCcOffsetTarget > 0) newRow[cols.colCcOffsetTarget - 1] = offsetTarget;
 
       sheet.appendRow(newRow);
 
-      // If tagged to a credit card, update its Unbilled Amount or mark as Paid in 'Credit Cards' sheet
+      // If tagged to a credit card, update its Unbilled Amount or Billed Amount in 'Credit Cards' sheet
       if (taggedCard) {
         try {
           const ccSheet = ss.getSheetByName('Credit Cards');
           if (ccSheet && ccSheet.getLastRow() >= 2) {
             const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
-            const cols = findCreditCardColumnIndices(ccHeaders);
+            const ccCols = findCreditCardColumnIndices(ccHeaders);
             const ccValues = ccSheet.getDataRange().getValues();
             const targetName = String(taggedCard).toLowerCase().trim();
             for (let i = 1; i < ccValues.length; i++) {
-              const rowCardName = String(ccValues[i][cols.colCardName - 1] || '').toLowerCase().trim();
+              const rowCardName = String(ccValues[i][ccCols.colCardName - 1] || '').toLowerCase().trim();
               if (rowCardName === targetName) {
-                const currUnbilled = Number(ccValues[i][cols.colUnbilled - 1]) || 0;
-                const currBilled = Number(ccValues[i][cols.colBilled - 1]) || 0;
+                const currUnbilled = Number(ccValues[i][ccCols.colUnbilled - 1]) || 0;
+                const currBilled = Number(ccValues[i][ccCols.colBilled - 1]) || 0;
 
                 // Credit transaction means where net is > 0
                 let txNet = 0;
@@ -232,20 +239,21 @@ function doPost(e) {
                   txNet = credit - debitWithoutSign;
                 }
                 const isCreditTx = txNet > 0;
-                const creditAmount = txNet;
+                const creditAmount = (credit > 0 ? credit : (txNet > 0 ? txNet : 0));
 
-                if (isCreditTx && currUnbilled <= 0) {
-                  // Rule: If credit card unbilled payment is 0 and a credit transaction (net > 0) is tagged:
-                  // 1. Do NOT make any changes to the unbilled balance.
-                  // 2. Instead, if equal to the billed amount, mark it as paid and execute mark-as-paid workflow:
-                  //    - Billed amount set to 0
-                  //    - Due date advanced by 1 month
-                  //    - Last paid date set to today
-                  //    - Status set to 'Paid'
-                  if (currBilled > 0 && Math.abs(creditAmount - currBilled) < 0.01) {
-                    applyMarkCreditCardPaid(ccSheet, cols, i + 1, ccValues);
+                if (offsetTarget === 'Billed') {
+                  // Offset Billed Amount
+                  const newBilled = currBilled - creditAmount;
+                  if (newBilled <= 0 || Math.abs(creditAmount - currBilled) < 0.01) {
+                    applyMarkCreditCardPaid(ccSheet, ccCols, i + 1, ccValues);
+                  } else {
+                    ccSheet.getRange(i + 1, ccCols.colBilled).setValue(Math.round(newBilled * 100) / 100);
+                    if (ccCols.colStatus > 0) {
+                      ccSheet.getRange(i + 1, ccCols.colStatus).setValue('Unpaid');
+                    }
                   }
                 } else {
+                  // Offset Unbilled Amount
                   let delta = 0;
                   if (debitWithoutSign > 0) {
                     delta += debitWithoutSign;
@@ -254,18 +262,18 @@ function doPost(e) {
                     delta -= credit;
                   }
                   if (delta === 0 && tx.net !== undefined) {
-                    delta = Math.abs(Number(tx.net) || 0);
+                    delta = -Number(tx.net) || 0;
                   }
                   let newUnbilled = currUnbilled + delta;
                   if (currUnbilled >= 0 && newUnbilled < 0) newUnbilled = 0;
-                  ccSheet.getRange(i + 1, cols.colUnbilled).setValue(Math.round(newUnbilled * 100) / 100);
+                  ccSheet.getRange(i + 1, ccCols.colUnbilled).setValue(Math.round(newUnbilled * 100) / 100);
                 }
                 break;
               }
             }
           }
         } catch (ccErr) {
-          console.warn('Error updating credit card unbilled amount: ' + ccErr);
+          console.warn('Error updating credit card amount: ' + ccErr);
         }
       }
 
@@ -305,7 +313,7 @@ function doPost(e) {
       }
 
       // Read row values before deleting to reverse credit card effect if tagged
-      const readCols = Math.max(sheet.getLastColumn(), cols.colTaggedCard, cols.colDebitWithoutSign, cols.colCredit, cols.colDebit, cols.colLoans);
+      const readCols = Math.max(sheet.getLastColumn(), cols.colTaggedCard, cols.colDebitWithoutSign, cols.colCredit, cols.colDebit, cols.colLoans, cols.colCcOffsetTarget);
       const rowValues = sheet.getRange(rowId, 1, 1, readCols).getValues()[0];
       const rowCredit = cols.colCredit > 0 ? (Number(rowValues[cols.colCredit - 1]) || 0) : 0;
       const rowDebitWithoutSign = cols.colDebitWithoutSign > 0 ? (Number(rowValues[cols.colDebitWithoutSign - 1]) || 0) : 0;
@@ -330,19 +338,16 @@ function doPost(e) {
         }
       }
 
-      let dws = rowDebitWithoutSign;
-      if (dws === 0 && tx.debitWithoutSign) dws = Number(tx.debitWithoutSign) || 0;
-      let cr = rowCredit;
-      if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
-      let delta = 0;
-      if (dws > 0) delta += dws;
-      if (cr > 0) delta -= cr;
-      if (delta === 0 && (rowDebit !== 0 || tx.debit || tx.net)) {
-        delta = Math.abs(Number(rowDebit || tx.debit || tx.net) || 0);
+      let rowOffsetTarget = (cols.colCcOffsetTarget > 0 && rowValues.length >= cols.colCcOffsetTarget && rowValues[cols.colCcOffsetTarget - 1]) ? String(rowValues[cols.colCcOffsetTarget - 1]).toLowerCase().trim() : '';
+      if (!rowOffsetTarget && tx.ccOffsetTarget) {
+        rowOffsetTarget = String(tx.ccOffsetTarget).toLowerCase().trim();
+      }
+      if (!rowOffsetTarget) {
+        rowOffsetTarget = 'unbilled';
       }
 
-      // Reverse effect on target Credit Card unbilled balance
-      if (rowTaggedCard && delta !== 0) {
+      // Reverse effect on target Credit Card
+      if (rowTaggedCard) {
         try {
           const ccSheet = ss.getSheetByName('Credit Cards');
           if (ccSheet && ccSheet.getLastRow() >= 2) {
@@ -353,17 +358,55 @@ function doPost(e) {
             for (let i = 1; i < ccValues.length; i++) {
               const rowCardName = String(ccValues[i][ccCols.colCardName - 1] || '').toLowerCase().trim();
               if (rowCardName === targetName) {
-                const currUnbilled = Number(ccValues[i][ccCols.colUnbilled - 1]) || 0;
-                let newUnbilled = currUnbilled - delta;
-                if (newUnbilled < 0) newUnbilled = 0;
-                newUnbilled = Math.round(newUnbilled * 100) / 100;
-                ccSheet.getRange(i + 1, ccCols.colUnbilled).setValue(newUnbilled);
+                if (rowOffsetTarget === 'billed') {
+                  // Reverse Billed Amount
+                  const currBilled = Number(ccValues[i][ccCols.colBilled - 1]) || 0;
+                  const currStatus = String(ccValues[i][ccCols.colStatus - 1] || '').trim();
+                  let cr = rowCredit;
+                  if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
+                  if (cr === 0 && tx.net && Number(tx.net) > 0) cr = Number(tx.net);
+                  const restoredBilled = Math.round((currBilled + cr) * 100) / 100;
+                  ccSheet.getRange(i + 1, ccCols.colBilled).setValue(restoredBilled);
+                  if (currBilled === 0 || currStatus.toLowerCase() === 'paid') {
+                    // Roll back due date by 1 month and mark Unpaid
+                    let currDueDate = ccValues[i][ccCols.colDueDate - 1];
+                    if (currDueDate instanceof Date) {
+                      currDueDate = Utilities.formatDate(currDueDate, 'Asia/Kolkata', 'dd/MM/yyyy');
+                    } else {
+                      currDueDate = String(currDueDate || '').trim();
+                    }
+                    const rolledBackDate = rollbackDateByOneMonth(currDueDate);
+                    if (rolledBackDate && ccCols.colDueDate > 0) {
+                      ccSheet.getRange(i + 1, ccCols.colDueDate).setValue(rolledBackDate);
+                    }
+                    if (ccCols.colStatus > 0) {
+                      ccSheet.getRange(i + 1, ccCols.colStatus).setValue('Unpaid');
+                    }
+                  }
+                } else {
+                  // Reverse Unbilled Amount
+                  const currUnbilled = Number(ccValues[i][ccCols.colUnbilled - 1]) || 0;
+                  let dws = rowDebitWithoutSign;
+                  if (dws === 0 && tx.debitWithoutSign) dws = Number(tx.debitWithoutSign) || 0;
+                  let cr = rowCredit;
+                  if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
+                  let delta = 0;
+                  if (dws > 0) delta += dws;
+                  if (cr > 0) delta -= cr;
+                  if (delta === 0 && (rowDebit !== 0 || tx.debit || tx.net)) {
+                    delta = -Number(rowDebit || tx.debit || tx.net || 0);
+                  }
+                  let newUnbilled = currUnbilled - delta;
+                  if (newUnbilled < 0) newUnbilled = 0;
+                  newUnbilled = Math.round(newUnbilled * 100) / 100;
+                  ccSheet.getRange(i + 1, ccCols.colUnbilled).setValue(newUnbilled);
+                }
                 break;
               }
             }
           }
         } catch (ccErr) {
-          console.warn('Error reversing credit card unbilled amount on delete: ' + ccErr);
+          console.warn('Error reversing credit card amount on delete: ' + ccErr);
         }
       }
 
@@ -1123,7 +1166,8 @@ function getTransactions(ss, limit, page) {
     cols.colDate, cols.colCredit, cols.colDebit, cols.colNet,
     cols.colRemainder, cols.colSubCategory, cols.colType, cols.colLoans,
     cols.colAccount, cols.colCategory, cols.colYear, cols.colMonth,
-    cols.colDebitWithoutSign, cols.colProcessed, cols.colTaggedCard
+    cols.colDebitWithoutSign, cols.colProcessed, cols.colTaggedCard,
+    cols.colCcOffsetTarget
   );
   const values = sheet.getRange(startRow, 1, numRows, maxCol).getValues();
   const tz = 'Asia/Kolkata';
@@ -1210,6 +1254,10 @@ function getTransactions(ss, limit, page) {
           card = creditCardNamesList[0];
         }
         return card;
+      })(),
+      ccOffsetTarget: (() => {
+        let target = (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget && row[cols.colCcOffsetTarget - 1]) ? String(row[cols.colCcOffsetTarget - 1]).trim() : '';
+        return target ? target.toLowerCase() : 'unbilled';
       })(),
       isProcessed: procVal === 'Done' || (procVal !== '' && procVal !== null && procVal !== undefined)
     };
@@ -1566,6 +1614,32 @@ function advanceDateByOneMonth(dateStr) {
   return dateStr;
 }
 
+function rollbackDateByOneMonth(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return dateStr;
+  var parts = dateStr.trim().split('/');
+  if (parts.length === 3) {
+    var day = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10); // 1-12
+    var year = parseInt(parts[2], 10);
+
+    month -= 1;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+
+    var maxDaysInMonth = new Date(year, month, 0).getDate();
+    if (day > maxDaysInMonth) {
+      day = maxDaysInMonth;
+    }
+
+    var dd = day < 10 ? '0' + day : '' + day;
+    var mm = month < 10 ? '0' + month : '' + month;
+    return dd + '/' + mm + '/' + year;
+  }
+  return dateStr;
+}
+
 function findTransactionsTaggedCardColumn(headers) {
   return findTransactionsColumnIndices(headers).colTaggedCard;
 }
@@ -1586,6 +1660,7 @@ function findTransactionsColumnIndices(headers) {
   let colDebitWithoutSign = -1;
   let colProcessed = -1;
   let colTaggedCard = -1;
+  let colCcOffsetTarget = -1;
 
   if (headers && headers.length) {
     for (let c = 0; c < headers.length; c++) {
@@ -1698,6 +1773,16 @@ function findTransactionsColumnIndices(headers) {
       )) {
         colProcessed = idx;
       }
+      // 16. CC Offset Target
+      else if (colCcOffsetTarget === -1 && (
+        h.includes('offset') ||
+        h.includes('target') ||
+        h === 'cc offset' ||
+        h === 'offset target' ||
+        h === 'offset_target'
+      )) {
+        colCcOffsetTarget = idx;
+      }
     }
   }
 
@@ -1717,6 +1802,7 @@ function findTransactionsColumnIndices(headers) {
   if (colDebitWithoutSign === -1) colDebitWithoutSign = 13;
   if (colTaggedCard === -1) colTaggedCard = 14;
   if (colProcessed === -1) colProcessed = 15;
+  if (colCcOffsetTarget === -1) colCcOffsetTarget = 16;
 
   return {
     colDate,
@@ -1734,6 +1820,7 @@ function findTransactionsColumnIndices(headers) {
     colDebitWithoutSign,
     colTaggedCard,
     colProcessed,
+    colCcOffsetTarget,
   };
 }
 

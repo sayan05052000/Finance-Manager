@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed an issue where the current month was incorrectly displayed as "Completed Cycle" while a future month was marked as "Active Cycle ★".
 
 ### Added
+- **Credit Card Unbilled vs. Billed Offset Target Option in Add Transaction Sheet**:
+  - Added an interactive checkbox option `cbOffsetUnbilled` ("Offset Unbilled Amount") when tagging a transaction to a Credit Card in [`AddTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddTransactionBottomSheet.java):
+    - **Net Debit Transactions (`net <= 0` / expenses)**: Checkbox is **checked by default and locked/disabled** (cannot be unchecked), guaranteeing that all debit spends affect the card's unbilled balance.
+    - **Credit Transactions (`net > 0` / inflows / bill payments)**: Checkbox is **unchecked by default**, allowing the payment to offset the card's **billed amount** directly. Users can manually check it if they wish to offset the unbilled balance instead.
+    - Updates dynamically in real-time as debit/credit amounts or transaction types (`Expense`, `Income`, `Do not Consider`) change.
+  - **Billed Amount Settlement & Automatic Paid Status**:
+    - When offsetting the billed amount (`ccOffsetTarget == "billed"`), the payment reduces `billedAmount`. If the billed amount is fully cleared, the card is automatically marked as `'Paid'`, advancing the due date by `+1 month` via [`advanceDateByOneMonth`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/util/DateTimeHelper.java) and recording today as the last paid date. Unbilled balance remains completely untouched.
+- **Exact Credit Card Reversal on Transaction Deletion**:
+  - Deleting a transaction now inspects its target offset (`ccOffsetTarget`):
+    - If it previously affected **Unbilled**: reverses the exact net delta from the card's unbilled balance ($\text{Unbilled} \leftarrow \max(0, \text{Unbilled} - \text{Delta})$).
+    - If it previously affected **Billed**: restores the billed amount ($\text{Billed} \leftarrow \text{Billed} + \text{Credit}$). If the transaction had cleared the card to `'Paid'`, deletion rolls back the due date by `-1 month` via `rollbackDateByOneMonth` and restores the card's status to `'Unpaid'`.
+    - Implemented with instant in-memory optimistic updates in [`FinanceRepository.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/FinanceRepository.java) and atomic sheet synchronization in [`androidscript.gs`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/google-apps-script/androidscript.gs).
 - **Automatic Credit Card Bill Payment & Status Resolution via Tagged Credit Transactions**:
   - When recording a credit transaction (`net > 0`) tagged to a credit card whose unbilled amount is `0`:
     - The unbilled balance is protected and left unchanged (remains `0`).

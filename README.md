@@ -176,10 +176,14 @@ To safeguard financial audit integrity, prevent historical balance corruption, a
    - **Deletion via Dedicated Delete Button**:
      - To delete a transaction, the user must explicitly click the **"🗑️ Delete Transaction"** button in the details modal or the **"🗑️ Delete"** button on the card.
      - Tapping the card body solely opens the details view, preventing unintended deletions.
-   - **Automatic Credit Card Spend Reversal**:
-     - If the deleted transaction was tagged to a credit card, FinMngr automatically and accurately reverses its effect on the card's unbilled statement:
-       $$\text{Unbilled Amount}_{\text{new}} = \max(0, \text{Unbilled Amount}_{\text{current}} - \text{Spend Delta})$$
-     - Reversal applies instantly in local in-memory state and synchronizes to Google Sheets `Credit Cards` tab.
+   - **Exact Credit Card Reversal on Transaction Deletion**:
+     - If the deleted transaction was tagged to a credit card, FinMngr automatically and accurately reverses its exact effect based on its offset target (`ccOffsetTarget`):
+       - **Unbilled Target**: Reverses the spend/refund delta from the card's unbilled statement:
+         $$\text{Unbilled Amount}_{\text{new}} = \max(0, \text{Unbilled Amount}_{\text{current}} - \text{Net Delta})$$
+       - **Billed Target**: Restores the billed amount:
+         $$\text{Billed Amount}_{\text{new}} = \text{Billed Amount}_{\text{current}} + \text{Credit Amount}$$
+         If the transaction had previously settled the card and marked it as `Paid`, deleting the transaction automatically rolls back the due date by 1 month ($\text{rollbackDateByOneMonth}$) and sets the status back to `Unpaid`.
+     - Reversal applies instantly in local in-memory state and synchronizes atomically to Google Sheets `Credit Cards` tab.
    - **Instant In-Progress Visual Feedback**:
      - The target transaction card's opacity immediately dims to **35% alpha**.
      - A strike-through is drawn across the transaction amount (`Paint.STRIKE_THRU_TEXT_FLAG`).
@@ -353,10 +357,16 @@ The application features a dedicated Credit Cards management engine to track mon
     - Displayed in Row 1 of each transaction card as a dedicated Sky Blue chip (`[💳 Card Name]`).
     - Formatted in Row 2 category description (e.g. `Shopping • Personal • 💳 Tata Neu Infinity`).
     - Visible with full metadata and deletion warning in the **Transaction Details modal** (`TransactionDetailsBottomSheet`).
-  - **Automatic Spend Reversal on Transaction Deletion**:
-    - Deleting a transaction tagged to a credit card immediately reverses its spend contribution on the card's unbilled balance:
-      $$\text{Unbilled Amount}_{\text{new}} = \max(0, \text{Unbilled Amount}_{\text{current}} - \text{Spend Delta})$$
-    - Reversal applies instantly in local in-memory cache and synchronizes to Google Sheets `Credit Cards` tab.
+  - **Offset Unbilled vs. Billed Target Option (`AddTransactionBottomSheet`)**:
+    - When tagging a transaction to a Credit Card, an interactive option allows choosing whether the transaction offsets the **Unbilled Amount** or the **Billed Amount**:
+      - **Net Debit (`net <= 0`)**: Checked by default and locked/disabled (cannot be unchecked), ensuring debit spending always accumulates in unbilled balance.
+      - **Credit Transactions (`net > 0`)**: Unchecked by default, allowing payments to directly reduce/settle the billed statement balance. The user can check it if they wish to offset unbilled instead.
+      - If settling the billed amount reduces it to zero, the card is automatically marked as `Paid`, advancing the due date by `+1 month` automatically.
+  - **Exact Credit Card Reversal on Transaction Deletion**:
+    - Deleting a transaction tagged to a credit card reverses its exact effect:
+      - If it affected **Unbilled**: reverses the spend/refund delta ($\text{Unbilled} \leftarrow \max(0, \text{Unbilled} - \text{Delta})$).
+      - If it affected **Billed**: restores the billed balance ($\text{Billed} \leftarrow \text{Billed} + \text{Credit}$). If the card was previously marked as `Paid`, deleting the transaction rolls back the due date by 1 month and marks it `Unpaid`.
+    - Reversal applies instantly in local in-memory cache and synchronizes atomically to Google Sheets `Credit Cards` tab.
 * **Adding Credit Cards (`AddCreditCardBottomSheet`)**:
   - **Card Name**: **Mandatory & Unique** (verified against local memory and sheet records using case-insensitive validation).
   - **Due Date**: **Optional** (integrated with `CustomCalendarDialog` date picker).
