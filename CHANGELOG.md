@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed an issue where the current month was incorrectly displayed as "Completed Cycle" while a future month was marked as "Active Cycle ★".
 
 ### Added
+- **Automatic Credit Card Bill Payment & Status Resolution via Tagged Credit Transactions**:
+  - When recording a credit transaction (`net > 0`) tagged to a credit card whose unbilled amount is `0`:
+    - The unbilled balance is protected and left unchanged (remains `0`).
+    - If the credit transaction amount equals the card's current billed amount, the card is automatically marked as paid:
+      - Billed amount is reset to `₹0`.
+      - Next due date is automatically advanced by `+1 month`.
+      - Last paid date is set to today's date (`dd/MM/yyyy`).
+      - Card status is updated to `'Paid'`.
+    - Applied across both the backend Google Apps Script ([`androidscript.gs`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/google-apps-script/androidscript.gs)) and the Android repository client ([`FinanceRepository.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/FinanceRepository.java)).
 - **Cycle Analytics Chart Active Bar Focus**:
   - In [`CycleChartView.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/view/CycleChartView.java), enhanced initial dataset binding (`setData`) to automatically focus and highlight the bar corresponding to the active cycle (`isActiveCycle`) rather than merely defaulting to the last bar in the dataset.
 

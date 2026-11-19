@@ -753,12 +753,12 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             if (isLoan) {
                 tx.loans = selectedSource;
                 tx.account = "";
-                if ("CREDIT CARD".equalsIgnoreCase(selectedSource.trim()) &&
-                        layoutCreditCardTagSection != null &&
-                        layoutCreditCardTagSection.getVisibility() == View.VISIBLE &&
-                        spCreditCardSelector != null &&
-                        spCreditCardSelector.getSelectedItem() != null) {
-                    tx.taggedCreditCard = spCreditCardSelector.getSelectedItem().toString().trim();
+                if ("CREDIT CARD".equalsIgnoreCase(selectedSource.trim())) {
+                    if (spCreditCardSelector != null && spCreditCardSelector.getSelectedItem() != null) {
+                        tx.taggedCreditCard = spCreditCardSelector.getSelectedItem().toString().trim();
+                    } else if (creditCardNames != null && !creditCardNames.isEmpty()) {
+                        tx.taggedCreditCard = creditCardNames.get(0).trim();
+                    }
                 }
             } else {
                 tx.account = selectedSource;

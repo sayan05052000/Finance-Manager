@@ -337,6 +337,15 @@ The application features a dedicated Credit Cards management engine to track mon
   - Users can select an existing card or click **`＋ Add Card`** to register a new card inline without leaving the transaction flow.
   - Selecting a credit card automatically increments that card's unbilled balance upon adding the transaction:
     $$\text{Unbilled Amount}_{\text{new}} = \text{Unbilled Amount}_{\text{current}} + \text{Transaction Net}$$
+  - **Credit Card Bill Payments via Tagged Credit Transactions (`net > 0`)**:
+    - When a credit transaction (`net > 0`) tagged to a credit card is added while the card's **Unbilled Amount is ₹0.00**:
+      - **Protects Unbilled Balance**: Leaves the unbilled amount completely untouched at ₹0.00.
+      - **Automatic Mark as Paid Workflow**: If the credit transaction amount equals the card's active **Billed Amount**:
+        - Resets `Billed Amount` to **₹0.00**.
+        - Automatically advances `Due Date` by exactly **+1 calendar month** ($$m \rightarrow m + 1$$).
+        - Sets `Last Paid Date` to today's date (`dd/MM/yyyy`).
+        - Sets card status to **`Paid`**.
+        - Synchronizes atomically across the backend Google Sheet and in-memory Android client cache.
   - **Dedicated `tagged credit card` Column in Google Sheets**:
     - Tagged card names are permanently written into the dedicated **`tagged credit card`** column in the `Transactions` tab.
     - **Dynamic Column Detection (`findTransactionsTaggedCardColumn`)**: The Google Apps Script backend dynamically inspects row 1 headers and automatically resolves the `tagged credit card` column index, regardless of which physical column position it is placed in.

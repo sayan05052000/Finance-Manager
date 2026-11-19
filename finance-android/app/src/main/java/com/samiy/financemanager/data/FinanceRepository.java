@@ -36,7 +36,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.UUID;
+import com.samiy.financemanager.util.DateTimeHelper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
@@ -611,6 +616,19 @@ public class FinanceRepository {
                         }
                     }
                     tx.remainder = Math.round((prevRem + netVal) * 100.0) / 100.0;
+                }
+
+                // Resolve tagged credit card name and apply effect optimistically
+                String cardName = tx.taggedCreditCard != null ? tx.taggedCreditCard.trim() : "";
+                if (cardName.isEmpty() && "CREDIT CARD".equalsIgnoreCase(tx.loans != null ? tx.loans.trim() : "")) {
+                    if (currentDb != null && currentDb.creditCards != null && currentDb.creditCards.size() == 1) {
+                        cardName = currentDb.creditCards.get(0).cardName;
+                    }
+                }
+                if (!cardName.isEmpty()) {
+                    tx.taggedCreditCard = cardName;
+                    applyCreditCardTransactionEffect(currentDb, cardName, tx);
+                    applyCreditCardTransactionEffect(FinanceRepository.this.database, cardName, tx);
                 }
 
                 JsonObject payload = new JsonObject();
@@ -1728,6 +1746,38 @@ public class FinanceRepository {
         String str1 = s1 != null ? s1.trim() : "";
         String str2 = s2 != null ? s2.trim() : "";
         return str1.equalsIgnoreCase(str2);
+    }
+
+    private void applyCreditCardTransactionEffect(FinanceDatabase db, String cardName, Transaction tx) {
+        if (db == null || db.creditCards == null || cardName == null || tx == null) return;
+        for (CreditCard card : db.creditCards) {
+            if (card != null && card.cardName != null && card.cardName.trim().equalsIgnoreCase(cardName.trim())) {
+                boolean isCreditTx = (tx.net > 0);
+                double creditAmount = tx.net;
+                if (isCreditTx && card.unbilledAmount <= 0) {
+                    // Rule: If unbilled payment is 0 and credit transaction (net > 0) is tagged:
+                    // 1. Do NOT make any changes to unbilled balance.
+                    // 2. If equal to billed amount, mark as paid and advance due date +1 month.
+                    if (card.billedAmount > 0 && Math.abs(creditAmount - card.billedAmount) < 0.01) {
+                        card.billedAmount = 0.0;
+                        card.dueDate = DateTimeHelper.advanceDateByOneMonth(card.dueDate);
+                        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+                        card.lastPaid = sdf.format(new Date());
+                        card.status = "Paid";
+                    }
+                } else {
+                    double delta = 0.0;
+                    if (tx.debitWithoutSign > 0) delta += tx.debitWithoutSign;
+                    else if (tx.debit < 0) delta += Math.abs(tx.debit);
+                    if (tx.credit > 0) delta -= tx.credit;
+                    double newUnbilled = card.unbilledAmount + delta;
+                    if (card.unbilledAmount >= 0 && newUnbilled < 0) newUnbilled = 0;
+                    card.unbilledAmount = Math.round(newUnbilled * 100.0) / 100.0;
+                }
+                break;
+            }
+        }
     }
 
     private String executeHttpGetWithRedirect(String urlStr) throws Exception {

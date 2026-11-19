@@ -163,7 +163,27 @@ function doPost(e) {
       const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
       const cols = findTransactionsColumnIndices(transHeaders);
 
-      const taggedCard = tx.taggedCreditCard || tx.creditCard || '';
+      let taggedCard = String(tx.taggedCreditCard || tx.creditCard || '').trim();
+      if (!taggedCard) {
+        const ccSheet = ss.getSheetByName('Credit Cards');
+        if (ccSheet && ccSheet.getLastRow() >= 2) {
+          const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
+          const ccCols = findCreditCardColumnIndices(ccHeaders);
+          const ccValues = ccSheet.getDataRange().getValues();
+          const checkLoan = String(loans || '').trim().toLowerCase();
+          const checkAccount = String(account || '').trim().toLowerCase();
+          for (let i = 1; i < ccValues.length; i++) {
+            const cName = String(ccValues[i][ccCols.colCardName - 1] || '').trim();
+            if (cName && (cName.toLowerCase() === checkLoan || cName.toLowerCase() === checkAccount)) {
+              taggedCard = cName;
+              break;
+            }
+          }
+          if (!taggedCard && (checkLoan === 'credit card' || checkAccount === 'credit card') && ccValues.length === 2) {
+            taggedCard = String(ccValues[1][ccCols.colCardName - 1] || '').trim();
+          }
+        }
+      }
 
       if (cols.colTaggedCard > sheet.getLastColumn() || !sheet.getRange(1, cols.colTaggedCard).getValue()) {
         sheet.getRange(1, cols.colTaggedCard).setValue('Tagged Credit Card');
@@ -189,7 +209,7 @@ function doPost(e) {
 
       sheet.appendRow(newRow);
 
-      // If tagged to a credit card, update its Unbilled Amount in 'Credit Cards' sheet
+      // If tagged to a credit card, update its Unbilled Amount or mark as Paid in 'Credit Cards' sheet
       if (taggedCard) {
         try {
           const ccSheet = ss.getSheetByName('Credit Cards');
@@ -202,19 +222,44 @@ function doPost(e) {
               const rowCardName = String(ccValues[i][cols.colCardName - 1] || '').toLowerCase().trim();
               if (rowCardName === targetName) {
                 const currUnbilled = Number(ccValues[i][cols.colUnbilled - 1]) || 0;
-                let delta = 0;
-                if (debitWithoutSign > 0) {
-                  delta += debitWithoutSign;
+                const currBilled = Number(ccValues[i][cols.colBilled - 1]) || 0;
+
+                // Credit transaction means where net is > 0
+                let txNet = 0;
+                if (tx.net !== undefined && tx.net !== '') {
+                  txNet = Number(tx.net) || 0;
+                } else {
+                  txNet = credit - debitWithoutSign;
                 }
-                if (credit > 0) {
-                  delta -= credit;
+                const isCreditTx = txNet > 0;
+                const creditAmount = txNet;
+
+                if (isCreditTx && currUnbilled <= 0) {
+                  // Rule: If credit card unbilled payment is 0 and a credit transaction (net > 0) is tagged:
+                  // 1. Do NOT make any changes to the unbilled balance.
+                  // 2. Instead, if equal to the billed amount, mark it as paid and execute mark-as-paid workflow:
+                  //    - Billed amount set to 0
+                  //    - Due date advanced by 1 month
+                  //    - Last paid date set to today
+                  //    - Status set to 'Paid'
+                  if (currBilled > 0 && Math.abs(creditAmount - currBilled) < 0.01) {
+                    applyMarkCreditCardPaid(ccSheet, cols, i + 1, ccValues);
+                  }
+                } else {
+                  let delta = 0;
+                  if (debitWithoutSign > 0) {
+                    delta += debitWithoutSign;
+                  }
+                  if (credit > 0) {
+                    delta -= credit;
+                  }
+                  if (delta === 0 && tx.net !== undefined) {
+                    delta = Math.abs(Number(tx.net) || 0);
+                  }
+                  let newUnbilled = currUnbilled + delta;
+                  if (currUnbilled >= 0 && newUnbilled < 0) newUnbilled = 0;
+                  ccSheet.getRange(i + 1, cols.colUnbilled).setValue(Math.round(newUnbilled * 100) / 100);
                 }
-                if (delta === 0 && tx.net !== undefined) {
-                  delta = Math.abs(Number(tx.net) || 0);
-                }
-                let newUnbilled = currUnbilled + delta;
-                if (currUnbilled >= 0 && newUnbilled < 0) newUnbilled = 0;
-                ccSheet.getRange(i + 1, cols.colUnbilled).setValue(Math.round(newUnbilled * 100) / 100);
                 break;
               }
             }
@@ -735,28 +780,7 @@ function doPost(e) {
         throw new Error('Credit Card not found: ' + cardName);
       }
 
-      const todayStr = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy');
-      // Set billed amount to 0
-      sheet.getRange(matchedRow, cols.colBilled).setValue(0);
-
-      // Advance due date by +1 month automatically
-      let currDueDate = values[matchedRow - 1][cols.colDueDate - 1];
-      if (currDueDate instanceof Date) {
-        currDueDate = Utilities.formatDate(currDueDate, 'Asia/Kolkata', 'dd/MM/yyyy');
-      } else {
-        currDueDate = String(currDueDate || '').trim();
-      }
-      const nextDueDate = advanceDateByOneMonth(currDueDate);
-      if (nextDueDate) {
-        sheet.getRange(matchedRow, cols.colDueDate).setValue(nextDueDate);
-      }
-
-      if (cols.colLastPaid > 0) {
-        sheet.getRange(matchedRow, cols.colLastPaid).setValue(todayStr);
-      }
-      if (cols.colStatus > 0) {
-        sheet.getRange(matchedRow, cols.colStatus).setValue('Paid');
-      }
+      const nextDueDate = applyMarkCreditCardPaid(sheet, cols, matchedRow, values);
 
       runCalculationScriptsAndFlush();
       return jsonResponse({
@@ -1475,6 +1499,43 @@ function calculateRemainders() {
     transSheet.getRange(2, cols.colRemainder, remainderOutput.length, 1).setValues(remainderOutput);
   }
   SpreadsheetApp.flush();
+}
+
+function applyMarkCreditCardPaid(sheet, cols, rowIndex, values) {
+  const todayStr = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy');
+  // Set billed amount to 0
+  if (cols.colBilled > 0) {
+    sheet.getRange(rowIndex, cols.colBilled).setValue(0);
+  }
+
+  // Advance due date by +1 month automatically
+  let currDueDate = '';
+  if (values && values.length >= rowIndex && cols.colDueDate > 0) {
+    currDueDate = values[rowIndex - 1][cols.colDueDate - 1];
+  } else if (cols.colDueDate > 0) {
+    currDueDate = sheet.getRange(rowIndex, cols.colDueDate).getValue();
+  }
+
+  if (currDueDate instanceof Date) {
+    currDueDate = Utilities.formatDate(currDueDate, 'Asia/Kolkata', 'dd/MM/yyyy');
+  } else {
+    currDueDate = String(currDueDate || '').trim();
+  }
+  if (!currDueDate) {
+    currDueDate = todayStr;
+  }
+  const nextDueDate = advanceDateByOneMonth(currDueDate);
+  if (nextDueDate && cols.colDueDate > 0) {
+    sheet.getRange(rowIndex, cols.colDueDate).setValue(nextDueDate);
+  }
+
+  if (cols.colLastPaid > 0) {
+    sheet.getRange(rowIndex, cols.colLastPaid).setValue(todayStr);
+  }
+  if (cols.colStatus > 0) {
+    sheet.getRange(rowIndex, cols.colStatus).setValue('Paid');
+  }
+  return nextDueDate;
 }
 
 function advanceDateByOneMonth(dateStr) {
