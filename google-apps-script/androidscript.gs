@@ -14,18 +14,25 @@
  * and flushes spreadsheet modifications.
  */
 function runCalculationScriptsAndFlush() {
-  if (typeof calculateRemainders === 'function') {
+  if (typeof processTransactionsRows === 'function') {
+    try {
+      // processTransactionsRows() already invokes calculateRemainders()
+      processTransactionsRows();
+    } catch (eProcTx) {
+      console.warn('processTransactionsRows error: ' + eProcTx);
+      if (typeof calculateRemainders === 'function') {
+        try {
+          calculateRemainders();
+        } catch (eCalc) {
+          console.warn('calculateRemainders fallback error: ' + eCalc);
+        }
+      }
+    }
+  } else if (typeof calculateRemainders === 'function') {
     try {
       calculateRemainders();
     } catch (eCalc) {
       console.warn('calculateRemainders error: ' + eCalc);
-    }
-  }
-  if (typeof processTransactionsRows === 'function') {
-    try {
-      processTransactionsRows();
-    } catch (eProcTx) {
-      console.warn('processTransactionsRows error: ' + eProcTx);
     }
   }
   if (typeof processMutualFunds === 'function') {
@@ -147,60 +154,62 @@ function doPost(e) {
       const tx = data.transaction || {};
       const date = tx.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
       const credit = (tx.credit !== undefined && tx.credit !== null && tx.credit !== '' && Number(tx.credit) > 0) ? Number(tx.credit) : 0;
-      let debitWithoutSign = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '' ) ? Number(tx.debitWithoutSign) : 0;
-       let debitVal = -1 * debitWithoutSign
-      const net = (credit !== '' ? Number(credit) : 0) + (debitVal !== '' ? Number(debitVal) : 0);
-      const remainder = '';
+      const debitWithoutSign = (tx.debitWithoutSign !== undefined && tx.debitWithoutSign !== null && tx.debitWithoutSign !== '') ? Number(tx.debitWithoutSign) : 0;
       const subCategory = tx.subCategory || '';
       const type = tx.type || 'Expense';
       const loans = tx.loans || '';
       const account = tx.account || '';
-      const category = tx.category || '';
-      const parts = String(date).split('/');
-      const year = tx.year || (parts.length === 3 ? parts[2] : new Date().getFullYear());
-      const month = tx.month || (parts.length >= 2 ? parts[1] : (new Date().getMonth() + 1));
 
-      const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
+      const lastCol = sheet.getLastColumn();
+      const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, lastCol)).getValues()[0];
       const cols = findTransactionsColumnIndices(transHeaders);
+
+      let ccCtx = null;
+      const getCcCtx = () => {
+        if (!ccCtx) ccCtx = getCreditCardContext(ss);
+        return ccCtx;
+      };
 
       let taggedCard = String(tx.taggedCreditCard || tx.creditCard || '').trim();
       if (!taggedCard) {
-        const ccSheet = ss.getSheetByName('Credit Cards');
-        if (ccSheet && ccSheet.getLastRow() >= 2) {
-          const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
-          const ccCols = findCreditCardColumnIndices(ccHeaders);
-          const ccValues = ccSheet.getDataRange().getValues();
+        const ctx = getCcCtx();
+        if (ctx && ctx.values.length >= 2) {
           const checkLoan = String(loans || '').trim().toLowerCase();
           const checkAccount = String(account || '').trim().toLowerCase();
-          for (let i = 1; i < ccValues.length; i++) {
-            const cName = String(ccValues[i][ccCols.colCardName - 1] || '').trim();
+          for (let i = 1; i < ctx.values.length; i++) {
+            const cName = String(ctx.values[i][ctx.cols.colCardName - 1] || '').trim();
             if (cName && (cName.toLowerCase() === checkLoan || cName.toLowerCase() === checkAccount)) {
               taggedCard = cName;
               break;
             }
           }
-          if (!taggedCard && (checkLoan === 'credit card' || checkAccount === 'credit card') && ccValues.length === 2) {
-            taggedCard = String(ccValues[1][ccCols.colCardName - 1] || '').trim();
+          if (!taggedCard && (checkLoan === 'credit card' || checkAccount === 'credit card') && ctx.values.length === 2) {
+            taggedCard = String(ctx.values[1][ctx.cols.colCardName - 1] || '').trim();
           }
         }
       }
 
+      const txNet = (tx.net !== undefined && tx.net !== '') ? (Number(tx.net) || 0) : (credit - debitWithoutSign);
+      const creditAmount = (credit > 0 ? credit : (txNet > 0 ? txNet : 0));
+
       let isEffectingUnbilled = true;
-      if (tx.isEffectingUnbilled !== undefined && tx.isEffectingUnbilled !== null) {
+      if (creditAmount === 0 && (debitWithoutSign > 0 || txNet < 0)) {
+        isEffectingUnbilled = true;
+      } else if (tx.isEffectingUnbilled !== undefined && tx.isEffectingUnbilled !== null) {
         isEffectingUnbilled = (tx.isEffectingUnbilled === true || String(tx.isEffectingUnbilled).toLowerCase().trim() === 'true');
       } else if (tx.ccOffsetTarget !== undefined && tx.ccOffsetTarget !== null) {
         isEffectingUnbilled = (String(tx.ccOffsetTarget).toLowerCase().trim() !== 'billed');
       }
 
-      if (cols.colTaggedCard > sheet.getLastColumn() || !sheet.getRange(1, cols.colTaggedCard).getValue()) {
+      if (cols.colTaggedCard > lastCol || !transHeaders[cols.colTaggedCard - 1]) {
         sheet.getRange(1, cols.colTaggedCard).setValue('Tagged Credit Card');
       }
-      if (cols.colCcOffsetTarget > sheet.getLastColumn() || !sheet.getRange(1, cols.colCcOffsetTarget).getValue()) {
+      if (cols.colCcOffsetTarget > lastCol || !transHeaders[cols.colCcOffsetTarget - 1]) {
         sheet.getRange(1, cols.colCcOffsetTarget).setValue('Is Effecting Unbilled Amount');
       }
 
       const maxCol = Math.max(
-        sheet.getLastColumn(),
+        lastCol,
         cols.colDate, cols.colCredit, cols.colDebit, cols.colNet,
         cols.colRemainder, cols.colSubCategory, cols.colType, cols.colLoans,
         cols.colAccount, cols.colCategory, cols.colYear, cols.colMonth,
@@ -215,11 +224,11 @@ function doPost(e) {
       if (cols.colType > 0) newRow[cols.colType - 1] = type;
       if (cols.colLoans > 0) newRow[cols.colLoans - 1] = loans;
       if (cols.colAccount > 0) newRow[cols.colAccount - 1] = account;
-      if (cols.colDebitWithoutSign > 0) newRow[cols.colDebitWithoutSign - 1] = (debitWithoutSign !== '' ? debitWithoutSign : 0);
+      if (cols.colDebitWithoutSign > 0) newRow[cols.colDebitWithoutSign - 1] = debitWithoutSign;
       if (cols.colTaggedCard > 0 && taggedCard) newRow[cols.colTaggedCard - 1] = taggedCard;
       if (cols.colCcOffsetTarget > 0) {
         if (taggedCard || String(loans).toUpperCase() === 'CREDIT CARD' || tx.isEffectingUnbilled !== undefined) {
-          newRow[cols.colCcOffsetTarget - 1] = isEffectingUnbilled ? true : false;
+          newRow[cols.colCcOffsetTarget - 1] = isEffectingUnbilled;
         } else {
           newRow[cols.colCcOffsetTarget - 1] = '';
         }
@@ -230,11 +239,9 @@ function doPost(e) {
       // If tagged to a credit card, update its Unbilled Amount or Billed Amount in 'Credit Cards' sheet
       if (taggedCard) {
         try {
-          const ccSheet = ss.getSheetByName('Credit Cards');
-          if (ccSheet && ccSheet.getLastRow() >= 2) {
-            const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
-            const ccCols = findCreditCardColumnIndices(ccHeaders);
-            const ccValues = ccSheet.getDataRange().getValues();
+          const ctx = getCcCtx();
+          if (ctx && ctx.values.length >= 2) {
+            const { sheet: ccSheet, cols: ccCols, values: ccValues } = ctx;
             const targetName = String(taggedCard).toLowerCase().trim();
             for (let i = 1; i < ccValues.length; i++) {
               const rowCardName = String(ccValues[i][ccCols.colCardName - 1] || '').toLowerCase().trim();
@@ -242,36 +249,22 @@ function doPost(e) {
                 const currUnbilled = Number(ccValues[i][ccCols.colUnbilled - 1]) || 0;
                 const currBilled = Number(ccValues[i][ccCols.colBilled - 1]) || 0;
 
-                // Credit transaction means where net is > 0
-                let txNet = 0;
-                if (tx.net !== undefined && tx.net !== '') {
-                  txNet = Number(tx.net) || 0;
-                } else {
-                  txNet = credit - debitWithoutSign;
-                }
-                const isCreditTx = txNet > 0;
-                const creditAmount = (credit > 0 ? credit : (txNet > 0 ? txNet : 0));
-
-                if (!isEffectingUnbilled) {
-                  // Offset Billed Amount
+                if (!isEffectingUnbilled && creditAmount > 0) {
+                  // Offset Billed Amount with credit/payment
                   const newBilled = currBilled - creditAmount;
-                  if (newBilled <= 0 || Math.abs(creditAmount - currBilled) < 0.01) {
+                  if (currBilled > 0 && (newBilled <= 0 || Math.abs(creditAmount - currBilled) < 0.01)) {
                     applyMarkCreditCardPaid(ccSheet, ccCols, i + 1, ccValues);
                   } else {
                     ccSheet.getRange(i + 1, ccCols.colBilled).setValue(Math.round(newBilled * 100) / 100);
-                    if (ccCols.colStatus > 0) {
+                    if (newBilled > 0 && ccCols.colStatus > 0) {
                       ccSheet.getRange(i + 1, ccCols.colStatus).setValue('Unpaid');
                     }
                   }
                 } else {
-                  // Offset Unbilled Amount
+                  // Offset Unbilled Amount (for all debit/expense transactions, or credit transactions targeting unbilled)
                   let delta = 0;
-                  if (debitWithoutSign > 0) {
-                    delta += debitWithoutSign;
-                  }
-                  if (credit > 0) {
-                    delta -= credit;
-                  }
+                  if (debitWithoutSign > 0) delta += debitWithoutSign;
+                  if (credit > 0) delta -= credit;
                   if (delta === 0 && tx.net !== undefined) {
                     delta = -Number(tx.net) || 0;
                   }
@@ -302,30 +295,42 @@ function doPost(e) {
 
       const tx = data.transaction || {};
       let rowId = Number(data.id || tx.id);
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
 
-      const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, sheet.getLastColumn())).getValues()[0];
-      const cols = findTransactionsColumnIndices(transHeaders);
+      let transHeaders;
+      let cols;
+      let rowValues = null;
 
       // Fallback row matching if rowId is invalid or was temporary
-      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
+      if (!rowId || rowId < 2 || rowId > lastRow) {
         const vals = sheet.getDataRange().getValues();
+        transHeaders = vals[0] || [];
+        cols = findTransactionsColumnIndices(transHeaders);
         for (let i = vals.length - 1; i >= 1; i--) {
           const rDate = cols.colDate > 0 ? (vals[i][cols.colDate - 1] instanceof Date ? Utilities.formatDate(vals[i][cols.colDate - 1], 'Asia/Kolkata', 'dd/MM/yyyy') : String(vals[i][cols.colDate - 1] || '').trim()) : '';
           const rSub = cols.colSubCategory > 0 ? String(vals[i][cols.colSubCategory - 1] || '').trim() : '';
           if (tx.date && rDate === String(tx.date).trim() && (!tx.subCategory || rSub === String(tx.subCategory).trim())) {
             rowId = i + 1;
+            rowValues = vals[i];
             break;
           }
         }
+      } else {
+        transHeaders = sheet.getRange(1, 1, 1, Math.max(15, lastCol)).getValues()[0];
+        cols = findTransactionsColumnIndices(transHeaders);
       }
 
-      if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) {
+      if (!rowId || rowId < 2 || rowId > lastRow) {
         throw new Error('Invalid transaction row ID: ' + (data.id || tx.id));
       }
 
       // Read row values before deleting to reverse credit card effect if tagged
-      const readCols = Math.max(sheet.getLastColumn(), cols.colTaggedCard, cols.colDebitWithoutSign, cols.colCredit, cols.colDebit, cols.colLoans, cols.colCcOffsetTarget);
-      const rowValues = sheet.getRange(rowId, 1, 1, readCols).getValues()[0];
+      if (!rowValues) {
+        const readCols = Math.max(lastCol, cols.colTaggedCard, cols.colDebitWithoutSign, cols.colCredit, cols.colDebit, cols.colLoans, cols.colCcOffsetTarget);
+        rowValues = sheet.getRange(rowId, 1, 1, readCols).getValues()[0];
+      }
+
       const rowCredit = cols.colCredit > 0 ? (Number(rowValues[cols.colCredit - 1]) || 0) : 0;
       const rowDebitWithoutSign = cols.colDebitWithoutSign > 0 ? (Number(rowValues[cols.colDebitWithoutSign - 1]) || 0) : 0;
       const rowDebit = cols.colDebit > 0 ? (Number(rowValues[cols.colDebit - 1]) || 0) : 0;
@@ -337,30 +342,34 @@ function doPost(e) {
       if (!rowTaggedCard && (data.taggedCreditCard || data.creditCard)) {
         rowTaggedCard = String(data.taggedCreditCard || data.creditCard).trim();
       }
+
+      let ccCtx = null;
+      const getCcCtx = () => {
+        if (!ccCtx) ccCtx = getCreditCardContext(ss);
+        return ccCtx;
+      };
+
       if (!rowTaggedCard && rowLoan.toUpperCase() === 'CREDIT CARD') {
-        const ccSheet = ss.getSheetByName('Credit Cards');
-        if (ccSheet && ccSheet.getLastRow() >= 2) {
-          const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
-          const ccCols = findCreditCardColumnIndices(ccHeaders);
-          const ccValues = ccSheet.getDataRange().getValues();
-          if (ccValues.length === 2) {
-            rowTaggedCard = String(ccValues[1][ccCols.colCardName - 1] || '').trim();
-          }
+        const ctx = getCcCtx();
+        if (ctx && ctx.values.length === 2) {
+          rowTaggedCard = String(ctx.values[1][ctx.cols.colCardName - 1] || '').trim();
         }
       }
 
-      let rawOffsetVal = (cols.colCcOffsetTarget > 0 && rowValues.length >= cols.colCcOffsetTarget) ? rowValues[cols.colCcOffsetTarget - 1] : '';
+      let cr = rowCredit;
+      if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
+      if (cr === 0 && tx.net && Number(tx.net) > 0) cr = Number(tx.net);
+
+      const rawOffsetVal = (cols.colCcOffsetTarget > 0 && rowValues.length >= cols.colCcOffsetTarget) ? rowValues[cols.colCcOffsetTarget - 1] : '';
       let isEffectingUnbilled = true;
-      if (rawOffsetVal !== '' && rawOffsetVal !== null && rawOffsetVal !== undefined) {
+      if (cr === 0 && (rowDebitWithoutSign > 0 || rowDebit < 0 || Number(tx.debitWithoutSign) > 0 || Number(tx.debit) < 0)) {
+        isEffectingUnbilled = true;
+      } else if (rawOffsetVal !== '' && rawOffsetVal !== null && rawOffsetVal !== undefined) {
         if (typeof rawOffsetVal === 'boolean') {
           isEffectingUnbilled = rawOffsetVal;
         } else {
           const s = String(rawOffsetVal).toLowerCase().trim();
-          if (s === 'false' || s === 'billed' || s === 'no' || s === '0') {
-            isEffectingUnbilled = false;
-          } else {
-            isEffectingUnbilled = true;
-          }
+          isEffectingUnbilled = !(s === 'false' || s === 'billed' || s === 'no' || s === '0');
         }
       } else if (tx.isEffectingUnbilled !== undefined && tx.isEffectingUnbilled !== null) {
         isEffectingUnbilled = (tx.isEffectingUnbilled === true || String(tx.isEffectingUnbilled).toLowerCase().trim() === 'true');
@@ -371,22 +380,17 @@ function doPost(e) {
       // Reverse effect on target Credit Card
       if (rowTaggedCard) {
         try {
-          const ccSheet = ss.getSheetByName('Credit Cards');
-          if (ccSheet && ccSheet.getLastRow() >= 2) {
-            const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
-            const ccCols = findCreditCardColumnIndices(ccHeaders);
-            const ccValues = ccSheet.getDataRange().getValues();
+          const ctx = getCcCtx();
+          if (ctx && ctx.values.length >= 2) {
+            const { sheet: ccSheet, cols: ccCols, values: ccValues } = ctx;
             const targetName = rowTaggedCard.toLowerCase().trim();
             for (let i = 1; i < ccValues.length; i++) {
               const rowCardName = String(ccValues[i][ccCols.colCardName - 1] || '').toLowerCase().trim();
               if (rowCardName === targetName) {
-                if (!isEffectingUnbilled) {
+                if (!isEffectingUnbilled && cr > 0) {
                   // Reverse Billed Amount
                   const currBilled = Number(ccValues[i][ccCols.colBilled - 1]) || 0;
                   const currStatus = String(ccValues[i][ccCols.colStatus - 1] || '').trim();
-                  let cr = rowCredit;
-                  if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
-                  if (cr === 0 && tx.net && Number(tx.net) > 0) cr = Number(tx.net);
                   const restoredBilled = Math.round((currBilled + cr) * 100) / 100;
                   ccSheet.getRange(i + 1, ccCols.colBilled).setValue(restoredBilled);
                   if (currBilled === 0 || currStatus.toLowerCase() === 'paid') {
@@ -410,8 +414,6 @@ function doPost(e) {
                   const currUnbilled = Number(ccValues[i][ccCols.colUnbilled - 1]) || 0;
                   let dws = rowDebitWithoutSign;
                   if (dws === 0 && tx.debitWithoutSign) dws = Number(tx.debitWithoutSign) || 0;
-                  let cr = rowCredit;
-                  if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
                   let delta = 0;
                   if (dws > 0) delta += dws;
                   if (cr > 0) delta -= cr;
@@ -494,11 +496,17 @@ function doPost(e) {
       }
 
       // Only Last Paid and Due Date can be modified
-      if (p.lastPaid !== undefined && p.lastPaid !== null) {
-        sheet.getRange(matchedRow, 4).setValue(String(p.lastPaid).trim());
-      }
-      if (p.dueDate !== undefined && p.dueDate !== null) {
-        sheet.getRange(matchedRow, 5).setValue(String(p.dueDate).trim());
+      const hasLastPaid = p.lastPaid !== undefined && p.lastPaid !== null;
+      const hasDueDate = p.dueDate !== undefined && p.dueDate !== null;
+      if (hasLastPaid && hasDueDate) {
+        sheet.getRange(matchedRow, 4, 1, 2).setValues([[String(p.lastPaid).trim(), String(p.dueDate).trim()]]);
+      } else {
+        if (hasLastPaid) {
+          sheet.getRange(matchedRow, 4).setValue(String(p.lastPaid).trim());
+        }
+        if (hasDueDate) {
+          sheet.getRange(matchedRow, 5).setValue(String(p.dueDate).trim());
+        }
       }
       if (p.installmentsRemaining !== undefined && p.installmentsRemaining !== null && String(p.installmentsRemaining).trim() === '0') {
         sheet.getRange(matchedRow, 7).setValue('0');
@@ -540,7 +548,7 @@ function doPost(e) {
         lastDate,        // Col 6: Last Date (Maturity Date)
         '',              // Col 7: Installment Remains (auto-calculated by sheet formula)
         subCategory,     // Col 8: Sub Category
-        '',        // Col 9: Category
+        '',              // Col 9: Category
         id,              // Col 10: Id
         password,        // Col 11: Password
         sumAssured,      // Col 12: Sum Assured
@@ -575,34 +583,22 @@ function doPost(e) {
         throw new Error('Fund not found in SIP Tracer: ' + fundName);
       }
 
-      if (sip.role !== undefined && sip.role !== null) {
-        sheet.getRange(matchedRow, 2).setValue(String(sip.role).trim());
+      const rawRow = values[matchedRow - 1] || [];
+      const row = new Array(9);
+      for (let c = 0; c < 9; c++) {
+        row[c] = (rawRow[c + 1] !== undefined && rawRow[c + 1] !== null) ? rawRow[c + 1] : '';
       }
-      if (sip.currentSip !== undefined && sip.currentSip !== null) {
-        sheet.getRange(matchedRow, 3).setValue(Number(sip.currentSip) || 0);
-      }
-      if (sip.currentMonth !== undefined && sip.currentMonth !== null) {
-        sheet.getRange(matchedRow, 4).setValue(String(sip.currentMonth).trim());
-      }
-      if (sip.currentStatus !== undefined && sip.currentStatus !== null) {
-        sheet.getRange(matchedRow, 5).setValue(String(sip.currentStatus).trim());
-      }
-      if (sip.nextSip !== undefined && sip.nextSip !== null) {
-        sheet.getRange(matchedRow, 6).setValue(Number(sip.nextSip) || 0);
-      }
-      if (sip.nextMonth !== undefined && sip.nextMonth !== null) {
-        sheet.getRange(matchedRow, 7).setValue(String(sip.nextMonth).trim());
-      }
-      if (sip.nextStatus !== undefined && sip.nextStatus !== null) {
-        sheet.getRange(matchedRow, 8).setValue(String(sip.nextStatus).trim());
-      }
-      if (sip.bankAccount !== undefined && sip.bankAccount !== null) {
-        sheet.getRange(matchedRow, 9).setValue(String(sip.bankAccount).trim());
-      }
-      if (sip.platform !== undefined && sip.platform !== null) {
-        sheet.getRange(matchedRow, 10).setValue(String(sip.platform).trim());
-      }
+      if (sip.role !== undefined && sip.role !== null) row[0] = String(sip.role).trim();
+      if (sip.currentSip !== undefined && sip.currentSip !== null) row[1] = Number(sip.currentSip) || 0;
+      if (sip.currentMonth !== undefined && sip.currentMonth !== null) row[2] = String(sip.currentMonth).trim();
+      if (sip.currentStatus !== undefined && sip.currentStatus !== null) row[3] = String(sip.currentStatus).trim();
+      if (sip.nextSip !== undefined && sip.nextSip !== null) row[4] = Number(sip.nextSip) || 0;
+      if (sip.nextMonth !== undefined && sip.nextMonth !== null) row[5] = String(sip.nextMonth).trim();
+      if (sip.nextStatus !== undefined && sip.nextStatus !== null) row[6] = String(sip.nextStatus).trim();
+      if (sip.bankAccount !== undefined && sip.bankAccount !== null) row[7] = String(sip.bankAccount).trim();
+      if (sip.platform !== undefined && sip.platform !== null) row[8] = String(sip.platform).trim();
 
+      sheet.getRange(matchedRow, 2, 1, 9).setValues([row]);
       runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
@@ -727,20 +723,17 @@ function doPost(e) {
     }
 
     if (action === 'addCreditCard') {
-      const sheet = ss.getSheetByName('Credit Cards');
-      if (!sheet) throw new Error('Credit Cards sheet not found');
+      const ctx = getCreditCardContext(ss);
+      if (!ctx) throw new Error('Credit Cards sheet not found');
+      const { sheet, cols, values } = ctx;
 
       const c = data.card || {};
       const cardName = String(c.cardName || '').trim();
       if (!cardName) throw new Error('Card name is mandatory');
 
-      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      const cols = findCreditCardColumnIndices(headers);
-      const values = sheet.getDataRange().getValues();
-
-      // Check uniqueness
+      const targetLower = cardName.toLowerCase();
       for (let i = 1; i < values.length; i++) {
-        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
+        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === targetLower) {
           throw new Error('A credit card named "' + cardName + '" already exists');
         }
       }
@@ -751,7 +744,8 @@ function doPost(e) {
       const lastPaid = '';
       const status = billedAmount > 0 ? 'Unpaid' : 'Paid';
 
-      const newRow = new Array(headers.length).fill('');
+      const rowLen = Math.max(values[0].length, cols.colCardName, cols.colBilled, cols.colUnbilled, cols.colDueDate, cols.colLastPaid, cols.colStatus);
+      const newRow = new Array(rowLen).fill('');
       newRow[cols.colCardName - 1] = cardName;
       newRow[cols.colBilled - 1] = billedAmount;
       newRow[cols.colUnbilled - 1] = unbilledAmount;
@@ -779,24 +773,15 @@ function doPost(e) {
     }
 
     if (action === 'updateCreditCard') {
-      const sheet = ss.getSheetByName('Credit Cards');
-      if (!sheet) throw new Error('Credit Cards sheet not found');
+      const ctx = getCreditCardContext(ss);
+      if (!ctx) throw new Error('Credit Cards sheet not found');
+      const { sheet, cols, values } = ctx;
 
       const c = data.card || {};
       const cardName = String(c.cardName || '').trim();
       if (!cardName) throw new Error('Card name is required');
 
-      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      const cols = findCreditCardColumnIndices(headers);
-      const values = sheet.getDataRange().getValues();
-      let matchedRow = -1;
-      for (let i = 1; i < values.length; i++) {
-        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
-          matchedRow = i + 1;
-          break;
-        }
-      }
-
+      const matchedRow = findCreditCardRowIndex(values, cols.colCardName, cardName);
       if (matchedRow === -1) {
         throw new Error('Credit Card not found: ' + cardName);
       }
@@ -823,24 +808,15 @@ function doPost(e) {
     }
 
     if (action === 'markCreditCardPaid') {
-      const sheet = ss.getSheetByName('Credit Cards');
-      if (!sheet) throw new Error('Credit Cards sheet not found');
+      const ctx = getCreditCardContext(ss);
+      if (!ctx) throw new Error('Credit Cards sheet not found');
+      const { sheet, cols, values } = ctx;
 
       const c = data.card || {};
       const cardName = String(c.cardName || '').trim();
       if (!cardName) throw new Error('Card name is required');
 
-      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      const cols = findCreditCardColumnIndices(headers);
-      const values = sheet.getDataRange().getValues();
-      let matchedRow = -1;
-      for (let i = 1; i < values.length; i++) {
-        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
-          matchedRow = i + 1;
-          break;
-        }
-      }
-
+      const matchedRow = findCreditCardRowIndex(values, cols.colCardName, cardName);
       if (matchedRow === -1) {
         throw new Error('Credit Card not found: ' + cardName);
       }
@@ -857,35 +833,24 @@ function doPost(e) {
     }
 
     if (action === 'markCreditCardBillGenerated') {
-      const sheet = ss.getSheetByName('Credit Cards');
-      if (!sheet) throw new Error('Credit Cards sheet not found');
+      const ctx = getCreditCardContext(ss);
+      if (!ctx) throw new Error('Credit Cards sheet not found');
+      const { sheet, cols, values } = ctx;
 
       const c = data.card || {};
       const cardName = String(c.cardName || '').trim();
       if (!cardName) throw new Error('Card name is required');
 
-      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      const cols = findCreditCardColumnIndices(headers);
-      const values = sheet.getDataRange().getValues();
-      let matchedRow = -1;
-      for (let i = 1; i < values.length; i++) {
-        if (String(values[i][cols.colCardName - 1] || '').toLowerCase().trim() === cardName.toLowerCase()) {
-          matchedRow = i + 1;
-          break;
-        }
-      }
-
+      const matchedRow = findCreditCardRowIndex(values, cols.colCardName, cardName);
       if (matchedRow === -1) {
         throw new Error('Credit Card not found: ' + cardName);
       }
 
-      // Read current unbilled amount
       let unbilledVal = Number(values[matchedRow - 1][cols.colUnbilled - 1]) || 0;
       if (c.unbilledAmount !== undefined && Number(c.unbilledAmount) > 0 && unbilledVal === 0) {
         unbilledVal = Number(c.unbilledAmount);
       }
 
-      // Set billed amount = unbilledVal, unbilled amount = 0
       sheet.getRange(matchedRow, cols.colBilled).setValue(unbilledVal);
       sheet.getRange(matchedRow, cols.colUnbilled).setValue(0);
 
@@ -913,70 +878,10 @@ function doPost(e) {
 
       const goalAmount = Number(g.targetAmount || g.goalAmount) || 0;
       const currentAmount = Number(g.currentAmount || g.occuredTillDate) || 0;
-      const achieved = goalAmount > 0 ? (currentAmount / goalAmount) : 0;
       const contributionJson = typeof g.contributionJson === 'object' ? JSON.stringify(g.contributionJson, null, 2) : String(g.contributionJson || '{}').trim();
 
-      // Check allocation rule: for each source (account or mutual fund), sum of allocations across all goals must be <= 1.0 (100%)
-      try {
-        const incomingContrib = JSON.parse(contributionJson);
-        const rows = sheet.getDataRange().getValues();
-        const accAllocations = {};
-        const mfAllocations = {};
-
-        for (let i = 1; i < rows.length; i++) {
-          const rowJsonStr = String(rows[i][4] || '').trim();
-          if (!rowJsonStr || rowJsonStr === '{}') continue;
-          try {
-            const exObj = JSON.parse(rowJsonStr);
-            if (exObj.accounts && typeof exObj.accounts === 'object') {
-              for (const acc in exObj.accounts) {
-                const cleanAcc = acc.trim().toUpperCase();
-                let p = Number(exObj.accounts[acc]) || 0;
-                if (p > 1.0) p = p / 100.0;
-                accAllocations[cleanAcc] = (accAllocations[cleanAcc] || 0) + p;
-              }
-            }
-            if (Array.isArray(exObj.mutual_funds)) {
-              for (const mf of exObj.mutual_funds) {
-                const mfVal = String(mf.value || '').trim().toLowerCase();
-                let p = Number(mf.percentage) || 1.0;
-                if (p > 1.0) p = p / 100.0;
-                mfAllocations[mfVal] = (mfAllocations[mfVal] || 0) + p;
-              }
-            }
-          } catch (e) {}
-        }
-
-        // Validate incoming accounts
-        if (incomingContrib.accounts && typeof incomingContrib.accounts === 'object') {
-          for (const acc in incomingContrib.accounts) {
-            const cleanAcc = acc.trim().toUpperCase();
-            let p = Number(incomingContrib.accounts[acc]) || 0;
-            if (p > 1.0) p = p / 100.0;
-            const total = (accAllocations[cleanAcc] || 0) + p;
-            if (total > 1.0001) {
-              throw new Error('Total allocation for account "' + acc + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
-            }
-          }
-        }
-
-        // Validate incoming mutual funds
-        if (Array.isArray(incomingContrib.mutual_funds)) {
-          for (const mf of incomingContrib.mutual_funds) {
-            const mfVal = String(mf.value || '').trim().toLowerCase();
-            let p = Number(mf.percentage) || 1.0;
-            if (p > 1.0) p = p / 100.0;
-            const total = (mfAllocations[mfVal] || 0) + p;
-            if (total > 1.0001) {
-              throw new Error('Total allocation for mutual fund "' + (mf.value || '') + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
-            }
-          }
-        }
-      } catch (err) {
-        if (err.message && err.message.indexOf('Total allocation') !== -1) {
-          throw err;
-        }
-      }
+      const rows = sheet.getDataRange().getValues();
+      validateGoalAllocations(rows, contributionJson, -1);
 
       sheet.appendRow([
         goalName,
@@ -1004,14 +909,15 @@ function doPost(e) {
 
       const goalAmount = Number(g.targetAmount || g.goalAmount) || 0;
       const currentAmount = Number(g.currentAmount || g.occuredTillDate) || 0;
-      const achieved = goalAmount > 0 ? (currentAmount / goalAmount) : 0;
       const contributionJson = typeof g.contributionJson === 'object' ? JSON.stringify(g.contributionJson, null, 2) : String(g.contributionJson || '{}').trim();
 
       const values = sheet.getDataRange().getValues();
+      const oldLower = oldName.toLowerCase();
+      const newLower = newName.toLowerCase();
       let matchedRow = -1;
       for (let i = 1; i < values.length; i++) {
-        const rowName = String(values[i][0] || '').trim();
-        if (rowName.toLowerCase() === oldName.toLowerCase() || rowName.toLowerCase() === newName.toLowerCase()) {
+        const rowName = String(values[i][0] || '').trim().toLowerCase();
+        if (rowName === oldLower || rowName === newLower) {
           matchedRow = i + 1;
           break;
         }
@@ -1021,72 +927,10 @@ function doPost(e) {
         throw new Error('Goal not found: ' + (oldName || newName));
       }
 
-      // Check allocation rule: exclude matchedRow, verify all sources <= 1.0 (100%)
-      try {
-        const incomingContrib = JSON.parse(contributionJson);
-        const rows = sheet.getDataRange().getValues();
-        const accAllocations = {};
-        const mfAllocations = {};
+      validateGoalAllocations(values, contributionJson, matchedRow);
 
-        for (let i = 1; i < rows.length; i++) {
-          if (i + 1 === matchedRow) continue; // Exclude current goal being updated!
-          const rowJsonStr = String(rows[i][4] || '').trim();
-          if (!rowJsonStr || rowJsonStr === '{}') continue;
-          try {
-            const exObj = JSON.parse(rowJsonStr);
-            if (exObj.accounts && typeof exObj.accounts === 'object') {
-              for (const acc in exObj.accounts) {
-                const cleanAcc = acc.trim().toUpperCase();
-                let p = Number(exObj.accounts[acc]) || 0;
-                if (p > 1.0) p = p / 100.0;
-                accAllocations[cleanAcc] = (accAllocations[cleanAcc] || 0) + p;
-              }
-            }
-            if (Array.isArray(exObj.mutual_funds)) {
-              for (const mf of exObj.mutual_funds) {
-                const mfVal = String(mf.value || '').trim().toLowerCase();
-                let p = Number(mf.percentage) || 1.0;
-                if (p > 1.0) p = p / 100.0;
-                mfAllocations[mfVal] = (mfAllocations[mfVal] || 0) + p;
-              }
-            }
-          } catch (e) {}
-        }
-
-        // Validate incoming accounts
-        if (incomingContrib.accounts && typeof incomingContrib.accounts === 'object') {
-          for (const acc in incomingContrib.accounts) {
-            const cleanAcc = acc.trim().toUpperCase();
-            let p = Number(incomingContrib.accounts[acc]) || 0;
-            if (p > 1.0) p = p / 100.0;
-            const total = (accAllocations[cleanAcc] || 0) + p;
-            if (total > 1.0001) {
-              throw new Error('Total allocation for account "' + acc + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
-            }
-          }
-        }
-
-        // Validate incoming mutual funds
-        if (Array.isArray(incomingContrib.mutual_funds)) {
-          for (const mf of incomingContrib.mutual_funds) {
-            const mfVal = String(mf.value || '').trim().toLowerCase();
-            let p = Number(mf.percentage) || 1.0;
-            if (p > 1.0) p = p / 100.0;
-            const total = (mfAllocations[mfVal] || 0) + p;
-            if (total > 1.0001) {
-              throw new Error('Total allocation for mutual fund "' + (mf.value || '') + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
-            }
-          }
-        }
-      } catch (err) {
-        if (err.message && err.message.indexOf('Total allocation') !== -1) {
-          throw err;
-        }
-      }
-
-      sheet.getRange(matchedRow, 1).setValue(newName);
-      sheet.getRange(matchedRow, 2).setValue(goalAmount);
-      sheet.getRange(matchedRow, 3).setValue(currentAmount);
+      // Batch-update columns A-C without overwriting Column D formula, then update Column E
+      sheet.getRange(matchedRow, 1, 1, 3).setValues([[newName, goalAmount, currentAmount]]);
       sheet.getRange(matchedRow, 5).setValue(contributionJson);
       runCalculationScriptsAndFlush();
 
@@ -1105,9 +949,10 @@ function doPost(e) {
       if (!goalName) throw new Error('Goal Name is required to delete');
 
       const vals = sheet.getDataRange().getValues();
+      const targetLower = goalName.toLowerCase();
       let rowToDelete = -1;
       for (let i = 1; i < vals.length; i++) {
-        if (String(vals[i][0] || '').trim().toLowerCase() === goalName.toLowerCase()) {
+        if (String(vals[i][0] || '').trim().toLowerCase() === targetLower) {
           rowToDelete = i + 1;
           break;
         }
@@ -1129,8 +974,6 @@ function doPost(e) {
     return jsonResponse({ status: 'error', message: 'Unsupported POST action' });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
-  } finally {
-
   }
 }
 
@@ -1140,29 +983,122 @@ function jsonResponse(obj) {
 }
 
 // Helpers
+function getCreditCardContext(ss) {
+  const sheet = ss.getSheetByName('Credit Cards');
+  if (!sheet) return null;
+  const values = sheet.getDataRange().getValues();
+  if (values.length === 0) return null;
+  const cols = findCreditCardColumnIndices(values[0]);
+  return { sheet, cols, values };
+}
+
+function findCreditCardRowIndex(values, colCardName, cardName) {
+  const targetLower = String(cardName || '').toLowerCase().trim();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][colCardName - 1] || '').toLowerCase().trim() === targetLower) {
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+function validateGoalAllocations(rows, contributionJson, excludeRowIndex) {
+  try {
+    const incomingContrib = JSON.parse(contributionJson);
+    const accAllocations = {};
+    const mfAllocations = {};
+
+    for (let i = 1; i < rows.length; i++) {
+      if (i + 1 === excludeRowIndex) continue;
+      const rowJsonStr = String(rows[i][4] || '').trim();
+      if (!rowJsonStr || rowJsonStr === '{}') continue;
+      try {
+        const exObj = JSON.parse(rowJsonStr);
+        if (exObj.accounts && typeof exObj.accounts === 'object') {
+          for (const acc in exObj.accounts) {
+            const cleanAcc = acc.trim().toUpperCase();
+            let p = Number(exObj.accounts[acc]) || 0;
+            if (p > 1.0) p = p / 100.0;
+            accAllocations[cleanAcc] = (accAllocations[cleanAcc] || 0) + p;
+          }
+        }
+        if (Array.isArray(exObj.mutual_funds)) {
+          for (const mf of exObj.mutual_funds) {
+            const mfVal = String(mf.value || '').trim().toLowerCase();
+            let p = Number(mf.percentage) || 1.0;
+            if (p > 1.0) p = p / 100.0;
+            mfAllocations[mfVal] = (mfAllocations[mfVal] || 0) + p;
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (incomingContrib.accounts && typeof incomingContrib.accounts === 'object') {
+      for (const acc in incomingContrib.accounts) {
+        const cleanAcc = acc.trim().toUpperCase();
+        let p = Number(incomingContrib.accounts[acc]) || 0;
+        if (p > 1.0) p = p / 100.0;
+        const total = (accAllocations[cleanAcc] || 0) + p;
+        if (total > 1.0001) {
+          throw new Error('Total allocation for account "' + acc + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
+        }
+      }
+    }
+
+    if (Array.isArray(incomingContrib.mutual_funds)) {
+      for (const mf of incomingContrib.mutual_funds) {
+        const mfVal = String(mf.value || '').trim().toLowerCase();
+        let p = Number(mf.percentage) || 1.0;
+        if (p > 1.0) p = p / 100.0;
+        const total = (mfAllocations[mfVal] || 0) + p;
+        if (total > 1.0001) {
+          throw new Error('Total allocation for mutual fund "' + (mf.value || '') + '" exceeds 100% (' + (total * 100).toFixed(1) + '% across goals). Allocation must be <= 100%.');
+        }
+      }
+    }
+  } catch (err) {
+    if (err.message && err.message.indexOf('Total allocation') !== -1) {
+      throw err;
+    }
+  }
+}
+
 function getSheetValues(ss, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];
-  const range = sheet.getDataRange();
-  const values = range.getValues();
+  const values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
 
   const tz = 'Asia/Kolkata';
   const headers = values[0];
+  const validHeaders = [];
+  for (let c = 0; c < headers.length; c++) {
+    if (headers[c]) {
+      validHeaders.push({ name: headers[c].toString().trim(), index: c });
+    }
+  }
+
   const results = [];
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
-    if (row.every(cell => cell === '' || cell === null)) continue;
-    const obj = {};
-    headers.forEach((h, index) => {
-      if (h) {
-        let val = row[index];
-        if (val instanceof Date) {
-          val = Utilities.formatDate(val, tz, 'dd/MM/yyyy');
-        }
-        obj[h.toString().trim()] = val;
+    let isEmpty = true;
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] !== '' && row[c] !== null) {
+        isEmpty = false;
+        break;
       }
-    });
+    }
+    if (isEmpty) continue;
+
+    const obj = {};
+    for (let k = 0; k < validHeaders.length; k++) {
+      const h = validHeaders[k];
+      let val = row[h.index];
+      if (val instanceof Date) {
+        val = Utilities.formatDate(val, tz, 'dd/MM/yyyy');
+      }
+      obj[h.name] = val;
+    }
     results.push(obj);
   }
   return results;
@@ -1194,16 +1130,13 @@ function getTransactions(ss, limit, page) {
   const values = sheet.getRange(startRow, 1, numRows, maxCol).getValues();
   const tz = 'Asia/Kolkata';
 
-  // Read credit cards list for single-card fallback
-  let creditCardNamesList = [];
+  // Read credit cards list once for single-card fallback
+  const creditCardNamesList = [];
   try {
-    const ccSheet = ss.getSheetByName('Credit Cards');
-    if (ccSheet && ccSheet.getLastRow() >= 2) {
-      const ccHeaders = ccSheet.getRange(1, 1, 1, ccSheet.getLastColumn()).getValues()[0];
-      const ccCols = findCreditCardColumnIndices(ccHeaders);
-      const ccVals = ccSheet.getDataRange().getValues();
-      for (let cIdx = 1; cIdx < ccVals.length; cIdx++) {
-        const cName = String(ccVals[cIdx][ccCols.colCardName - 1] || '').trim();
+    const ccCtx = getCreditCardContext(ss);
+    if (ccCtx && ccCtx.values.length >= 2) {
+      for (let cIdx = 1; cIdx < ccCtx.values.length; cIdx++) {
+        const cName = String(ccCtx.values[cIdx][ccCtx.cols.colCardName - 1] || '').trim();
         if (cName) creditCardNamesList.push(cName);
       }
     }
@@ -1219,13 +1152,12 @@ function getTransactions(ss, limit, page) {
       dateVal = '';
     }
 
-    let credit = cols.colCredit > 0 ? (Number(row[cols.colCredit - 1]) || 0) : 0;
+    const credit = cols.colCredit > 0 ? (Number(row[cols.colCredit - 1]) || 0) : 0;
     let debit = cols.colDebit > 0 ? (Number(row[cols.colDebit - 1]) || 0) : 0;
     let net = cols.colNet > 0 ? (Number(row[cols.colNet - 1]) || 0) : 0;
-    let remainder = cols.colRemainder > 0 ? (Number(row[cols.colRemainder - 1]) || 0) : 0;
+    const remainder = cols.colRemainder > 0 ? (Number(row[cols.colRemainder - 1]) || 0) : 0;
     let dws = cols.colDebitWithoutSign > 0 ? (Number(row[cols.colDebitWithoutSign - 1]) || 0) : 0;
 
-    // Ensure robust debit and net consistency
     if (debit === 0 && dws > 0) {
       debit = -dws;
     } else if (debit !== 0 && dws === 0) {
@@ -1237,13 +1169,11 @@ function getTransactions(ss, limit, page) {
 
     let year = cols.colYear > 0 ? (Number(row[cols.colYear - 1]) || 0) : 0;
     let month = cols.colMonth > 0 ? (Number(row[cols.colMonth - 1]) || 0) : 0;
-    if (year === 0 || month === 0) {
-      if (dateVal && dateVal.includes('/')) {
-        const dParts = dateVal.split('/');
-        if (dParts.length === 3) {
-          if (year === 0) year = Number(dParts[2]) || new Date().getFullYear();
-          if (month === 0) month = Number(dParts[1]) || (new Date().getMonth() + 1);
-        }
+    if ((year === 0 || month === 0) && dateVal && dateVal.includes('/')) {
+      const dParts = dateVal.split('/');
+      if (dParts.length === 3) {
+        if (year === 0) year = Number(dParts[2]) || new Date().getFullYear();
+        if (month === 0) month = Number(dParts[1]) || (new Date().getMonth() + 1);
       }
     }
 
@@ -1253,6 +1183,26 @@ function getTransactions(ss, limit, page) {
     const accVal = cols.colAccount > 0 ? String(row[cols.colAccount - 1] || '').trim() : '';
     const catVal = cols.colCategory > 0 ? String(row[cols.colCategory - 1] || '').trim() : '';
     const procVal = cols.colProcessed > 0 ? String(row[cols.colProcessed - 1] || '').trim() : '';
+
+    let taggedCard = (cols.colTaggedCard > 0 && row.length >= cols.colTaggedCard && row[cols.colTaggedCard - 1]) ? String(row[cols.colTaggedCard - 1]).trim() : '';
+    if (!taggedCard && loanVal.toUpperCase() === 'CREDIT CARD' && creditCardNamesList.length === 1) {
+      taggedCard = creditCardNamesList[0];
+    }
+
+    let isEffectingUnbilled = true;
+    if (credit === 0 && (dws > 0 || debit < 0)) {
+      isEffectingUnbilled = true;
+    } else if (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget) {
+      const val = row[cols.colCcOffsetTarget - 1];
+      if (typeof val === 'boolean') {
+        isEffectingUnbilled = val;
+      } else {
+        const s = String(val || '').toLowerCase().trim();
+        if (s === 'false' || s === 'billed' || s === 'no' || s === '0') {
+          isEffectingUnbilled = false;
+        }
+      }
+    }
 
     return {
       id: startRow + idx,
@@ -1270,32 +1220,10 @@ function getTransactions(ss, limit, page) {
       month: month,
       debitWithoutSign: dws,
       scannedForBudgetAnalysis: procVal,
-      taggedCreditCard: (() => {
-        let card = (cols.colTaggedCard > 0 && row.length >= cols.colTaggedCard && row[cols.colTaggedCard - 1]) ? String(row[cols.colTaggedCard - 1]).trim() : '';
-        if (!card && loanVal.toUpperCase() === 'CREDIT CARD' && creditCardNamesList.length === 1) {
-          card = creditCardNamesList[0];
-        }
-        return card;
-      })(),
-      isEffectingUnbilled: (() => {
-        if (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget) {
-          const val = row[cols.colCcOffsetTarget - 1];
-          if (typeof val === 'boolean') return val;
-          const s = String(val || '').toLowerCase().trim();
-          if (s === 'false' || s === 'billed' || s === 'no' || s === '0') return false;
-        }
-        return true;
-      })(),
-      ccOffsetTarget: (() => {
-        if (cols.colCcOffsetTarget > 0 && row.length >= cols.colCcOffsetTarget) {
-          const val = row[cols.colCcOffsetTarget - 1];
-          if (typeof val === 'boolean') return val ? 'unbilled' : 'billed';
-          const s = String(val || '').toLowerCase().trim();
-          if (s === 'false' || s === 'billed' || s === 'no' || s === '0') return 'billed';
-        }
-        return 'unbilled';
-      })(),
-      isProcessed: procVal === 'Done' || (procVal !== '' && procVal !== null && procVal !== undefined)
+      taggedCreditCard: taggedCard,
+      isEffectingUnbilled: isEffectingUnbilled,
+      ccOffsetTarget: isEffectingUnbilled ? 'unbilled' : 'billed',
+      isProcessed: procVal === 'Done' || procVal !== ''
     };
   }).reverse();
 }
@@ -1353,10 +1281,10 @@ function getGoals(ss) {
   return raw.map(g => {
     const target = Number(g['Goal Amount']) || 0;
     const current = Number(g['Occured Till Date']) || 0;
-    const rawAchieved = (g['Achived Till Date'] !== undefined && g['Achived Till Date'] !== '') 
-      ? Number(g['Achived Till Date']) 
-      : ((g['Achieved Till Date'] !== undefined && g['Achieved Till Date'] !== '') 
-        ? Number(g['Achieved Till Date']) 
+    const rawAchieved = (g['Achived Till Date'] !== undefined && g['Achived Till Date'] !== '')
+      ? Number(g['Achived Till Date'])
+      : ((g['Achieved Till Date'] !== undefined && g['Achieved Till Date'] !== '')
+        ? Number(g['Achieved Till Date'])
         : (target > 0 ? (current / target) : 0));
     const achievedPct = target > 0 ? Math.round(rawAchieved * 1000) / 10 : 0;
     return {
@@ -1479,7 +1407,6 @@ function getCategories(ss) {
   return Object.keys(catMap).map(k => ({ name: k, subCategories: catMap[k] }));
 }
 
-
 /**
  * Standalone function to calculate running balance (Remainder) in Column E.
  * Fetches opening balances from both 'Account Opening Balance' and 'Loans Opening Balance',
@@ -1487,48 +1414,45 @@ function getCategories(ss) {
  */
 function calculateRemainders() {
   SpreadsheetApp.flush();
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var transSheet = ss.getSheetByName('Transactions');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const transSheet = ss.getSheetByName('Transactions');
   if (!transSheet) {
     Logger.log("Error: 'Transactions' sheet not found.");
     return;
   }
 
-  // 1. Load Opening Balances for Accounts
-  var accBalances = {};
-  var accSheet = ss.getSheetByName('Account Opening Balance');
+  const accBalances = {};
+  const accSheet = ss.getSheetByName('Account Opening Balance');
   if (accSheet) {
-    var accData = accSheet.getDataRange().getValues();
-    for (var i = 1; i < accData.length; i++) {
-      var accName = accData[i][0] ? String(accData[i][0]).trim() : "";
-      if (accName !== "") {
+    const accData = accSheet.getDataRange().getValues();
+    for (let i = 1; i < accData.length; i++) {
+      const accName = accData[i][0] ? String(accData[i][0]).trim() : '';
+      if (accName !== '') {
         accBalances[accName] = Number(accData[i][1]) || 0;
       }
     }
   }
 
-  // 2. Load Opening Balances for Loans
-  var loanBalances = {};
-  var loanSheet = ss.getSheetByName('Loans Opening Balance');
+  const loanBalances = {};
+  const loanSheet = ss.getSheetByName('Loans Opening Balance');
   if (loanSheet) {
-    var loanData = loanSheet.getDataRange().getValues();
-    for (var i = 1; i < loanData.length; i++) {
-      var loanName = loanData[i][0] ? String(loanData[i][0]).trim() : "";
-      if (loanName !== "") {
+    const loanData = loanSheet.getDataRange().getValues();
+    for (let i = 1; i < loanData.length; i++) {
+      const loanName = loanData[i][0] ? String(loanData[i][0]).trim() : '';
+      if (loanName !== '') {
         loanBalances[loanName] = Number(loanData[i][1]) || 0;
       }
     }
   }
 
-  var lastRow = transSheet.getLastRow();
-  if (lastRow < 2) return; // No transaction rows
+  const lastRow = transSheet.getLastRow();
+  if (lastRow < 2) return;
 
-  var numRows = lastRow - 1; // Exclude header row
-
-  var lastCol = transSheet.getLastColumn();
-  var transHeaders = transSheet.getRange(1, 1, 1, Math.max(15, lastCol)).getValues()[0];
-  var cols = findTransactionsColumnIndices(transHeaders);
-  var maxReadCol = Math.max(
+  const numRows = lastRow - 1;
+  const lastCol = transSheet.getLastColumn();
+  const transHeaders = transSheet.getRange(1, 1, 1, Math.max(15, lastCol)).getValues()[0];
+  const cols = findTransactionsColumnIndices(transHeaders);
+  const maxReadCol = Math.max(
     lastCol,
     cols.colCredit,
     cols.colDebit,
@@ -1538,47 +1462,41 @@ function calculateRemainders() {
     cols.colRemainder
   );
 
-  // Read all needed columns dynamically
-  var transData = transSheet.getRange(2, 1, numRows, maxReadCol).getValues();
+  const transData = transSheet.getRange(2, 1, numRows, maxReadCol).getValues();
+  const runningBalances = {};
+  const remainderOutput = new Array(numRows);
 
-  var runningBalances = {};
-  var remainderOutput = [];
+  for (let i = 0; i < numRows; i++) {
+    const row = transData[i];
+    const credit = cols.colCredit > 0 ? (Number(row[cols.colCredit - 1]) || 0) : 0;
+    let debit = cols.colDebit > 0 ? (Number(row[cols.colDebit - 1]) || 0) : 0;
+    const loan = cols.colLoans > 0 && row[cols.colLoans - 1] ? String(row[cols.colLoans - 1]).trim() : '';
+    const account = cols.colAccount > 0 && row[cols.colAccount - 1] ? String(row[cols.colAccount - 1]).trim() : '';
+    const dws = cols.colDebitWithoutSign > 0 ? (Number(row[cols.colDebitWithoutSign - 1]) || 0) : 0;
 
-  // Calculate running balances in-memory
-  for (var i = 0; i < numRows; i++) {
-    var row = transData[i];
-    var credit = cols.colCredit > 0 ? (Number(row[cols.colCredit - 1]) || 0) : 0;
-    var debit = cols.colDebit > 0 ? (Number(row[cols.colDebit - 1]) || 0) : 0;
-    var loan = cols.colLoans > 0 && row[cols.colLoans - 1] ? String(row[cols.colLoans - 1]).trim() : "";
-    var account = cols.colAccount > 0 && row[cols.colAccount - 1] ? String(row[cols.colAccount - 1]).trim() : "";
-    var dws = cols.colDebitWithoutSign > 0 ? (Number(row[cols.colDebitWithoutSign - 1]) || 0) : 0;
-
-    // CRITICAL FIX: If debit is 0, but dws is non-zero, debit is -Math.abs(dws)
     if (debit === 0 && dws !== 0) {
       debit = -Math.abs(dws);
     }
 
-    var entityKey = account !== "" ? account : loan;
-    var currentBalance = 0;
+    const entityKey = account !== '' ? account : loan;
+    let currentBalance = 0;
 
-    if (entityKey !== "") {
+    if (entityKey !== '') {
       if (!(entityKey in runningBalances)) {
-        if (account !== "") {
+        if (account !== '') {
           runningBalances[entityKey] = (account in accBalances) ? accBalances[account] : 0;
         } else {
           runningBalances[entityKey] = (loan in loanBalances) ? loanBalances[loan] : 0;
         }
       }
 
-      // Cumulative running balance = previous balance + Credit + Debit (Debit is already negative)
       runningBalances[entityKey] += (credit + debit);
       currentBalance = Math.round(runningBalances[entityKey] * 100) / 100;
     }
 
-    remainderOutput.push([currentBalance]);
+    remainderOutput[i] = [currentBalance];
   }
 
-  // Batch-write directly into dynamic colRemainder (starting at row 2)
   if (cols.colRemainder > 0) {
     transSheet.getRange(2, cols.colRemainder, remainderOutput.length, 1).setValues(remainderOutput);
   }
@@ -1587,12 +1505,10 @@ function calculateRemainders() {
 
 function applyMarkCreditCardPaid(sheet, cols, rowIndex, values) {
   const todayStr = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy');
-  // Set billed amount to 0
   if (cols.colBilled > 0) {
     sheet.getRange(rowIndex, cols.colBilled).setValue(0);
   }
 
-  // Advance due date by +1 month automatically
   let currDueDate = '';
   if (values && values.length >= rowIndex && cols.colDueDate > 0) {
     currDueDate = values[rowIndex - 1][cols.colDueDate - 1];
@@ -1624,27 +1540,25 @@ function applyMarkCreditCardPaid(sheet, cols, rowIndex, values) {
 
 function advanceDateByOneMonth(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return dateStr;
-  var parts = dateStr.trim().split('/');
+  const parts = dateStr.trim().split('/');
   if (parts.length === 3) {
-    var day = parseInt(parts[0], 10);
-    var month = parseInt(parts[1], 10); // 1-12
-    var year = parseInt(parts[2], 10);
+    let day = parseInt(parts[0], 10);
+    let month = parseInt(parts[1], 10);
+    let year = parseInt(parts[2], 10);
 
-    // Advance 1 month
     month += 1;
     if (month > 12) {
       month = 1;
       year += 1;
     }
 
-    // Adjust day for months with fewer days (e.g. Feb)
-    var maxDaysInMonth = new Date(year, month, 0).getDate();
+    const maxDaysInMonth = new Date(year, month, 0).getDate();
     if (day > maxDaysInMonth) {
       day = maxDaysInMonth;
     }
 
-    var dd = day < 10 ? '0' + day : '' + day;
-    var mm = month < 10 ? '0' + month : '' + month;
+    const dd = day < 10 ? '0' + day : '' + day;
+    const mm = month < 10 ? '0' + month : '' + month;
     return dd + '/' + mm + '/' + year;
   }
   return dateStr;
@@ -1652,11 +1566,11 @@ function advanceDateByOneMonth(dateStr) {
 
 function rollbackDateByOneMonth(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return dateStr;
-  var parts = dateStr.trim().split('/');
+  const parts = dateStr.trim().split('/');
   if (parts.length === 3) {
-    var day = parseInt(parts[0], 10);
-    var month = parseInt(parts[1], 10); // 1-12
-    var year = parseInt(parts[2], 10);
+    let day = parseInt(parts[0], 10);
+    let month = parseInt(parts[1], 10);
+    let year = parseInt(parts[2], 10);
 
     month -= 1;
     if (month < 1) {
@@ -1664,13 +1578,13 @@ function rollbackDateByOneMonth(dateStr) {
       year -= 1;
     }
 
-    var maxDaysInMonth = new Date(year, month, 0).getDate();
+    const maxDaysInMonth = new Date(year, month, 0).getDate();
     if (day > maxDaysInMonth) {
       day = maxDaysInMonth;
     }
 
-    var dd = day < 10 ? '0' + day : '' + day;
-    var mm = month < 10 ? '0' + month : '' + month;
+    const dd = day < 10 ? '0' + day : '' + day;
+    const mm = month < 10 ? '0' + month : '' + month;
     return dd + '/' + mm + '/' + year;
   }
   return dateStr;
@@ -1704,7 +1618,6 @@ function findTransactionsColumnIndices(headers) {
       if (!h) continue;
       const idx = c + 1;
 
-      // 1. Tagged Credit Card (check before generic Credit or Card)
       if (colTaggedCard === -1 && (
         h.includes('tagged') ||
         h === 'credit card' ||
@@ -1713,34 +1626,26 @@ function findTransactionsColumnIndices(headers) {
         (h.includes('credit') && h.includes('card'))
       )) {
         colTaggedCard = idx;
-      }
-      // 2. Debit Without Sign (check before generic Debit)
-      else if (colDebitWithoutSign === -1 && (
+      } else if (colDebitWithoutSign === -1 && (
         (h.includes('debit') && (h.includes('without') || h.includes('sign') || h.includes('w/o') || h.includes('abs') || h.includes('no') || h.includes('pos'))) ||
         h === 'dws'
       )) {
         colDebitWithoutSign = idx;
-      }
-      // 3. Sub Category (check before generic Category)
-      else if (colSubCategory === -1 && (
+      } else if (colSubCategory === -1 && (
         h.includes('sub') ||
         h.includes('subcategory') ||
         h.includes('sub category') ||
         h.includes('sub-cat')
       )) {
         colSubCategory = idx;
-      }
-      // 4. Remainder / Running balance
-      else if (colRemainder === -1 && (
+      } else if (colRemainder === -1 && (
         h.includes('remainder') ||
         h.includes('running') ||
         (h.includes('balance') && !h.includes('account') && !h.includes('loan')) ||
         h.includes('cumulative')
       )) {
         colRemainder = idx;
-      }
-      // 5. Debit (check after Debit Without Sign)
-      else if (colDebit === -1 && (
+      } else if (colDebit === -1 && (
         (h.includes('debit') && !h.includes('without') && !h.includes('sign') && !h.includes('w/o')) ||
         h === 'dr' ||
         h.includes('dr ') ||
@@ -1748,9 +1653,7 @@ function findTransactionsColumnIndices(headers) {
         h === 'outflow'
       )) {
         colDebit = idx;
-      }
-      // 6. Credit (check after Tagged Credit Card)
-      else if (colCredit === -1 && (
+      } else if (colCredit === -1 && (
         (h.includes('credit') && !h.includes('card')) ||
         h === 'cr' ||
         h.includes('cr ') ||
@@ -1759,58 +1662,38 @@ function findTransactionsColumnIndices(headers) {
         h === 'deposit'
       )) {
         colCredit = idx;
-      }
-      // 7. Net
-      else if (colNet === -1 && (
+      } else if (colNet === -1 && (
         h.includes('net') ||
         (h.includes('amount') && !h.includes('credit') && !h.includes('debit') && !h.includes('bill') && !h.includes('cr') && !h.includes('dr'))
       )) {
         colNet = idx;
-      }
-      // 8. Loans
-      else if (colLoans === -1 && (h.includes('loan') || h.includes('liability'))) {
+      } else if (colLoans === -1 && (h.includes('loan') || h.includes('liability'))) {
         colLoans = idx;
-      }
-      // 9. Type
-      else if (colType === -1 && h.includes('type')) {
+      } else if (colType === -1 && h.includes('type')) {
         colType = idx;
-      }
-      // 10. Account (check after Loans to avoid Loan Account matching Account)
-      else if (colAccount === -1 && (
+      } else if (colAccount === -1 && (
         h.includes('account') ||
         h.includes('bank') ||
         h.includes('source') ||
         h.includes('payment mode')
       ) && !h.includes('loan')) {
         colAccount = idx;
-      }
-      // 11. Category (check after Sub Category)
-      else if (colCategory === -1 && (h.includes('category') || h.includes('cat')) && !h.includes('sub')) {
+      } else if (colCategory === -1 && (h.includes('category') || h.includes('cat')) && !h.includes('sub')) {
         colCategory = idx;
-      }
-      // 12. Year
-      else if (colYear === -1 && (h.includes('year') || h === 'yr' || h === 'yyyy')) {
+      } else if (colYear === -1 && (h.includes('year') || h === 'yr' || h === 'yyyy')) {
         colYear = idx;
-      }
-      // 13. Month
-      else if (colMonth === -1 && (h.includes('month') || h === 'mo' || h === 'mm')) {
+      } else if (colMonth === -1 && (h.includes('month') || h === 'mo' || h === 'mm')) {
         colMonth = idx;
-      }
-      // 14. Date
-      else if (colDate === -1 && h.includes('date')) {
+      } else if (colDate === -1 && h.includes('date')) {
         colDate = idx;
-      }
-      // 15. Scanned / Processed
-      else if (colProcessed === -1 && (
+      } else if (colProcessed === -1 && (
         h.includes('scanned') ||
         h.includes('budget analysis') ||
         h.includes('process') ||
         h.includes('status')
       )) {
         colProcessed = idx;
-      }
-      // 16. Is Effecting Unbilled Amount
-      else if (colCcOffsetTarget === -1 && (
+      } else if (colCcOffsetTarget === -1 && (
         h.includes('effecting unbilled') ||
         h.includes('affecting unbilled') ||
         h.includes('effect unbilled') ||
@@ -1827,7 +1710,6 @@ function findTransactionsColumnIndices(headers) {
     }
   }
 
-  // Fallback defaults
   if (colDate === -1) colDate = 1;
   if (colCredit === -1) colCredit = 2;
   if (colDebit === -1) colDebit = 3;
@@ -1901,14 +1783,9 @@ function findCreditCardColumnIndices(headers) {
 }
 
 function getCreditCards(ss) {
-  const sheet = ss.getSheetByName('Credit Cards');
-  if (!sheet) return [];
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const cols = findCreditCardColumnIndices(headers);
-  const values = sheet.getDataRange().getValues();
+  const ctx = getCreditCardContext(ss);
+  if (!ctx || ctx.values.length < 2) return [];
+  const { cols, values } = ctx;
   const tz = 'Asia/Kolkata';
   const results = [];
 

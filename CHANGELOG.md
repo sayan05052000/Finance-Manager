@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.5] - 2026-11-19
+
+### Fixed & Hardened
+- **Credit Card Billed vs. Unbilled Offset Accounting Guardrails**:
+  - Enforced strict debit-to-unbilled routing: In `addTransaction`, `deleteTransaction`, and `getTransactions`, all debit and expense transactions (`creditAmount === 0` with `debitWithoutSign > 0` or `txNet < 0`) are guaranteed to have `isEffectingUnbilled = true` and `ccOffsetTarget = 'unbilled'`.
+  - Fixed an edge case in `addTransaction` where logging an expense or zero-credit transaction on a card with `Billed Amount = 0` would evaluate `newBilled <= 0` to true and prematurely trigger `applyMarkCreditCardPaid()`, advancing the Due Date by 1 month.
+  - Fixed an inverse edge case in `deleteTransaction` where deleting an expense row (`cr === 0`) on an already-paid card would roll back the Due Date by 1 month.
+
+### Performance & Optimizations
+- **Google Apps Script Backend Overhaul (`androidscript.gs`)**:
+  - **`getSheetValues`**: Pre-computed column header lookups once per sheet, eliminating thousands of closures and redundant string operations per API sync.
+  - **`calculateRemainders`**: Pre-allocated fixed-size array buffers for calculating running balances, reducing memory pressure on large transaction ledgers.
+  - **`deleteTransaction`**: Switched from querying the full sheet data range to single-row targeted reads.
+  - **Batch Updates**: Grouped multi-cell writes into contiguous range calls in `updatePolicy`, `updateSip`, and `updateGoal`.
+  - **Crash Prevention**: Handled range dimension edge cases in `updateSip` (protecting against sheets with empty trailing columns) and safe row allocations in `addCreditCard`.
+  - **Execution Resiliency**: Added an automatic fallback to `calculateRemainders()` within `runCalculationScriptsAndFlush()` in case `processTransactionsRows()` encounters an unhandled exception.
+
+---
+
 ## [v2.4] - 2026-11-19
 
 ### Fixed

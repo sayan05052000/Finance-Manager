@@ -2,7 +2,7 @@
 
 A robust, offline-capable native Android application paired with a **Google Sheets REST API backend** (powered by Google Apps Script via `androidscript.gs`) to track, forecast, and manage personal wealth, monthly expense cycles, mutual fund portfolios, systematic investment plans (SIPs), insurance policies, and loan liabilities.
 
-**Version:** `2.4` (`versionCode 13`)  
+**Version:** `2.5` (`versionCode 14`)  
 **Target SDK:** `Android 14 (API 34)` | **Min SDK:** `Android 8.0 (API 26)`  
 **Ready-to-Install APK:** `FinanceManager.apk` (located in the repository root)
 
@@ -754,7 +754,7 @@ The Google Spreadsheet acts as the relational database across 12 specialized she
 Finance-Manager/
 ├── .gitignore                          # Root ignore rules (build, gradle, IDE, apk)
 ├── CHANGELOG.md                        # Comprehensive release notes & historical change log
-├── FinanceManager.apk                  # Current ready-to-install build (v1.9)
+├── FinanceManager.apk                  # Current ready-to-install build (v2.5)
 ├── README.md                           # This architecture, developer & build guide
 ├── google-apps-script/
 │   └── androidscript.gs                # Google Apps Script Web App REST API gateway
