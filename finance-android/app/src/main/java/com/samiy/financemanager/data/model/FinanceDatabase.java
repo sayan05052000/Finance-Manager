@@ -85,13 +85,7 @@ public class FinanceDatabase implements Serializable {
         if (loans != null) {
             for (Loan l : loans) {
                 if (l != null && l.isDebt) {
-                    if ("CREDIT CARD".equalsIgnoreCase(l.name != null ? l.name.trim() : "")) {
-                        double ccAmount = Math.abs(l.outstanding);
-                        double pay = getCreditCardPaymentBalance();
-                        sum += Math.max(0.0, Math.round((ccAmount - pay) * 100.0) / 100.0);
-                    } else {
-                        sum += Math.abs(l.outstanding);
-                    }
+                    sum += Math.abs(l.outstanding);
                 }
             }
         }

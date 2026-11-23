@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v3.2] - 2026-11-23
+
+### Fixed & Enhanced
+- **Credit Card Balance vs Due Amount Display**:
+  - **Item Outstanding Amount**: In [`AccountsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/AccountsFragment.java), the primary amount displayed on the right of the `CREDIT CARD` row now shows the actual credit card balance (`formatCurrency(ccAmount)`) styled in [`@color/red_rose`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/values/colors.xml).
+  - **Due Amount Computation**: The badge explicitly displays the computed due amount as `Credit Card balance - Payment balance` (`Due: <Credit Card - PAYMENT> • Payment Bal: <PAYMENT>`).
+  - **Loan Debt Total**: In [`FinanceDatabase.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/model/FinanceDatabase.java), `getTotalLoanDebt()` sums all debt loan balances (`Math.abs(l.outstanding)`), ensuring total debt headers and portfolio debt metrics consistently reflect the debt balance.
+
+---
+
 ## [v3.1] - 2026-11-23
 
 ### Added & Enhanced

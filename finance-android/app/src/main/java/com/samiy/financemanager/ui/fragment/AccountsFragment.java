@@ -430,7 +430,7 @@ public class AccountsFragment extends Fragment {
                     due = Math.max(0.0, Math.round((ccAmount - ccPayBal) * 100.0) / 100.0);
                 }
 
-                if (isNonZeroOnly && (isCc ? due < 0.01 : ccAmount < 0.01)) {
+                if (isNonZeroOnly && ccAmount < 0.01) {
                     continue;
                 }
                 visibleDebtCount++;
@@ -446,8 +446,8 @@ public class AccountsFragment extends Fragment {
                 if (isCc) {
                     tvBadge.setText("Payment Bal: " + formatCurrency(ccPayBal) + " • Due: " + formatCurrency(due));
                     tvBadge.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.amber_gold : R.color.green_mint));
-                    tvOutstanding.setText(formatCurrency(due));
-                    tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.red_rose : R.color.green_mint));
+                    tvOutstanding.setText(formatCurrency(ccAmount));
+                    tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), ccAmount > 0 ? R.color.red_rose : R.color.green_mint));
                 } else {
                     tvBadge.setText("Actual Loan (Debt)");
                     tvBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
@@ -471,7 +471,7 @@ public class AccountsFragment extends Fragment {
                     final double finalDue = due;
                     btnViewTxs.setOnClickListener(v -> {
                         AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(
-                                l.name, isCc ? formatCurrency(finalDue) : formatCurrency(ccAmount));
+                                l.name, isCc ? (formatCurrency(ccAmount) + " • Due: " + formatCurrency(finalDue)) : formatCurrency(ccAmount));
                         sheet.show(getChildFragmentManager(), "txs_loan_" + l.name);
                     });
                 }
