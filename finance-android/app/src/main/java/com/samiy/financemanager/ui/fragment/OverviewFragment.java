@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -130,7 +131,9 @@ public class OverviewFragment extends Fragment {
         double loanDebt = db.getTotalLoanDebt();
 
         tvNetWorthValue.setText(formatCurrency(netWorth));
+        tvNetWorthValue.setTextColor(ContextCompat.getColor(requireContext(), netWorth >= 0 ? R.color.green_mint : R.color.red_rose));
         tvBankBalancesValue.setText(formatCurrency(bankBalances));
+        tvBankBalancesValue.setTextColor(ContextCompat.getColor(requireContext(), bankBalances > 0 ? R.color.green_mint : (bankBalances < 0 ? R.color.red_rose : R.color.text_secondary)));
         tvBankAccountsCount.setText(db.accounts != null ? db.accounts.size() + " Accounts (Loans Excluded)" : "0 Accounts");
 
         tvAssetsValue.setText(formatCurrency(assets));
@@ -138,6 +141,7 @@ public class OverviewFragment extends Fragment {
         tvHoldingsCountText.setText(holdingsCount + " Active Holdings");
 
         tvLoanDebtValue.setText(formatCurrency(loanDebt));
+        tvLoanDebtValue.setTextColor(ContextCompat.getColor(requireContext(), loanDebt > 0 ? R.color.red_rose : R.color.green_mint));
 
         CurrentCycle cycle = db.currentCycle != null ? db.currentCycle : new CurrentCycle();
         // tvBudgetRemainderValue removed

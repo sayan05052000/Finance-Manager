@@ -184,8 +184,9 @@
                     android:layout_marginTop="8dp"
                     android:orientation="vertical" />
 
-                <!-- Loans & Debts Section -->
+                <!-- Actual Loans & Debts Section (isDebt == true) -->
                 <LinearLayout
+                    android:id="@+id/layoutHeaderLoans"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
@@ -205,7 +206,7 @@
                         android:id="@+id/tvTotalLoanDebt"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="₹13,801.47"
+                        android:text="₹0.00"
                         android:textColor="@color/red_rose"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -213,6 +214,76 @@
 
                 <LinearLayout
                     android:id="@+id/layoutLoanAccountsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+                <!-- Receivables Section (Balance > 0, Asset) -->
+                <LinearLayout
+                    android:id="@+id/layoutHeaderReceivables"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Receivables"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvTotalReceivables"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+₹0.00"
+                        android:textColor="@color/green_mint"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutReceivablesList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+                <!-- Ledgers Section (Balance < 0, Tracking / Payable) -->
+                <LinearLayout
+                    android:id="@+id/layoutHeaderLedgers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Ledgers"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvTotalLedgers"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="-₹0.00"
+                        android:textColor="@color/red_rose"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutLedgersList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"

@@ -42,4 +42,10 @@
     <!-- Pastel Lavender / Lilac -->
     <color name="purple_royal">#7C3AED</color>
     <color name="purple_bg">#FAF5FF</color>
+
+    <!-- Glassmorphic & Fluent Fluid Palette (Light Mode) -->
+    <color name="glass_surface_start">#FFFFFF</color>
+    <color name="glass_surface_end">#F8FAFC</color>
+    <color name="glass_pill_bg">#F1F5F9</color>
+    <color name="glass_border_luminous">#CBD5E1</color>
 </resources>

@@ -34,6 +34,8 @@ import com.samiy.financemanager.ui.dialog.AccountTransactionsBottomSheet;
 import com.samiy.financemanager.ui.dialog.AddTransactionBottomSheet;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class AccountsFragment extends Fragment {
@@ -49,8 +51,8 @@ public class AccountsFragment extends Fragment {
     private LinearLayout layoutCreditCardsList;
 
     // Bank & Loan Section
-    private TextView tvTotalBankBalance, tvTotalLoanDebt;
-    private LinearLayout layoutBankAccountsList, layoutLoanAccountsList;
+    private TextView tvTotalBankBalance, tvTotalLoanDebt, tvTotalReceivables, tvTotalLedgers;
+    private LinearLayout layoutBankAccountsList, layoutLoanAccountsList, layoutReceivablesList, layoutLedgersList;
     private View btnToggleNonZero;
     private TextView tvToggleNonZeroIcon, tvToggleNonZeroText;
     private boolean isNonZeroOnly = false;
@@ -93,8 +95,12 @@ public class AccountsFragment extends Fragment {
         // Banks & Loans Views
         tvTotalBankBalance = v.findViewById(R.id.tvTotalBankBalance);
         tvTotalLoanDebt = v.findViewById(R.id.tvTotalLoanDebt);
+        tvTotalReceivables = v.findViewById(R.id.tvTotalReceivables);
+        tvTotalLedgers = v.findViewById(R.id.tvTotalLedgers);
         layoutBankAccountsList = v.findViewById(R.id.layoutBankAccountsList);
         layoutLoanAccountsList = v.findViewById(R.id.layoutLoanAccountsList);
+        layoutReceivablesList = v.findViewById(R.id.layoutReceivablesList);
+        layoutLedgersList = v.findViewById(R.id.layoutLedgersList);
 
         btnToggleNonZero = v.findViewById(R.id.btnToggleNonZero);
         tvToggleNonZeroIcon = v.findViewById(R.id.tvToggleNonZeroIcon);
@@ -301,10 +307,14 @@ public class AccountsFragment extends Fragment {
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         if (db == null) return;
 
-        if (tvTotalBankBalance != null) tvTotalBankBalance.setText(formatCurrency(db.getTotalBankBalance()));
-        if (tvTotalLoanDebt != null) tvTotalLoanDebt.setText(formatCurrency(db.getTotalLoanDebt()));
+        double totalBank = db.getTotalBankBalance();
+        if (tvTotalBankBalance != null) {
+            tvTotalBankBalance.setText(formatCurrency(totalBank));
+            tvTotalBankBalance.setTextColor(ContextCompat.getColor(requireContext(),
+                    totalBank > 0 ? R.color.green_mint : (totalBank < 0 ? R.color.red_rose : R.color.text_secondary)));
+        }
 
-        // Bank Accounts
+        // 1. Bank Accounts
         if (layoutBankAccountsList != null) {
             layoutBankAccountsList.removeAllViews();
             if (db.accounts != null) {
@@ -324,6 +334,8 @@ public class AccountsFragment extends Fragment {
 
                     tvName.setText(a.name);
                     tvBalance.setText(formatCurrency(a.currentBalance));
+                    tvBalance.setTextColor(ContextCompat.getColor(requireContext(),
+                            a.currentBalance > 0 ? R.color.green_mint : (a.currentBalance < 0 ? R.color.red_rose : R.color.text_secondary)));
 
                     int txCount = 0;
                     if (db.transactions != null) {
@@ -375,95 +387,291 @@ public class AccountsFragment extends Fragment {
             }
         }
 
-        // Loan Accounts
+        // Divide Loans into 3 Categories:
+        // 1. Actual Loans & Debt: l.isDebt == true
+        // 2. Receivables: !l.isDebt && l.outstanding > 0
+        // 3. Ledgers: !l.isDebt && l.outstanding <= 0
+        List<Loan> debtLoans = new ArrayList<>();
+        List<Loan> receivableLoans = new ArrayList<>();
+        List<Loan> ledgerLoans = new ArrayList<>();
+
+        if (db.loans != null) {
+            for (Loan l : db.loans) {
+                if (l == null) continue;
+                if (l.isDebt) {
+                    debtLoans.add(l);
+                } else if (l.outstanding > 0) {
+                    receivableLoans.add(l);
+                } else {
+                    ledgerLoans.add(l);
+                }
+            }
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+
+        // 2. Actual Loans & Debt (isDebt == true)
+        double totalDebt = db.getTotalLoanDebt();
+        if (tvTotalLoanDebt != null) {
+            tvTotalLoanDebt.setText(formatCurrency(totalDebt));
+            tvTotalLoanDebt.setTextColor(ContextCompat.getColor(requireContext(), totalDebt > 0 ? R.color.red_rose : R.color.green_mint));
+        }
+
         if (layoutLoanAccountsList != null) {
             layoutLoanAccountsList.removeAllViews();
-            if (db.loans != null) {
-                LayoutInflater inflater = LayoutInflater.from(getContext());
-                int visibleCount = 0;
-                for (Loan l : db.loans) {
-                    double ccAmount = Math.abs(l.outstanding);
-                    double ccPayBal = 0.0;
-                    double due = ccAmount;
-                    boolean isCc = "CREDIT CARD".equalsIgnoreCase(l.name != null ? l.name.trim() : "");
-                    if (isCc) {
-                        ccPayBal = db.getCreditCardPaymentBalance();
-                        due = Math.max(0.0, Math.round((ccAmount - ccPayBal) * 100.0) / 100.0);
-                    }
+            int visibleDebtCount = 0;
+            for (Loan l : debtLoans) {
+                double ccAmount = Math.abs(l.outstanding);
+                double ccPayBal = 0.0;
+                double due = ccAmount;
+                boolean isCc = "CREDIT CARD".equalsIgnoreCase(l.name != null ? l.name.trim() : "");
+                if (isCc) {
+                    ccPayBal = db.getCreditCardPaymentBalance();
+                    due = Math.max(0.0, Math.round((ccAmount - ccPayBal) * 100.0) / 100.0);
+                }
 
-                    if (isNonZeroOnly && (isCc ? due < 0.01 : ccAmount < 0.01)) {
-                        continue;
-                    }
-                    visibleCount++;
-                    View itemView = inflater.inflate(R.layout.item_loan, layoutLoanAccountsList, false);
-                    TextView tvName = itemView.findViewById(R.id.tvLoanName);
-                    TextView tvBadge = itemView.findViewById(R.id.tvLoanBadge);
-                    TextView tvOutstanding = itemView.findViewById(R.id.tvLoanOutstanding);
-                    TextView tvTxCount = itemView.findViewById(R.id.tvLoanTxCount);
-                    View btnViewTxs = itemView.findViewById(R.id.btnViewLoanTransactions);
-                    View btnAddTx = itemView.findViewById(R.id.btnAddLoanTransaction);
+                if (isNonZeroOnly && (isCc ? due < 0.01 : ccAmount < 0.01)) {
+                    continue;
+                }
+                visibleDebtCount++;
+                View itemView = inflater.inflate(R.layout.item_loan, layoutLoanAccountsList, false);
+                TextView tvName = itemView.findViewById(R.id.tvLoanName);
+                TextView tvBadge = itemView.findViewById(R.id.tvLoanBadge);
+                TextView tvOutstanding = itemView.findViewById(R.id.tvLoanOutstanding);
+                TextView tvTxCount = itemView.findViewById(R.id.tvLoanTxCount);
+                View btnViewTxs = itemView.findViewById(R.id.btnViewLoanTransactions);
+                View btnAddTx = itemView.findViewById(R.id.btnAddLoanTransaction);
 
-                    tvName.setText(l.name);
-                    if (isCc) {
-                        tvBadge.setText("Payment Bal: " + formatCurrency(ccPayBal) + " • Due: " + formatCurrency(due));
-                        tvBadge.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.amber_gold : R.color.green_mint));
-                        tvOutstanding.setText(formatCurrency(due));
-                        tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.red_rose : R.color.green_mint));
-                    } else {
-                        tvBadge.setText(l.isDebt ? "isDebt: TRUE" : "Tracking");
-                        tvBadge.setTextColor(ContextCompat.getColor(requireContext(), l.isDebt ? R.color.red_rose : R.color.green_mint));
-                        tvOutstanding.setText(formatCurrency(ccAmount));
-                    }
+                tvName.setText(l.name);
+                if (isCc) {
+                    tvBadge.setText("Payment Bal: " + formatCurrency(ccPayBal) + " • Due: " + formatCurrency(due));
+                    tvBadge.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.amber_gold : R.color.green_mint));
+                    tvOutstanding.setText(formatCurrency(due));
+                    tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.red_rose : R.color.green_mint));
+                } else {
+                    tvBadge.setText("Actual Loan (Debt)");
+                    tvBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    tvOutstanding.setText(formatCurrency(ccAmount));
+                    tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), ccAmount > 0 ? R.color.red_rose : R.color.green_mint));
+                }
 
-                    int txCount = 0;
-                    if (db.transactions != null) {
-                        for (Transaction t : db.transactions) {
-                            if (t != null && t.loans != null && t.loans.trim().equalsIgnoreCase(l.name.trim())) {
-                                txCount++;
-                            }
+                int txCount = 0;
+                if (db.transactions != null) {
+                    for (Transaction t : db.transactions) {
+                        if (t != null && t.loans != null && t.loans.trim().equalsIgnoreCase(l.name.trim())) {
+                            txCount++;
                         }
                     }
-                    if (tvTxCount != null) {
-                        tvTxCount.setText(txCount + " txs");
-                    }
+                }
+                if (tvTxCount != null) {
+                    tvTxCount.setText(txCount + " txs");
+                }
 
-                    if (btnViewTxs != null) {
-                        final double finalDue = due;
-                        btnViewTxs.setOnClickListener(v -> {
-                            AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(
-                                    l.name, isCc ? formatCurrency(finalDue) : formatCurrency(ccAmount));
-                            sheet.show(getChildFragmentManager(), "txs_loan_" + l.name);
-                        });
-                    }
+                if (btnViewTxs != null) {
+                    final double finalDue = due;
+                    btnViewTxs.setOnClickListener(v -> {
+                        AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(
+                                l.name, isCc ? formatCurrency(finalDue) : formatCurrency(ccAmount));
+                        sheet.show(getChildFragmentManager(), "txs_loan_" + l.name);
+                    });
+                }
 
-                    if (btnAddTx != null) {
-                        btnAddTx.setOnClickListener(v -> {
-                            if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
-                                FinMngrToast.showError(getContext(), "You are not authorized");
-                                return;
+                if (btnAddTx != null) {
+                    btnAddTx.setOnClickListener(v -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            FinMngrToast.showError(getContext(), "You are not authorized");
+                            return;
+                        }
+                        AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForLoan(l.name);
+                        addDialog.setListener(() -> {
+                            if (getActivity() instanceof MainActivity) {
+                                ((MainActivity) getActivity()).updateHeaderInfo();
                             }
-                            AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForLoan(l.name);
-                            addDialog.setListener(() -> {
-                                if (getActivity() instanceof MainActivity) {
-                                    ((MainActivity) getActivity()).updateHeaderInfo();
-                                }
-                                refreshData();
-                            });
-                            addDialog.show(getChildFragmentManager(), "add_tx_loan_" + l.name);
+                            refreshData();
                         });
+                        addDialog.show(getChildFragmentManager(), "add_tx_loan_" + l.name);
+                    });
+                }
+
+                layoutLoanAccountsList.addView(itemView);
+            }
+
+            if (visibleDebtCount == 0 && isNonZeroOnly) {
+                TextView tvEmpty = new TextView(getContext());
+                tvEmpty.setText("No loan accounts with non-zero balances.");
+                tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
+                tvEmpty.setTextSize(12);
+                tvEmpty.setPadding(0, 16, 0, 16);
+                layoutLoanAccountsList.addView(tvEmpty);
+            }
+        }
+
+        // 3. Receivables (!l.isDebt && l.outstanding > 0)
+        double totalReceivables = db.getTotalReceivables();
+        if (tvTotalReceivables != null) {
+            tvTotalReceivables.setText("+" + formatCurrency(totalReceivables));
+            tvTotalReceivables.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+        }
+
+        if (layoutReceivablesList != null) {
+            layoutReceivablesList.removeAllViews();
+            int visibleRecCount = 0;
+            for (Loan l : receivableLoans) {
+                if (isNonZeroOnly && l.outstanding < 0.01) {
+                    continue;
+                }
+                visibleRecCount++;
+                View itemView = inflater.inflate(R.layout.item_loan, layoutReceivablesList, false);
+                TextView tvName = itemView.findViewById(R.id.tvLoanName);
+                TextView tvBadge = itemView.findViewById(R.id.tvLoanBadge);
+                TextView tvOutstanding = itemView.findViewById(R.id.tvLoanOutstanding);
+                TextView tvTxCount = itemView.findViewById(R.id.tvLoanTxCount);
+                View btnViewTxs = itemView.findViewById(R.id.btnViewLoanTransactions);
+                View btnAddTx = itemView.findViewById(R.id.btnAddLoanTransaction);
+
+                tvName.setText(l.name);
+                tvBadge.setText("Receivable");
+                tvBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+                tvBadge.setBackgroundResource(R.drawable.bg_chip_green);
+
+                tvOutstanding.setText("+" + formatCurrency(l.outstanding));
+                tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_mint));
+
+                int txCount = 0;
+                if (db.transactions != null) {
+                    for (Transaction t : db.transactions) {
+                        if (t != null && t.loans != null && t.loans.trim().equalsIgnoreCase(l.name.trim())) {
+                            txCount++;
+                        }
                     }
-
-                    layoutLoanAccountsList.addView(itemView);
+                }
+                if (tvTxCount != null) {
+                    tvTxCount.setText(txCount + " txs");
                 }
 
-                if (visibleCount == 0 && isNonZeroOnly) {
-                    TextView tvEmpty = new TextView(getContext());
-                    tvEmpty.setText("No loan accounts with non-zero balances.");
-                    tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
-                    tvEmpty.setTextSize(12);
-                    tvEmpty.setPadding(0, 16, 0, 16);
-                    layoutLoanAccountsList.addView(tvEmpty);
+                if (btnViewTxs != null) {
+                    btnViewTxs.setOnClickListener(v -> {
+                        AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(
+                                l.name, "+" + formatCurrency(l.outstanding));
+                        sheet.show(getChildFragmentManager(), "txs_rec_" + l.name);
+                    });
                 }
+
+                if (btnAddTx != null) {
+                    btnAddTx.setOnClickListener(v -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            FinMngrToast.showError(getContext(), "You are not authorized");
+                            return;
+                        }
+                        AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForLoan(l.name);
+                        addDialog.setListener(() -> {
+                            if (getActivity() instanceof MainActivity) {
+                                ((MainActivity) getActivity()).updateHeaderInfo();
+                            }
+                            refreshData();
+                        });
+                        addDialog.show(getChildFragmentManager(), "add_tx_rec_" + l.name);
+                    });
+                }
+
+                layoutReceivablesList.addView(itemView);
+            }
+
+            if (visibleRecCount == 0 && isNonZeroOnly) {
+                TextView tvEmpty = new TextView(getContext());
+                tvEmpty.setText("No receivables with non-zero balances.");
+                tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
+                tvEmpty.setTextSize(12);
+                tvEmpty.setPadding(0, 16, 0, 16);
+                layoutReceivablesList.addView(tvEmpty);
+            }
+        }
+
+        // 4. Ledgers (!l.isDebt && l.outstanding <= 0)
+        double totalLedgers = db.getTotalLedgers();
+        if (tvTotalLedgers != null) {
+            tvTotalLedgers.setText("-" + formatCurrency(totalLedgers));
+            tvTotalLedgers.setTextColor(ContextCompat.getColor(requireContext(), totalLedgers > 0 ? R.color.red_rose : R.color.text_secondary));
+        }
+
+        if (layoutLedgersList != null) {
+            layoutLedgersList.removeAllViews();
+            int visibleLedgerCount = 0;
+            for (Loan l : ledgerLoans) {
+                if (isNonZeroOnly && Math.abs(l.outstanding) < 0.01) {
+                    continue;
+                }
+                visibleLedgerCount++;
+                View itemView = inflater.inflate(R.layout.item_loan, layoutLedgersList, false);
+                TextView tvName = itemView.findViewById(R.id.tvLoanName);
+                TextView tvBadge = itemView.findViewById(R.id.tvLoanBadge);
+                TextView tvOutstanding = itemView.findViewById(R.id.tvLoanOutstanding);
+                TextView tvTxCount = itemView.findViewById(R.id.tvLoanTxCount);
+                View btnViewTxs = itemView.findViewById(R.id.btnViewLoanTransactions);
+                View btnAddTx = itemView.findViewById(R.id.btnAddLoanTransaction);
+
+                tvName.setText(l.name);
+                if (l.outstanding < -0.001) {
+                    tvBadge.setText("Ledger (Owed)");
+                    tvBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                    tvBadge.setBackgroundResource(R.drawable.bg_badge_red);
+                    tvOutstanding.setText("-" + formatCurrency(Math.abs(l.outstanding)));
+                    tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), R.color.red_rose));
+                } else {
+                    tvBadge.setText("Settled");
+                    tvBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+                    tvBadge.setBackgroundResource(R.drawable.bg_pill_dark);
+                    tvOutstanding.setText(formatCurrency(0));
+                    tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+                }
+
+                int txCount = 0;
+                if (db.transactions != null) {
+                    for (Transaction t : db.transactions) {
+                        if (t != null && t.loans != null && t.loans.trim().equalsIgnoreCase(l.name.trim())) {
+                            txCount++;
+                        }
+                    }
+                }
+                if (tvTxCount != null) {
+                    tvTxCount.setText(txCount + " txs");
+                }
+
+                if (btnViewTxs != null) {
+                    btnViewTxs.setOnClickListener(v -> {
+                        String balText = l.outstanding < -0.001 ? ("-" + formatCurrency(Math.abs(l.outstanding))) : formatCurrency(0);
+                        AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(l.name, balText);
+                        sheet.show(getChildFragmentManager(), "txs_ledger_" + l.name);
+                    });
+                }
+
+                if (btnAddTx != null) {
+                    btnAddTx.setOnClickListener(v -> {
+                        if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                            FinMngrToast.showError(getContext(), "You are not authorized");
+                            return;
+                        }
+                        AddTransactionBottomSheet addDialog = AddTransactionBottomSheet.newInstanceForLoan(l.name);
+                        addDialog.setListener(() -> {
+                            if (getActivity() instanceof MainActivity) {
+                                ((MainActivity) getActivity()).updateHeaderInfo();
+                            }
+                            refreshData();
+                        });
+                        addDialog.show(getChildFragmentManager(), "add_tx_ledger_" + l.name);
+                    });
+                }
+
+                layoutLedgersList.addView(itemView);
+            }
+
+            if (visibleLedgerCount == 0 && isNonZeroOnly) {
+                TextView tvEmpty = new TextView(getContext());
+                tvEmpty.setText("No ledger accounts with non-zero balances.");
+                tvEmpty.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_muted));
+                tvEmpty.setTextSize(12);
+                tvEmpty.setPadding(0, 16, 0, 16);
+                layoutLedgersList.addView(tvEmpty);
             }
         }
     }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v3.1] - 2026-11-23
+
+### Added & Enhanced
+- **Glassmorphic & Fluent Fluid Design Theme**:
+  - **Fluid Acrylic Surfaces & Borders**:
+    - Translucent glass card backgrounds with 18dp squircle curvature, dual-tone vertical gradients, and luminous 1dp border outlines ([`bg_card.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/bg_card.xml)).
+    - Bottom sheets upgraded with fluid 28dp top curvature and subtle glass borders ([`bg_bottom_sheet.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/bg_bottom_sheet.xml)).
+    - Floating translucent bottom navigation bar with 24dp top curvature and acrylic gradient ([`bg_nav_glass.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/bg_nav_glass.xml), [`activity_main.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/activity_main.xml)).
+  - **Fluid Pill Shapes & Badges**:
+    - Converted pills, chips, badges, and interactive controls to 100dp fluid curvature ([`bg_pill_dark.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/bg_pill_dark.xml), [`bg_chip_green.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/bg_chip_green.xml), [`bg_chip_blue.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/bg_chip_blue.xml), [`bg_badge_*.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/drawable/)).
+  - **Radiant Color Palette**:
+    - High-legibility modern radiant teal (`#2DD4BF`), azure (`#38BDF8`), mint green, and gentle coral rose (`#FB7185`) across [`colors.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/values/colors.xml) and [`values-night/colors.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/values-night/colors.xml).
+
+- **Bank and Loan Accounting & Tri-Section Division**:
+  - **Dynamic Sign-Based Tinting**:
+    - In Bank Accounts: Positive balances styled in **Mint Green** (`@color/green_mint`), overdrafts/negative balances in **Coral Rose** (`@color/red_rose`).
+    - In Overview: Total bank balance, net worth, and loan debt dynamically tinted by positive/negative status.
+  - **Separation of Loans into Debt, Receivables, and Ledgers ([`AccountsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/AccountsFragment.java), [`fragment_accounts.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_accounts.xml))**:
+    - **1. Actual Loans & Debt (`isDebt == true`)**: Only genuine debts (such as `CREDIT CARD` net due `Credit Card - PAYMENT`, or loans marked `isDebt: true`) are displayed here, with total loan debt in **Coral Rose**.
+    - **2. Receivables (`!isDebt && outstanding > 0`)**: Positive balances where money is owed to the user (e.g., `SBI CREDIT`, `SLICE CREDIT`, `Kuvera Surplus`) are placed into a dedicated Receivables section with green "Receivable" badges, positive values (`+₹...`), and total header in **Mint Green**.
+    - **3. Ledgers (`!isDebt && outstanding <= 0`)**: Negative tracking/payable balances (e.g., `ISHITA LOAN`, `FAMILY CREDIT`) are placed into a dedicated Ledgers section with "Ledger (Owed)" badges, negative values (`-₹...`), and total header in **Coral Rose**.
+  - **Database Helpers**:
+    - Added `getTotalReceivables()` and `getTotalLedgers()` in [`FinanceDatabase.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/model/FinanceDatabase.java).
+
+---
+
 ## [v3.0] - 2026-11-23
 
 ### Fixed & Enhanced

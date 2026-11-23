@@ -98,6 +98,30 @@ public class FinanceDatabase implements Serializable {
         return sum;
     }
 
+    public double getTotalReceivables() {
+        double sum = 0.0;
+        if (loans != null) {
+            for (Loan l : loans) {
+                if (l != null && !l.isDebt && l.outstanding > 0) {
+                    sum += l.outstanding;
+                }
+            }
+        }
+        return sum;
+    }
+
+    public double getTotalLedgers() {
+        double sum = 0.0;
+        if (loans != null) {
+            for (Loan l : loans) {
+                if (l != null && !l.isDebt && l.outstanding < 0) {
+                    sum += Math.abs(l.outstanding);
+                }
+            }
+        }
+        return sum;
+    }
+
     public double getCreditCardDueAmount() {
         if (loans != null) {
             for (Loan l : loans) {
