@@ -382,7 +382,16 @@ public class AccountsFragment extends Fragment {
                 LayoutInflater inflater = LayoutInflater.from(getContext());
                 int visibleCount = 0;
                 for (Loan l : db.loans) {
-                    if (isNonZeroOnly && Math.abs(l.outstanding) < 0.01) {
+                    double ccAmount = Math.abs(l.outstanding);
+                    double ccPayBal = 0.0;
+                    double due = ccAmount;
+                    boolean isCc = "CREDIT CARD".equalsIgnoreCase(l.name != null ? l.name.trim() : "");
+                    if (isCc) {
+                        ccPayBal = db.getCreditCardPaymentBalance();
+                        due = Math.max(0.0, Math.round((ccAmount - ccPayBal) * 100.0) / 100.0);
+                    }
+
+                    if (isNonZeroOnly && (isCc ? due < 0.01 : ccAmount < 0.01)) {
                         continue;
                     }
                     visibleCount++;
@@ -395,16 +404,15 @@ public class AccountsFragment extends Fragment {
                     View btnAddTx = itemView.findViewById(R.id.btnAddLoanTransaction);
 
                     tvName.setText(l.name);
-                    if ("CREDIT CARD".equalsIgnoreCase(l.name.trim())) {
-                        double due = Math.abs(l.outstanding);
-                        double ccPayBal = db.getCreditCardPaymentBalance();
+                    if (isCc) {
                         tvBadge.setText("Payment Bal: " + formatCurrency(ccPayBal) + " • Due: " + formatCurrency(due));
-                        tvBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.amber_gold));
+                        tvBadge.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.amber_gold : R.color.green_mint));
                         tvOutstanding.setText(formatCurrency(due));
+                        tvOutstanding.setTextColor(ContextCompat.getColor(requireContext(), due > 0 ? R.color.red_rose : R.color.green_mint));
                     } else {
                         tvBadge.setText(l.isDebt ? "isDebt: TRUE" : "Tracking");
                         tvBadge.setTextColor(ContextCompat.getColor(requireContext(), l.isDebt ? R.color.red_rose : R.color.green_mint));
-                        tvOutstanding.setText(formatCurrency(Math.abs(l.outstanding)));
+                        tvOutstanding.setText(formatCurrency(ccAmount));
                     }
 
                     int txCount = 0;
@@ -420,8 +428,10 @@ public class AccountsFragment extends Fragment {
                     }
 
                     if (btnViewTxs != null) {
+                        final double finalDue = due;
                         btnViewTxs.setOnClickListener(v -> {
-                            AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(l.name);
+                            AccountTransactionsBottomSheet sheet = AccountTransactionsBottomSheet.newInstanceForLoan(
+                                    l.name, isCc ? formatCurrency(finalDue) : formatCurrency(ccAmount));
                             sheet.show(getChildFragmentManager(), "txs_loan_" + l.name);
                         });
                     }

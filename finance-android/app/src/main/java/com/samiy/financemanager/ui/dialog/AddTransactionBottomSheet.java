@@ -491,8 +491,8 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
         }
 
         // Sources lists for Loan vs Account with real balances
-        double ccDue = db != null ? db.getCreditCardDueAmount() : 13801.47;
-        double ccPay = db != null ? db.getCreditCardPaymentBalance() : 13801.47;
+        double ccDue = db != null ? db.getCreditCardDueAmount() : 0.0;
+        double ccPay = db != null ? db.getCreditCardPaymentBalance() : 0.0;
 
         List<SourceItem> loanList = new ArrayList<>();
         List<SourceItem> accountList = new ArrayList<>();
@@ -519,7 +519,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
         if (loanList.isEmpty()) {
             loanList.add(new SourceItem("SLICE CREDIT", 0, true));
             loanList.add(new SourceItem("SBI CREDIT", 0, true));
-            loanList.add(new SourceItem("CREDIT CARD", 0, true, 13801.47, 13801.47));
+            loanList.add(new SourceItem("CREDIT CARD", 0, true, 0.0, 0.0));
         }
         if (accountList.isEmpty()) {
             accountList.add(new SourceItem("PNB", 0, false));

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v3.0] - 2026-11-23
+
+### Fixed & Enhanced
+- **Credit Card Due Amount Calculation in Loans**:
+  - **Accurate Due Amount Computation (`Credit Card - PAYMENT`)**:
+    - Updated [`AccountsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/AccountsFragment.java) and [`FinanceDatabase.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/model/FinanceDatabase.java) so that for `CREDIT CARD` in loans, the Due Amount is computed as `Credit Card - PAYMENT` (`Math.abs(creditCardOutstanding) - paymentBalance`).
+    - The outstanding amount and badge in [`item_loan.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/item_loan.xml) now display the net Due Amount (`formatCurrency(due)`) with dynamic tinting (`@color/green_mint` when fully paid / 0, `@color/red_rose` when outstanding due remains).
+    - Updated `getTotalLoanDebt()` in [`FinanceDatabase.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/model/FinanceDatabase.java) so that overall portfolio loan debt reflects net credit card due (`Credit Card - PAYMENT`).
+    - Updated source selector in [`AddTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddTransactionBottomSheet.java) to display net Due (`Due: ₹<CC - PAYMENT> • Pay: ₹<PAYMENT>`).
+
+---
+
 ## [v2.9] - 2026-11-22
 
 ### Changed & Enhanced

@@ -85,7 +85,13 @@ public class FinanceDatabase implements Serializable {
         if (loans != null) {
             for (Loan l : loans) {
                 if (l != null && l.isDebt) {
-                    sum += Math.abs(l.outstanding);
+                    if ("CREDIT CARD".equalsIgnoreCase(l.name != null ? l.name.trim() : "")) {
+                        double ccAmount = Math.abs(l.outstanding);
+                        double pay = getCreditCardPaymentBalance();
+                        sum += Math.max(0.0, Math.round((ccAmount - pay) * 100.0) / 100.0);
+                    } else {
+                        sum += Math.abs(l.outstanding);
+                    }
                 }
             }
         }
@@ -96,7 +102,9 @@ public class FinanceDatabase implements Serializable {
         if (loans != null) {
             for (Loan l : loans) {
                 if (l != null && l.name != null && l.name.equalsIgnoreCase("CREDIT CARD")) {
-                    return Math.abs(l.outstanding);
+                    double ccAmount = Math.abs(l.outstanding);
+                    double pay = getCreditCardPaymentBalance();
+                    return Math.max(0.0, Math.round((ccAmount - pay) * 100.0) / 100.0);
                 }
             }
         }
