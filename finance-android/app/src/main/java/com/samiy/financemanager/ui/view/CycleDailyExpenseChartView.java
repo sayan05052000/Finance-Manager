@@ -59,13 +59,9 @@ public class CycleDailyExpenseChartView extends View {
     private OnDaySelectedListener selectedListener;
 
     private int selectedIndex = -1;
-    private boolean showDailyBars = true;
-    private boolean showCumulativeCurve = true;
     private double totalCycleBudget = 0.0;
 
     // Paints
-    private Paint paintDailyBar;
-    private Paint paintDailyBarHigh;
     private Paint paintCumulativeStroke;
     private Paint paintCumulativeFill;
     private Paint paintBenchmarkLine;
@@ -106,14 +102,6 @@ public class CycleDailyExpenseChartView extends View {
         density = dm.density;
 
         Context ctx = getContext();
-
-        paintDailyBar = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintDailyBar.setColor(ContextCompat.getColor(ctx, R.color.blue_sky));
-        paintDailyBar.setStyle(Paint.Style.FILL);
-
-        paintDailyBarHigh = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintDailyBarHigh.setColor(ContextCompat.getColor(ctx, R.color.red_rose));
-        paintDailyBarHigh.setStyle(Paint.Style.FILL);
 
         paintCumulativeStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         paintCumulativeStroke.setColor(ContextCompat.getColor(ctx, R.color.colorPrimary));
@@ -213,8 +201,7 @@ public class CycleDailyExpenseChartView extends View {
     }
 
     public void setDisplayModes(boolean showDaily, boolean showCumulative) {
-        this.showDailyBars = showDaily;
-        this.showCumulativeCurve = showCumulative;
+        // No-op: bar graph is retired per user preference; curve is always rendered
         invalidate();
     }
 
@@ -272,12 +259,10 @@ public class CycleDailyExpenseChartView extends View {
         float plotHeight = height - paddingTop - paddingBottom;
         float baselineY = height - paddingBottom;
 
-        // Compute max value for scaling
+        // Compute max value for scaling based on cycle budget and cumulative spending
         double maxVal = totalCycleBudget > 0 ? totalCycleBudget : 10000;
-        double maxDaily = 0.0;
         for (DayExpensePoint p : points) {
             if (p.cumulativeExpense > maxVal) maxVal = p.cumulativeExpense;
-            if (p.dailyExpense > maxDaily) maxDaily = p.dailyExpense;
         }
         maxVal = Math.max(maxVal * 1.08, 1000); // 8% headroom
 
@@ -301,74 +286,53 @@ public class CycleDailyExpenseChartView extends View {
         int count = points.size();
         float slotWidth = plotWidth / (float) count;
 
-        // 1. Draw Daily Expense Bars
-        if (showDailyBars) {
-            float barMaxScale = (float) (maxDaily > 0 ? (plotHeight * 0.45f / maxDaily) : 1f);
-            float barW = Math.max(2.5f * density, slotWidth * 0.5f);
+        // 1. Draw Cumulative Curve & Radiant Gradient Fill (No bar graph)
+        curvePath.reset();
+        fillPath.reset();
 
-            for (int i = 0; i < count; i++) {
+        int validCount = 0;
+        for (DayExpensePoint pt : points) {
+            if (!pt.isFuture) validCount++;
+        }
+
+        if (validCount > 0) {
+            float firstX = paddingLeft + slotWidth * 0.5f;
+            float firstY = (float) (baselineY - (points.get(0).cumulativeExpense / maxVal) * plotHeight);
+
+            curvePath.moveTo(firstX, firstY);
+            fillPath.moveTo(firstX, baselineY);
+            fillPath.lineTo(firstX, firstY);
+
+            float prevX = firstX;
+            float prevY = firstY;
+
+            for (int i = 1; i < validCount; i++) {
                 DayExpensePoint pt = points.get(i);
-                if (pt.isFuture || pt.dailyExpense <= 0) continue;
+                float curX = paddingLeft + i * slotWidth + slotWidth * 0.5f;
+                float curY = (float) (baselineY - (pt.cumulativeExpense / maxVal) * plotHeight);
 
-                float cx = paddingLeft + i * slotWidth + slotWidth * 0.5f;
-                float barH = (float) (pt.dailyExpense * barMaxScale);
-                barH = Math.min(barH, plotHeight * 0.55f);
+                // Smooth Bezier segment
+                float midX = (prevX + curX) / 2f;
+                curvePath.cubicTo(midX, prevY, midX, curY, curX, curY);
+                fillPath.cubicTo(midX, prevY, midX, curY, curX, curY);
 
-                rectTemp.set(cx - barW * 0.5f, baselineY - barH, cx + barW * 0.5f, baselineY);
-                Paint barPaint = (pt.dailyExpense > (totalCycleBudget / count) * 1.5) ? paintDailyBarHigh : paintDailyBar;
-                canvas.drawRoundRect(rectTemp, 3f * density, 3f * density, barPaint);
+                prevX = curX;
+                prevY = curY;
             }
+
+            fillPath.lineTo(prevX, baselineY);
+            fillPath.close();
+
+            // Shader for translucent glowing fill
+            int startColor = Color.argb(65, 45, 212, 191); // Teal glowing alpha
+            int endColor = Color.argb(5, 45, 212, 191);
+            paintCumulativeFill.setShader(new LinearGradient(0, paddingTop, 0, baselineY, startColor, endColor, Shader.TileMode.CLAMP));
+
+            canvas.drawPath(fillPath, paintCumulativeFill);
+            canvas.drawPath(curvePath, paintCumulativeStroke);
         }
 
-        // 2. Draw Cumulative Curve & Gradient Fill
-        if (showCumulativeCurve) {
-            curvePath.reset();
-            fillPath.reset();
-
-            int validCount = 0;
-            for (DayExpensePoint pt : points) {
-                if (!pt.isFuture) validCount++;
-            }
-
-            if (validCount > 0) {
-                float firstX = paddingLeft + slotWidth * 0.5f;
-                float firstY = (float) (baselineY - (points.get(0).cumulativeExpense / maxVal) * plotHeight);
-
-                curvePath.moveTo(firstX, firstY);
-                fillPath.moveTo(firstX, baselineY);
-                fillPath.lineTo(firstX, firstY);
-
-                float prevX = firstX;
-                float prevY = firstY;
-
-                for (int i = 1; i < validCount; i++) {
-                    DayExpensePoint pt = points.get(i);
-                    float curX = paddingLeft + i * slotWidth + slotWidth * 0.5f;
-                    float curY = (float) (baselineY - (pt.cumulativeExpense / maxVal) * plotHeight);
-
-                    // Smooth Bezier segment
-                    float midX = (prevX + curX) / 2f;
-                    curvePath.cubicTo(midX, prevY, midX, curY, curX, curY);
-                    fillPath.cubicTo(midX, prevY, midX, curY, curX, curY);
-
-                    prevX = curX;
-                    prevY = curY;
-                }
-
-                fillPath.lineTo(prevX, baselineY);
-                fillPath.close();
-
-                // Shader for translucent glowing fill
-                int startColor = Color.argb(65, 45, 212, 191); // Teal glowing alpha
-                int endColor = Color.argb(5, 45, 212, 191);
-                paintCumulativeFill.setShader(new LinearGradient(0, paddingTop, 0, baselineY, startColor, endColor, Shader.TileMode.CLAMP));
-
-                canvas.drawPath(fillPath, paintCumulativeFill);
-                canvas.drawPath(curvePath, paintCumulativeStroke);
-            }
-        }
-
-        // 3. Draw Target Budget benchmark line (Pro-rated line across the cycle)
+        // 2. Draw Target Budget benchmark line (Pro-rated line across the cycle)
         if (totalCycleBudget > 0) {
             float bStartX = paddingLeft + slotWidth * 0.5f;
             float bStartY = baselineY;
@@ -377,7 +341,7 @@ public class CycleDailyExpenseChartView extends View {
             canvas.drawLine(bStartX, bStartY, bEndX, bEndY, paintBenchmarkLine);
         }
 
-        // 4. Draw X-axis date milestones (e.g. Day 1, 5, 10, 15, 20, 25, 30)
+        // 3. Draw X-axis date milestones (e.g. Day 1, 5, 10, 15, 20, 25, 30)
         for (int i = 0; i < count; i++) {
             DayExpensePoint pt = points.get(i);
             boolean shouldLabel = (i == 0) || (i == count - 1) || (i % 5 == 4);
@@ -396,7 +360,7 @@ public class CycleDailyExpenseChartView extends View {
             }
         }
 
-        // 5. Draw Interactive Scrubber Cursor
+        // 4. Draw Interactive Scrubber Cursor
         if (selectedIndex >= 0 && selectedIndex < count) {
             DayExpensePoint sel = points.get(selectedIndex);
             float selX = paddingLeft + selectedIndex * slotWidth + slotWidth * 0.5f;
@@ -409,8 +373,8 @@ public class CycleDailyExpenseChartView extends View {
             canvas.drawCircle(selX, selY, 4.5f * density, paintScrubberPoint);
 
             // Floating Tooltip Badge
-            String text = "Day " + sel.dayNumber + " (" + sel.displayDate + "): " + formatCompact(sel.dailyExpense);
-            String subtext = "Cum: " + formatCompact(sel.cumulativeExpense);
+            String text = "Day " + sel.dayNumber + " (" + sel.displayDate + ") • Spent: " + formatCompact(sel.dailyExpense);
+            String subtext = "Cumulative: " + formatCompact(sel.cumulativeExpense);
 
             float tw = Math.max(paintTooltipText.measureText(text), paintTooltipSubtext.measureText(subtext)) + 16f * density;
             float th = 26f * density;
@@ -429,7 +393,13 @@ public class CycleDailyExpenseChartView extends View {
 
     private String formatCompact(double amount) {
         if (amount == 0) return "₹0";
-        if (amount >= 100000) return String.format(Locale.US, "₹%.2fL", amount / 100000.0);
-        return "₹" + currencyFormat.format(amount).replace("INR", "").trim();
+        String formatted = currencyFormat.format(amount).replace("INR", "₹").replace(".00", "").trim();
+        while (formatted.startsWith("₹₹")) {
+            formatted = formatted.substring(1);
+        }
+        if (!formatted.startsWith("₹") && !formatted.startsWith("-₹") && !formatted.startsWith("+₹")) {
+            formatted = "₹" + formatted;
+        }
+        return formatted;
     }
 }

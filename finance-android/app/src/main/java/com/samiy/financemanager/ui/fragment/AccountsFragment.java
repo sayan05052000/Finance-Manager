@@ -1213,6 +1213,13 @@ public class AccountsFragment extends Fragment {
     }
 
     private String formatCurrency(double amount) {
-        return currencyFormat.format(amount).replace("INR", "₹").replace(".00", "");
+        String formatted = currencyFormat.format(amount).replace("INR", "₹").replace(".00", "").trim();
+        while (formatted.startsWith("₹₹")) {
+            formatted = formatted.substring(1);
+        }
+        if (!formatted.startsWith("₹") && !formatted.startsWith("-₹") && !formatted.startsWith("+₹")) {
+            formatted = "₹" + formatted;
+        }
+        return formatted;
     }
 }

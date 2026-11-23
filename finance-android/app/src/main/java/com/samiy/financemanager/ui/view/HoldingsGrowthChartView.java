@@ -363,7 +363,13 @@ public class HoldingsGrowthChartView extends View {
 
     private String formatCompact(double amount) {
         if (amount == 0) return "₹0";
-        if (amount >= 100000) return String.format(Locale.US, "₹%.2fL", amount / 100000.0);
-        return "₹" + currencyFormat.format(amount).replace("INR", "").trim();
+        String formatted = currencyFormat.format(amount).replace("INR", "₹").replace(".00", "").trim();
+        while (formatted.startsWith("₹₹")) {
+            formatted = formatted.substring(1);
+        }
+        if (!formatted.startsWith("₹") && !formatted.startsWith("-₹") && !formatted.startsWith("+₹")) {
+            formatted = "₹" + formatted;
+        }
+        return formatted;
     }
 }

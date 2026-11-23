@@ -44,10 +44,7 @@ public class CycleFragment extends Fragment {
 
     // Daily Expense Chart Views
     private CycleDailyExpenseChartView cycleDailyExpenseChartView;
-    private TextView btnToggleDailyBars, btnToggleCumulative;
     private TextView tvScrubDateDay, tvScrubDaySpend, tvScrubCumulativeSpend;
-    private boolean isDailyBarsVisible = true;
-    private boolean isCumulativeCurveVisible = true;
 
     // Interactive Chart & Detail Inspector Views
     private CycleChartView cycleChartView;
@@ -109,8 +106,6 @@ public class CycleFragment extends Fragment {
 
         // Daily Cycle Expense Chart components
         cycleDailyExpenseChartView = v.findViewById(R.id.cycleDailyExpenseChartView);
-        btnToggleDailyBars = v.findViewById(R.id.btnToggleDailyBars);
-        btnToggleCumulative = v.findViewById(R.id.btnToggleCumulative);
         tvScrubDateDay = v.findViewById(R.id.tvScrubDateDay);
         tvScrubDaySpend = v.findViewById(R.id.tvScrubDaySpend);
         tvScrubCumulativeSpend = v.findViewById(R.id.tvScrubCumulativeSpend);
@@ -179,25 +174,6 @@ public class CycleFragment extends Fragment {
 
     private void setupDailyExpenseControls() {
         if (cycleDailyExpenseChartView == null) return;
-        updateDailyExpenseToggleStyles();
-
-        btnToggleDailyBars.setOnClickListener(v -> {
-            isDailyBarsVisible = !isDailyBarsVisible;
-            if (!isDailyBarsVisible && !isCumulativeCurveVisible) {
-                isCumulativeCurveVisible = true;
-            }
-            updateDailyExpenseToggleStyles();
-            cycleDailyExpenseChartView.setDisplayModes(isDailyBarsVisible, isCumulativeCurveVisible);
-        });
-
-        btnToggleCumulative.setOnClickListener(v -> {
-            isCumulativeCurveVisible = !isCumulativeCurveVisible;
-            if (!isDailyBarsVisible && !isCumulativeCurveVisible) {
-                isDailyBarsVisible = true;
-            }
-            updateDailyExpenseToggleStyles();
-            cycleDailyExpenseChartView.setDisplayModes(isDailyBarsVisible, isCumulativeCurveVisible);
-        });
 
         cycleDailyExpenseChartView.setOnDaySelectedListener(point -> {
             if (point == null || !isAdded()) return;
@@ -205,15 +181,6 @@ public class CycleFragment extends Fragment {
             tvScrubDaySpend.setText("Spent: " + formatCurrency(point.dailyExpense));
             tvScrubCumulativeSpend.setText("Cum: " + formatCurrency(point.cumulativeExpense));
         });
-    }
-
-    private void updateDailyExpenseToggleStyles() {
-        if (btnToggleDailyBars == null || btnToggleCumulative == null || !isAdded()) return;
-        btnToggleDailyBars.setBackgroundResource(isDailyBarsVisible ? R.drawable.bg_pill_emerald : R.drawable.bg_pill_dark);
-        btnToggleDailyBars.setTextColor(ContextCompat.getColor(requireContext(), isDailyBarsVisible ? R.color.text_on_primary : R.color.text_secondary));
-
-        btnToggleCumulative.setBackgroundResource(isCumulativeCurveVisible ? R.drawable.bg_pill_emerald : R.drawable.bg_pill_dark);
-        btnToggleCumulative.setTextColor(ContextCompat.getColor(requireContext(), isCumulativeCurveVisible ? R.color.text_on_primary : R.color.text_secondary));
     }
 
     private void updateRangeButtons() {
@@ -732,6 +699,13 @@ public class CycleFragment extends Fragment {
     }
 
     private String formatCurrency(double amount) {
-        return currencyFormat.format(amount).replace("INR", "₹").replace(".00", "");
+        String formatted = currencyFormat.format(amount).replace("INR", "₹").replace(".00", "").trim();
+        while (formatted.startsWith("₹₹")) {
+            formatted = formatted.substring(1);
+        }
+        if (!formatted.startsWith("₹") && !formatted.startsWith("-₹") && !formatted.startsWith("+₹")) {
+            formatted = "₹" + formatted;
+        }
+        return formatted;
     }
 }

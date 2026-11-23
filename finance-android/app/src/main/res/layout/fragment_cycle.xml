@@ -524,51 +524,25 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Day of cycle against date • Daily &amp; cumulative pace"
+                            android:text="Day of cycle against date • Cumulative expense trajectory"
                             android:textColor="@color/text_muted"
                             android:textSize="11sp" />
                     </LinearLayout>
 
-                    <!-- Toggle Mode Chips: Daily Spends vs Cumulative -->
-                    <LinearLayout
+                    <!-- Trajectory Indicator Badge -->
+                    <TextView
+                        android:id="@+id/tvDailyPaceIndicator"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
+                        android:text="Cumulative Trajectory"
+                        android:textColor="@color/green_mint"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold"
                         android:background="@drawable/bg_pill_dark"
-                        android:padding="3dp">
-
-                        <TextView
-                            android:id="@+id/btnToggleDailyBars"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Daily"
-                            android:textColor="@color/text_on_primary"
-                            android:textSize="10.5sp"
-                            android:textStyle="bold"
-                            android:background="@drawable/bg_pill_emerald"
-                            android:paddingStart="8dp"
-                            android:paddingEnd="8dp"
-                            android:paddingTop="3dp"
-                            android:paddingBottom="3dp"
-                            android:clickable="true"
-                            android:focusable="true" />
-
-                        <TextView
-                            android:id="@+id/btnToggleCumulative"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Cumulative"
-                            android:textColor="@color/text_on_primary"
-                            android:textSize="10.5sp"
-                            android:textStyle="bold"
-                            android:background="@drawable/bg_pill_emerald"
-                            android:paddingStart="8dp"
-                            android:paddingEnd="8dp"
-                            android:paddingTop="3dp"
-                            android:paddingBottom="3dp"
-                            android:clickable="true"
-                            android:focusable="true" />
-                    </LinearLayout>
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp" />
                 </LinearLayout>
 
                 <!-- Daily Expense Chart View -->
