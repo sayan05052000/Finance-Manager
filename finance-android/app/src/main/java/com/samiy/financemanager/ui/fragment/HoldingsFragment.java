@@ -26,14 +26,25 @@ import com.samiy.financemanager.util.FinMngrToast;
 import com.samiy.financemanager.data.FinanceRepository;
 import com.samiy.financemanager.data.model.FinanceDatabase;
 import com.samiy.financemanager.data.model.Holding;
+import com.samiy.financemanager.data.model.MutualFundTransaction;
 import com.samiy.financemanager.data.model.PortfolioSummary;
 import com.samiy.financemanager.data.model.SavingsTypeSummary;
 import com.samiy.financemanager.ui.adapter.HoldingsAdapter;
+import com.samiy.financemanager.ui.view.HoldingsGrowthChartView;
+import com.samiy.financemanager.util.DateTimeHelper;
 
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public class HoldingsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
@@ -45,6 +56,14 @@ public class HoldingsFragment extends Fragment {
     private RecyclerView rvHoldings;
     private HoldingsAdapter adapter;
     private int currentSortIndex = 0; // 0: Current Value (Default), 1: Invested Amount, 2: Day Change, 3: Name
+
+    // Growth Chart Components
+    private HoldingsGrowthChartView holdingsGrowthChartView;
+    private TextView btnGrowthRange3M, btnGrowthRange6M, btnGrowthRange1Y, btnGrowthRangeAll;
+    private LinearLayout layoutGrowthSavingsTypeChips;
+    private TextView tvGrowthScrubDate, tvGrowthScrubInvested, tvGrowthScrubValuation, tvGrowthReturnsBadge;
+    private int currentGrowthRangeMode = 3; // 0=3M, 1=6M, 2=1Y, 3=All (default)
+    private String selectedGrowthSavingsType = "All";
 
     private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
@@ -151,6 +170,20 @@ public class HoldingsFragment extends Fragment {
         if (btnRefreshHoldings != null) {
             btnRefreshHoldings.setOnClickListener(view -> refreshData());
         }
+
+        // Growth Chart Components
+        holdingsGrowthChartView = v.findViewById(R.id.holdingsGrowthChartView);
+        btnGrowthRange3M = v.findViewById(R.id.btnGrowthRange3M);
+        btnGrowthRange6M = v.findViewById(R.id.btnGrowthRange6M);
+        btnGrowthRange1Y = v.findViewById(R.id.btnGrowthRange1Y);
+        btnGrowthRangeAll = v.findViewById(R.id.btnGrowthRangeAll);
+        layoutGrowthSavingsTypeChips = v.findViewById(R.id.layoutGrowthSavingsTypeChips);
+        tvGrowthScrubDate = v.findViewById(R.id.tvGrowthScrubDate);
+        tvGrowthScrubInvested = v.findViewById(R.id.tvGrowthScrubInvested);
+        tvGrowthScrubValuation = v.findViewById(R.id.tvGrowthScrubValuation);
+        tvGrowthReturnsBadge = v.findViewById(R.id.tvGrowthReturnsBadge);
+
+        setupGrowthChartControls();
 
         swipeRefresh.setOnRefreshListener(this::refreshData);
 
@@ -266,6 +299,10 @@ public class HoldingsFragment extends Fragment {
             applySortingAndSubmit();
             adapter.setMutualFundTransactions(db.mutualFundTransactions);
         }
+
+        // Populate Portfolio Growth Chart
+        populateGrowthSavingsTypeChips(db);
+        populateGrowthChart();
     }
 
     private void applySortingAndSubmit() {
@@ -326,5 +363,318 @@ public class HoldingsFragment extends Fragment {
 
     private String formatCurrency(double amount) {
         return currencyFormat.format(amount).replace("INR", "₹").replace(".00", "");
+    }
+
+    private void setupGrowthChartControls() {
+        if (holdingsGrowthChartView == null) return;
+        updateGrowthRangeButtons();
+
+        if (btnGrowthRange3M != null) {
+            btnGrowthRange3M.setOnClickListener(v -> {
+                currentGrowthRangeMode = 0;
+                updateGrowthRangeButtons();
+                populateGrowthChart();
+            });
+        }
+
+        if (btnGrowthRange6M != null) {
+            btnGrowthRange6M.setOnClickListener(v -> {
+                currentGrowthRangeMode = 1;
+                updateGrowthRangeButtons();
+                populateGrowthChart();
+            });
+        }
+
+        if (btnGrowthRange1Y != null) {
+            btnGrowthRange1Y.setOnClickListener(v -> {
+                currentGrowthRangeMode = 2;
+                updateGrowthRangeButtons();
+                populateGrowthChart();
+            });
+        }
+
+        if (btnGrowthRangeAll != null) {
+            btnGrowthRangeAll.setOnClickListener(v -> {
+                currentGrowthRangeMode = 3;
+                updateGrowthRangeButtons();
+                populateGrowthChart();
+            });
+        }
+
+        holdingsGrowthChartView.setOnGrowthPointSelectedListener(point -> {
+            if (point == null || !isAdded()) return;
+            tvGrowthScrubDate.setText(point.fullDate != null && !point.fullDate.isEmpty() ? point.fullDate : point.dateLabel);
+            tvGrowthScrubInvested.setText("Inv: " + formatCurrency(point.invested));
+            tvGrowthScrubValuation.setText("Val: " + formatCurrency(point.valuation));
+
+            double ret = point.returns;
+            double pct = point.returnsPct;
+            String sign = ret >= 0 ? "+" : "-";
+            tvGrowthReturnsBadge.setText(sign + formatCurrency(Math.abs(ret)) + " (" + String.format(Locale.US, "%.2f", pct) + "%)");
+            tvGrowthReturnsBadge.setTextColor(ContextCompat.getColor(requireContext(), ret >= 0 ? R.color.green_mint : R.color.red_rose));
+        });
+    }
+
+    private void updateGrowthRangeButtons() {
+        if (!isAdded() || btnGrowthRange3M == null) return;
+        btnGrowthRange3M.setBackgroundResource(currentGrowthRangeMode == 0 ? R.drawable.bg_pill_emerald : 0);
+        btnGrowthRange3M.setTextColor(ContextCompat.getColor(requireContext(), currentGrowthRangeMode == 0 ? R.color.text_on_primary : R.color.text_secondary));
+
+        btnGrowthRange6M.setBackgroundResource(currentGrowthRangeMode == 1 ? R.drawable.bg_pill_emerald : 0);
+        btnGrowthRange6M.setTextColor(ContextCompat.getColor(requireContext(), currentGrowthRangeMode == 1 ? R.color.text_on_primary : R.color.text_secondary));
+
+        btnGrowthRange1Y.setBackgroundResource(currentGrowthRangeMode == 2 ? R.drawable.bg_pill_emerald : 0);
+        btnGrowthRange1Y.setTextColor(ContextCompat.getColor(requireContext(), currentGrowthRangeMode == 2 ? R.color.text_on_primary : R.color.text_secondary));
+
+        btnGrowthRangeAll.setBackgroundResource(currentGrowthRangeMode == 3 ? R.drawable.bg_pill_emerald : 0);
+        btnGrowthRangeAll.setTextColor(ContextCompat.getColor(requireContext(), currentGrowthRangeMode == 3 ? R.color.text_on_primary : R.color.text_secondary));
+    }
+
+    private void populateGrowthSavingsTypeChips(FinanceDatabase db) {
+        if (!isAdded() || layoutGrowthSavingsTypeChips == null || db == null) return;
+        layoutGrowthSavingsTypeChips.removeAllViews();
+
+        Set<String> categories = new LinkedHashSet<>();
+        categories.add("All");
+
+        // Add from portfolio summary breakdown
+        if (db.portfolioSummary != null && db.portfolioSummary.savingsTypeBreakdown != null) {
+            for (SavingsTypeSummary sts : db.portfolioSummary.savingsTypeBreakdown) {
+                if (sts.name != null && !sts.name.trim().isEmpty()) {
+                    categories.add(sts.name.trim());
+                }
+            }
+        }
+
+        // Add from holdings
+        if (db.holdings != null) {
+            for (Holding h : db.holdings) {
+                String st = (h.savingsType != null && !h.savingsType.trim().isEmpty()) ? h.savingsType.trim() : h.subCategory;
+                if (st != null && !st.trim().isEmpty()) {
+                    categories.add(st.trim());
+                }
+            }
+        }
+
+        // Add from mutual fund transactions
+        if (db.mutualFundTransactions != null) {
+            for (MutualFundTransaction tx : db.mutualFundTransactions) {
+                if (tx.subCategory != null && !tx.subCategory.trim().isEmpty()) {
+                    categories.add(tx.subCategory.trim());
+                }
+            }
+        }
+
+        int dp8 = (int) (8 * getResources().getDisplayMetrics().density);
+        int dp12 = (int) (12 * getResources().getDisplayMetrics().density);
+        int dp4 = (int) (4 * getResources().getDisplayMetrics().density);
+
+        for (String cat : categories) {
+            TextView chip = new TextView(getContext());
+            chip.setText(cat);
+            chip.setTextSize(11f);
+            chip.setPadding(dp12, dp4, dp12, dp4);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, 0, dp8, 0);
+            chip.setLayoutParams(lp);
+
+            boolean isSelected = cat.equalsIgnoreCase(selectedGrowthSavingsType);
+            chip.setBackgroundResource(isSelected ? R.drawable.bg_pill_emerald : R.drawable.bg_pill_dark);
+            chip.setTextColor(ContextCompat.getColor(requireContext(), isSelected ? R.color.text_on_primary : R.color.text_secondary));
+            if (isSelected) chip.setTypeface(null, android.graphics.Typeface.BOLD);
+
+            chip.setClickable(true);
+            chip.setFocusable(true);
+            chip.setOnClickListener(v -> {
+                selectedGrowthSavingsType = cat;
+                populateGrowthSavingsTypeChips(db);
+                populateGrowthChart();
+            });
+
+            layoutGrowthSavingsTypeChips.addView(chip);
+        }
+    }
+
+    private void populateGrowthChart() {
+        if (!isAdded() || holdingsGrowthChartView == null) return;
+        FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
+        if (db == null || db.mutualFundTransactions == null || db.mutualFundTransactions.isEmpty()) return;
+
+        boolean isAll = "All".equalsIgnoreCase(selectedGrowthSavingsType);
+
+        List<MutualFundTransaction> filteredTx = new ArrayList<>();
+        for (MutualFundTransaction tx : db.mutualFundTransactions) {
+            if (isAll) {
+                filteredTx.add(tx);
+            } else if (tx.subCategory != null && tx.subCategory.equalsIgnoreCase(selectedGrowthSavingsType)) {
+                filteredTx.add(tx);
+            }
+        }
+
+        SimpleDateFormat sdfDate = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+        SimpleDateFormat sdfLabel = new SimpleDateFormat("MMM ''yy", Locale.US);
+
+        // Sort chronologically ascending
+        filteredTx.sort((t1, t2) -> {
+            long ts1 = parseTxTimestamp(t1.date);
+            long ts2 = parseTxTimestamp(t2.date);
+            return Long.compare(ts1, ts2);
+        });
+
+        // Group transactions by date
+        Map<String, List<MutualFundTransaction>> dateGroupMap = new LinkedHashMap<>();
+        for (MutualFundTransaction tx : filteredTx) {
+            String cleanDate = DateTimeHelper.formatDisplayDate(tx.date);
+            if (cleanDate == null || cleanDate.isEmpty()) continue;
+            if (!dateGroupMap.containsKey(cleanDate)) {
+                dateGroupMap.put(cleanDate, new ArrayList<>());
+            }
+            dateGroupMap.get(cleanDate).add(tx);
+        }
+
+        List<HoldingsGrowthChartView.GrowthDataPoint> allPoints = new ArrayList<>();
+        Map<String, Double> unitsByScheme = new HashMap<>();
+        Map<String, Double> investedByScheme = new HashMap<>();
+        Map<String, Double> navByScheme = new HashMap<>();
+
+        for (Map.Entry<String, List<MutualFundTransaction>> entry : dateGroupMap.entrySet()) {
+            String dateStr = entry.getKey();
+            List<MutualFundTransaction> dayTxs = entry.getValue();
+
+            for (MutualFundTransaction tx : dayTxs) {
+                String scheme = (tx.schemeName != null && !tx.schemeName.trim().isEmpty()) ? tx.schemeName.trim() : "Unknown";
+                unitsByScheme.put(scheme, unitsByScheme.getOrDefault(scheme, 0.0) + tx.units);
+
+                double inv = tx.actualInvested > 0 ? tx.actualInvested : (tx.amount > 0 ? tx.amount : 0.0);
+                if (tx.isRedeem()) {
+                    double curInv = investedByScheme.getOrDefault(scheme, 0.0);
+                    investedByScheme.put(scheme, Math.max(0.0, curInv - Math.abs(tx.amount)));
+                } else {
+                    investedByScheme.put(scheme, investedByScheme.getOrDefault(scheme, 0.0) + inv);
+                }
+
+                if (tx.nav > 0) {
+                    navByScheme.put(scheme, tx.nav);
+                } else if (tx.currentNav > 0) {
+                    navByScheme.put(scheme, tx.currentNav);
+                }
+            }
+
+            double totalInv = 0.0;
+            double totalVal = 0.0;
+            for (Map.Entry<String, Double> uEntry : unitsByScheme.entrySet()) {
+                double u = uEntry.getValue();
+                if (u > 0.0001) {
+                    totalInv += investedByScheme.getOrDefault(uEntry.getKey(), 0.0);
+                    totalVal += u * navByScheme.getOrDefault(uEntry.getKey(), 1.0);
+                }
+            }
+
+            long ts = parseTxTimestamp(dateStr);
+            String label = dateStr;
+            try {
+                Date d = sdfDate.parse(dateStr);
+                if (d != null) label = sdfLabel.format(d);
+            } catch (Exception ignored) {}
+
+            allPoints.add(new HoldingsGrowthChartView.GrowthDataPoint(
+                    ts,
+                    label,
+                    dateStr,
+                    Math.round(totalInv),
+                    Math.round(totalVal)
+            ));
+        }
+
+        // Anchor final point to current live valuation and invested value
+        double currentVal = 0.0;
+        double currentInv = 0.0;
+        if (!isAll) {
+            if (db.portfolioSummary != null && db.portfolioSummary.savingsTypeBreakdown != null) {
+                for (SavingsTypeSummary sts : db.portfolioSummary.savingsTypeBreakdown) {
+                    if (sts.name != null && sts.name.equalsIgnoreCase(selectedGrowthSavingsType)) {
+                        currentVal = sts.currentValuation;
+                        currentInv = sts.investedValue;
+                        break;
+                    }
+                }
+            }
+            if (currentVal == 0.0 && db.holdings != null) {
+                for (Holding h : db.holdings) {
+                    String st = (h.savingsType != null && !h.savingsType.trim().isEmpty()) ? h.savingsType.trim() : h.subCategory;
+                    if (st != null && st.equalsIgnoreCase(selectedGrowthSavingsType)) {
+                        currentVal += h.currentValue;
+                        currentInv += h.investedValue;
+                    }
+                }
+            }
+        } else if (db.portfolioSummary != null) {
+            currentVal = db.portfolioSummary.currentValuation;
+            currentInv = db.portfolioSummary.totalInvested;
+        }
+
+        long nowTs = System.currentTimeMillis();
+        String todayStr = sdfDate.format(new Date(nowTs));
+        String todayLabel = sdfLabel.format(new Date(nowTs));
+
+        if (currentVal > 0 || currentInv > 0) {
+            allPoints.add(new HoldingsGrowthChartView.GrowthDataPoint(
+                    nowTs,
+                    todayLabel,
+                    todayStr + " (Live)",
+                    Math.round(currentInv),
+                    Math.round(currentVal)
+            ));
+        }
+
+        if (allPoints.isEmpty()) {
+            holdingsGrowthChartView.setData(Collections.emptyList());
+            return;
+        }
+
+        // Apply Time Range Filter: 0=3M (90d), 1=6M (180d), 2=1Y (365d), 3=All
+        long maxTs = allPoints.get(allPoints.size() - 1).timestamp;
+        long cutoffTs = 0;
+        if (currentGrowthRangeMode == 0) {
+            cutoffTs = maxTs - (90L * 24L * 3600L * 1000L);
+        } else if (currentGrowthRangeMode == 1) {
+            cutoffTs = maxTs - (180L * 24L * 3600L * 1000L);
+        } else if (currentGrowthRangeMode == 2) {
+            cutoffTs = maxTs - (365L * 24L * 3600L * 1000L);
+        }
+
+        List<HoldingsGrowthChartView.GrowthDataPoint> filteredPoints = new ArrayList<>();
+        if (cutoffTs > 0) {
+            for (HoldingsGrowthChartView.GrowthDataPoint p : allPoints) {
+                if (p.timestamp >= cutoffTs) {
+                    filteredPoints.add(p);
+                }
+            }
+            // Ensure at least 2 points for a curve
+            if (filteredPoints.size() < 2 && allPoints.size() >= 2) {
+                filteredPoints.clear();
+                filteredPoints.add(allPoints.get(allPoints.size() - 2));
+                filteredPoints.add(allPoints.get(allPoints.size() - 1));
+            }
+        } else {
+            filteredPoints.addAll(allPoints);
+        }
+
+        holdingsGrowthChartView.setData(filteredPoints);
+    }
+
+    private long parseTxTimestamp(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return 0L;
+        String clean = DateTimeHelper.formatDisplayDate(dateStr);
+        if (clean != null && clean.contains("/")) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                Date d = sdf.parse(clean);
+                if (d != null) return d.getTime();
+            } catch (Exception ignored) {}
+        }
+        return 0L;
     }
 }

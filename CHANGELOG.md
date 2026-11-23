@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v3.3] - 2026-11-23
+
+### Added & Enhanced
+- **Graphical Representation of Cycle Daily Expense vs Calendar Date**:
+  - **`CycleDailyExpenseChartView.java` ([`CycleDailyExpenseChartView.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/view/CycleDailyExpenseChartView.java), [`fragment_cycle.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_cycle.xml), [`CycleFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/CycleFragment.java))**:
+    - **Dual Visual Modes**: Renders daily expense bars (stems) alongside a smooth cubic Bezier cumulative spending trajectory curve with a translucent glowing teal/mint gradient fill.
+    - **Dynamic Budget Benchmark Line**: Features a subtle dashed amber/gold reference line illustrating ideal linear budget consumption pace across cycle days (`(cycleBudget / totalDays) * dayNum`).
+    - **Peak Daily Spend Highlight**: Daily bars exceeding 1.5x the average daily spend are automatically highlighted in Coral Rose (`@color/red_rose`), while standard daily spends render in Cyan Azure (`@color/blue_sky`).
+    - **Interactive Touch Scrubber & Floating Tooltip Pill**: Users can drag across the chart with keyboard-tap haptic feedback to inspect specific cycle dates, day spend amount, and cumulative spend with an animated glassmorphic tooltip pill.
+    - **Scrubber Inspector Strip**: Live indicator strip displaying Day number, calendar date, Day spend, and Cumulative spend in real-time.
+    - **Series Toggle Chips**: Fluid pill controls to independently show/hide Daily bars and the Cumulative curve.
+
+- **Holdings Portfolio & Savings Type Sub-Category Growth Against Time**:
+  - **`HoldingsGrowthChartView.java` ([`HoldingsGrowthChartView.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/view/HoldingsGrowthChartView.java), [`fragment_holdings.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_holdings.xml), [`HoldingsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/HoldingsFragment.java))**:
+    - **Dual Trajectory Curves**: Plots portfolio market valuation (solid mint green curve with glowing gradient fill) alongside cumulative invested capital (dashed azure reference curve).
+    - **Dynamic Savings Type Sub-Category Filter**: Interactive horizontal scroll filter chips allowing instantaneous switching between `All`, `Mutual Fund`, `Kuvera Surplus(Family)`, `Family Mutual Fund`, `Credit Mutual Fund`, `Emergency Mutual Fund`, etc.
+    - **Time Range Selector**: Preset period buttons for `3M` (90 days), `6M` (180 days), `1Y` (365 days), and `All` (complete history).
+    - **Chronological Timeline Engine**: Accurately aggregates units, purchase NAV, and capital invested chronologically across transactions, anchored to live portfolio valuation at the terminal point.
+    - **Interactive Scrubber & Return ROI Badge**: Touch scrubber tracks valuation, capital invested, absolute profit/loss (`+₹...` / `-₹...`), and percentage ROI.
+
+- **Version Bump**:
+  - Bumped to `v3.3` (`versionCode 22`) with updated header indicator and screen footers.
+
+---
+
 ## [v3.2] - 2026-11-23
 
 ### Fixed & Enhanced

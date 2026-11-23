@@ -22,12 +22,18 @@ import com.samiy.financemanager.data.model.BudgetItem;
 import com.samiy.financemanager.data.model.CurrentCycle;
 import com.samiy.financemanager.data.model.ExpenseTrackerItem;
 import com.samiy.financemanager.data.model.FinanceDatabase;
+import com.samiy.financemanager.data.model.Transaction;
 import com.samiy.financemanager.ui.view.CycleChartView;
+import com.samiy.financemanager.ui.view.CycleDailyExpenseChartView;
 
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class CycleFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
@@ -35,6 +41,13 @@ public class CycleFragment extends Fragment {
     private TextView tvAllocatedBudget, tvTotalCycleSpent, tvCycleRemainderVal;
     private TextView tvDailyLimitValueCycle;
     private LinearLayout layoutCycleSubCats, layoutCycleReceivables;
+
+    // Daily Expense Chart Views
+    private CycleDailyExpenseChartView cycleDailyExpenseChartView;
+    private TextView btnToggleDailyBars, btnToggleCumulative;
+    private TextView tvScrubDateDay, tvScrubDaySpend, tvScrubCumulativeSpend;
+    private boolean isDailyBarsVisible = true;
+    private boolean isCumulativeCurveVisible = true;
 
     // Interactive Chart & Detail Inspector Views
     private CycleChartView cycleChartView;
@@ -93,6 +106,16 @@ public class CycleFragment extends Fragment {
         tvChartDetailSurplus = v.findViewById(R.id.tvChartDetailSurplus);
 
         setupChartControls();
+
+        // Daily Cycle Expense Chart components
+        cycleDailyExpenseChartView = v.findViewById(R.id.cycleDailyExpenseChartView);
+        btnToggleDailyBars = v.findViewById(R.id.btnToggleDailyBars);
+        btnToggleCumulative = v.findViewById(R.id.btnToggleCumulative);
+        tvScrubDateDay = v.findViewById(R.id.tvScrubDateDay);
+        tvScrubDaySpend = v.findViewById(R.id.tvScrubDaySpend);
+        tvScrubCumulativeSpend = v.findViewById(R.id.tvScrubCumulativeSpend);
+
+        setupDailyExpenseControls();
 
         // Expense Tracker components
         tvTrackerGoodCount = v.findViewById(R.id.tvTrackerGoodCount);
@@ -154,6 +177,45 @@ public class CycleFragment extends Fragment {
         cycleChartView.setOnCycleSelectedListener(this::updateSelectedCycleCard);
     }
 
+    private void setupDailyExpenseControls() {
+        if (cycleDailyExpenseChartView == null) return;
+        updateDailyExpenseToggleStyles();
+
+        btnToggleDailyBars.setOnClickListener(v -> {
+            isDailyBarsVisible = !isDailyBarsVisible;
+            if (!isDailyBarsVisible && !isCumulativeCurveVisible) {
+                isCumulativeCurveVisible = true;
+            }
+            updateDailyExpenseToggleStyles();
+            cycleDailyExpenseChartView.setDisplayModes(isDailyBarsVisible, isCumulativeCurveVisible);
+        });
+
+        btnToggleCumulative.setOnClickListener(v -> {
+            isCumulativeCurveVisible = !isCumulativeCurveVisible;
+            if (!isDailyBarsVisible && !isCumulativeCurveVisible) {
+                isDailyBarsVisible = true;
+            }
+            updateDailyExpenseToggleStyles();
+            cycleDailyExpenseChartView.setDisplayModes(isDailyBarsVisible, isCumulativeCurveVisible);
+        });
+
+        cycleDailyExpenseChartView.setOnDaySelectedListener(point -> {
+            if (point == null || !isAdded()) return;
+            tvScrubDateDay.setText("Day " + point.dayNumber + " (" + point.displayDate + ")");
+            tvScrubDaySpend.setText("Spent: " + formatCurrency(point.dailyExpense));
+            tvScrubCumulativeSpend.setText("Cum: " + formatCurrency(point.cumulativeExpense));
+        });
+    }
+
+    private void updateDailyExpenseToggleStyles() {
+        if (btnToggleDailyBars == null || btnToggleCumulative == null || !isAdded()) return;
+        btnToggleDailyBars.setBackgroundResource(isDailyBarsVisible ? R.drawable.bg_pill_emerald : R.drawable.bg_pill_dark);
+        btnToggleDailyBars.setTextColor(ContextCompat.getColor(requireContext(), isDailyBarsVisible ? R.color.text_on_primary : R.color.text_secondary));
+
+        btnToggleCumulative.setBackgroundResource(isCumulativeCurveVisible ? R.drawable.bg_pill_emerald : R.drawable.bg_pill_dark);
+        btnToggleCumulative.setTextColor(ContextCompat.getColor(requireContext(), isCumulativeCurveVisible ? R.color.text_on_primary : R.color.text_secondary));
+    }
+
     private void updateRangeButtons() {
         btnRange6M.setBackgroundResource(currentRangeMode == 0 ? R.drawable.bg_pill_emerald : 0);
         btnRange6M.setTextColor(currentRangeMode == 0 ? ContextCompat.getColor(requireContext(), R.color.text_on_primary) : ContextCompat.getColor(requireContext(), R.color.text_secondary));
@@ -203,6 +265,9 @@ public class CycleFragment extends Fragment {
         tvTotalCycleSpent.setText(formatCurrency(c.totalSpend));
         tvCycleRemainderVal.setText(formatCurrency(c.remainder));
         tvDailyLimitValueCycle.setText(formatCurrency(c.canSpendPerDay) + " / day");
+
+        // Populate Daily Cycle Expense Chart
+        populateDailyExpenseChart(db);
 
         // Populate Interactive Chart
         populateChart();
@@ -553,6 +618,96 @@ public class CycleFragment extends Fragment {
 
         cycleChartView.setData(filtered);
         cycleChartView.setSeriesVisibility(isBudgetVisible, isExpenseVisible, isInvestmentVisible);
+    }
+
+    private void populateDailyExpenseChart(FinanceDatabase db) {
+        if (!isAdded() || cycleDailyExpenseChartView == null || db == null || db.currentCycle == null) return;
+
+        CurrentCycle c = db.currentCycle;
+        int cYear = c.cycleYear;
+        int cMonth = c.cycleMonthNumber;
+        if (cYear <= 0 || cMonth <= 0) return;
+
+        // Map daily spends for the active cycle: dateStr ("dd/MM/yyyy") -> expense sum
+        Map<String, Double> daySpends = new HashMap<>();
+        if (db.transactions != null) {
+            for (Transaction t : db.transactions) {
+                if (t.isInCycle(cYear, cMonth) && t.isExpense()) {
+                    String dateFormatted = t.getFormattedDate();
+                    if (dateFormatted != null && !dateFormatted.isEmpty()) {
+                        double spend = t.getExpenseContribution();
+                        daySpends.put(dateFormatted, daySpends.getOrDefault(dateFormatted, 0.0) + spend);
+                    }
+                }
+            }
+        }
+
+        // Cycle runs from 06/cMonth/cYear to 05/(cMonth+1)/nextYear
+        Calendar startCal = Calendar.getInstance();
+        startCal.set(cYear, cMonth - 1, 6, 0, 0, 0);
+        startCal.set(Calendar.MILLISECOND, 0);
+
+        int nextMonth = cMonth == 12 ? 0 : cMonth;
+        int nextYear = cMonth == 12 ? cYear + 1 : cYear;
+        Calendar endCal = Calendar.getInstance();
+        endCal.set(nextYear, nextMonth, 5, 23, 59, 59);
+        endCal.set(Calendar.MILLISECOND, 999);
+
+        // Count total days in cycle
+        Calendar countCal = (Calendar) startCal.clone();
+        int totalDays = 0;
+        while (!countCal.after(endCal)) {
+            totalDays++;
+            countCal.add(Calendar.DAY_OF_MONTH, 1);
+        }
+        if (totalDays <= 0) totalDays = 30;
+
+        Calendar todayCal = Calendar.getInstance();
+        int todayYear = todayCal.get(Calendar.YEAR);
+        int todayMonth = todayCal.get(Calendar.MONTH);
+        int todayDay = todayCal.get(Calendar.DAY_OF_MONTH);
+
+        SimpleDateFormat sdfFull = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+        SimpleDateFormat sdfDisplay = new SimpleDateFormat("dd MMM", Locale.US);
+
+        List<CycleDailyExpenseChartView.DayExpensePoint> points = new ArrayList<>();
+        Calendar currentCal = (Calendar) startCal.clone();
+        int dayNum = 1;
+        double cumulativeExpense = 0.0;
+
+        while (!currentCal.after(endCal)) {
+            String dateStr = sdfFull.format(currentCal.getTime());
+            String displayDate = sdfDisplay.format(currentCal.getTime());
+
+            boolean isToday = (currentCal.get(Calendar.YEAR) == todayYear &&
+                               currentCal.get(Calendar.MONTH) == todayMonth &&
+                               currentCal.get(Calendar.DAY_OF_MONTH) == todayDay);
+
+            boolean isFuture = currentCal.after(todayCal) && !isToday;
+
+            double daySpend = daySpends.getOrDefault(dateStr, 0.0);
+            if (!isFuture) {
+                cumulativeExpense += daySpend;
+            }
+
+            double budgetBenchmark = (c.budget > 0) ? (c.budget / (double) totalDays) * dayNum : 0.0;
+
+            points.add(new CycleDailyExpenseChartView.DayExpensePoint(
+                    dayNum,
+                    dateStr,
+                    displayDate,
+                    daySpend,
+                    cumulativeExpense,
+                    budgetBenchmark,
+                    isToday,
+                    isFuture
+            ));
+
+            dayNum++;
+            currentCal.add(Calendar.DAY_OF_MONTH, 1);
+        }
+
+        cycleDailyExpenseChartView.setData(points, c.budget);
     }
 
     private void refreshData() {
