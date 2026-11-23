@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.2] - 2026-11-23
 
 ### Fixed & Enhanced
+- **Visible App Version in Header & Footers**:
+  - **Top Sticky Header ([`activity_main.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/activity_main.xml), [`MainActivity.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/MainActivity.java))**:
+    - Added a sleek version indicator (`v3.2`) right next to the "FinMngr" app logo pill, permanently visible across all bottom navigation tabs.
+    - Dynamically retrieved from `packageInfo.versionName`.
+  - **Bottom Screen Footers**:
+    - Added subtle, clean version footer text (`FinMngr v3.2`) at the bottom of [`Overview`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_overview.xml), [`Accounts`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_accounts.xml), [`Cycle`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_cycle.xml), and [`Holdings`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_holdings.xml) screens.
 - **Credit Card Balance vs Due Amount Display**:
   - **Item Outstanding Amount**: In [`AccountsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/AccountsFragment.java), the primary amount displayed on the right of the `CREDIT CARD` row now shows the actual credit card balance (`formatCurrency(ccAmount)`) styled in [`@color/red_rose`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/values/colors.xml).
   - **Due Amount Computation**: The badge explicitly displays the computed due amount as `Credit Card balance - Payment balance` (`Due: <Credit Card - PAYMENT> • Payment Bal: <PAYMENT>`).

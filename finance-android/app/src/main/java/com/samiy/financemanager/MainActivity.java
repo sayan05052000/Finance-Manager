@@ -100,6 +100,16 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
         tvHeaderNetWorth = findViewById(R.id.tvHeaderNetWorth);
         tvHeaderCycle = findViewById(R.id.tvHeaderCycle);
         tvGoogleAuthText = findViewById(R.id.tvGoogleAuthText);
+
+        TextView tvHeaderAppVersion = findViewById(R.id.tvHeaderAppVersion);
+        if (tvHeaderAppVersion != null) {
+            try {
+                String ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                tvHeaderAppVersion.setText("v" + ver);
+            } catch (Exception ignored) {
+                tvHeaderAppVersion.setText("v3.2");
+            }
+        }
         btnRefresh = findViewById(R.id.btnRefresh);
         btnThemeToggle = findViewById(R.id.btnThemeToggle);
         instance = this;

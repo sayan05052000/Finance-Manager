@@ -608,6 +608,18 @@
                     android:orientation="vertical" />
             </LinearLayout>
 
+            <!-- App Version Footer -->
+            <TextView
+                android:id="@+id/tvFooterAppVersionAccounts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:layout_marginBottom="36dp"
+                android:gravity="center"
+                android:text="FinMngr v3.2"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

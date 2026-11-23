@@ -77,6 +77,16 @@
                             android:textColor="#F59E0B"
                             android:textSize="12sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvHeaderAppVersion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:text="v3.2"
+                            android:textColor="@color/text_muted"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
 
                     <TextView
