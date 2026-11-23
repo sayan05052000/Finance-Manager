@@ -197,6 +197,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
         Spinner spSourceSelector = v.findViewById(R.id.spSourceSelector);
         LinearLayout layoutCreditCardTagSection = v.findViewById(R.id.layoutCreditCardTagSection);
         Spinner spCreditCardSelector = v.findViewById(R.id.spCreditCardSelector);
+        View layoutOffsetUnbilledContainer = v.findViewById(R.id.layoutOffsetUnbilledContainer);
         com.google.android.material.checkbox.MaterialCheckBox cbOffsetUnbilled = v.findViewById(R.id.cbOffsetUnbilled);
         TextView tvOffsetUnbilledDescription = v.findViewById(R.id.tvOffsetUnbilledDescription);
 
@@ -204,6 +205,17 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
 
         Runnable updateOffsetCheckboxState = () -> {
             if (cbOffsetUnbilled == null || tvOffsetUnbilledDescription == null) return;
+
+            String selectedCard = (spCreditCardSelector != null && spCreditCardSelector.getSelectedItem() != null)
+                    ? spCreditCardSelector.getSelectedItem().toString().trim() : "";
+            boolean hasCardTagged = !selectedCard.isEmpty() && !selectedCard.startsWith("None") && !"No cards available".equalsIgnoreCase(selectedCard);
+
+            if (layoutOffsetUnbilledContainer != null) {
+                layoutOffsetUnbilledContainer.setVisibility(hasCardTagged ? View.VISIBLE : View.GONE);
+            }
+            if (!hasCardTagged) {
+                return;
+            }
 
             String currentType = "Expense";
             if (rbIncome.isChecked()) currentType = "Income";
@@ -238,28 +250,30 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     wasPreviouslyCredit[0] = true;
                 }
                 if (cbOffsetUnbilled.isChecked()) {
-                    tvOffsetUnbilledDescription.setText("Checked: Credit will offset the card's unbilled balance.");
+                    tvOffsetUnbilledDescription.setText("Checked: Credit will offset " + selectedCard + "'s unbilled balance.");
                 } else {
-                    tvOffsetUnbilledDescription.setText("Unchecked: Credit will pay/reduce the card's billed amount.");
+                    tvOffsetUnbilledDescription.setText("Unchecked: Credit will pay/reduce " + selectedCard + "'s billed amount.");
                 }
             } else {
                 wasPreviouslyCredit[0] = false;
                 cbOffsetUnbilled.setChecked(true);
                 cbOffsetUnbilled.setEnabled(false);
-                tvOffsetUnbilledDescription.setText("Net debit transactions always offset the unbilled balance.");
+                tvOffsetUnbilledDescription.setText("Net debit will affect the unbilled balance of " + selectedCard + ".");
             }
         };
 
         if (cbOffsetUnbilled != null) {
             cbOffsetUnbilled.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (!buttonView.isEnabled()) return;
+                String cardName = (spCreditCardSelector != null && spCreditCardSelector.getSelectedItem() != null)
+                        ? spCreditCardSelector.getSelectedItem().toString().trim() : "the card";
                 if (isChecked) {
                     if (tvOffsetUnbilledDescription != null) {
-                        tvOffsetUnbilledDescription.setText("Checked: Credit will offset the card's unbilled balance.");
+                        tvOffsetUnbilledDescription.setText("Checked: Credit will offset " + cardName + "'s unbilled balance.");
                     }
                 } else {
                     if (tvOffsetUnbilledDescription != null) {
-                        tvOffsetUnbilledDescription.setText("Unchecked: Credit will pay/reduce the card's billed amount.");
+                        tvOffsetUnbilledDescription.setText("Unchecked: Credit will pay/reduce " + cardName + "'s billed amount.");
                     }
                 }
             });
@@ -513,17 +527,15 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             accountList.add(new SourceItem("Slice", 0, false));
         }
 
-        // Populate Credit Card Options
+        // Populate Credit Card Options (Optional Tagging)
         List<String> creditCardNames = new ArrayList<>();
+        creditCardNames.add("None (Optional)");
         if (db != null && db.creditCards != null) {
             for (com.samiy.financemanager.data.model.CreditCard cc : db.creditCards) {
                 if (cc != null && cc.cardName != null && !cc.cardName.trim().isEmpty()) {
                     creditCardNames.add(cc.cardName.trim());
                 }
             }
-        }
-        if (creditCardNames.isEmpty()) {
-            creditCardNames.add("Primary Card");
         }
         ArrayAdapter<String> ccAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, creditCardNames);
         ccAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
@@ -548,6 +560,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                         if (pos >= 0 && spCreditCardSelector != null) {
                             spCreditCardSelector.setSelection(pos);
                         }
+                        updateOffsetCheckboxState.run();
                     }
                 });
                 addCardSheet.show(getChildFragmentManager(), "add_card_inline");
@@ -566,6 +579,7 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             }
             if (isLoan && "CREDIT CARD".equalsIgnoreCase(name.trim())) {
                 layoutCreditCardTagSection.setVisibility(View.VISIBLE);
+                updateOffsetCheckboxState.run();
             } else {
                 layoutCreditCardTagSection.setVisibility(View.GONE);
             }
@@ -647,12 +661,19 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                     layoutCreditCardTagSection.setVisibility(View.VISIBLE);
                 }
                 if (spCreditCardSelector != null) {
+                    int foundPos = -1;
                     for (int i = 0; i < creditCardNames.size(); i++) {
                         if (creditCardNames.get(i).equalsIgnoreCase(targetName)) {
-                            spCreditCardSelector.setSelection(i);
+                            foundPos = i;
                             break;
                         }
                     }
+                    if (foundPos < 0) {
+                        creditCardNames.add(targetName);
+                        ccAdapter.notifyDataSetChanged();
+                        foundPos = creditCardNames.size() - 1;
+                    }
+                    spCreditCardSelector.setSelection(foundPos);
                     spCreditCardSelector.setEnabled(false);
                     spCreditCardSelector.setOnTouchListener((view, event) -> true);
                 }
@@ -684,9 +705,12 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                 @Override
                 public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
                     com.samiy.financemanager.util.KeyboardHelper.hideKeyboard(parent);
+                    updateOffsetCheckboxState.run();
                 }
                 @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                    updateOffsetCheckboxState.run();
+                }
             });
         }
 
@@ -806,12 +830,12 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
             }
 
             boolean isLoan = rbTagLoan.isChecked();
+            String taggedCard = "";
             if (isLoan && "CREDIT CARD".equalsIgnoreCase(selectedSource.trim())) {
                 String card = (spCreditCardSelector != null && spCreditCardSelector.getSelectedItem() != null)
                         ? spCreditCardSelector.getSelectedItem().toString().trim() : "";
-                if (card.isEmpty() || "No cards available".equalsIgnoreCase(card)) {
-                    FinMngrToast.showError(getContext(), "Please select a Credit Card.");
-                    return;
+                if (!card.isEmpty() && !card.startsWith("None") && !"No cards available".equalsIgnoreCase(card)) {
+                    taggedCard = card;
                 }
             }
 
@@ -836,14 +860,15 @@ public class AddTransactionBottomSheet extends BaseBottomSheetDialogFragment {
                 tx.loans = selectedSource;
                 tx.account = "";
                 if ("CREDIT CARD".equalsIgnoreCase(selectedSource.trim())) {
-                    if (spCreditCardSelector != null && spCreditCardSelector.getSelectedItem() != null) {
-                        tx.taggedCreditCard = spCreditCardSelector.getSelectedItem().toString().trim();
-                    } else if (creditCardNames != null && !creditCardNames.isEmpty()) {
-                        tx.taggedCreditCard = creditCardNames.get(0).trim();
+                    tx.taggedCreditCard = taggedCard;
+                    if (!taggedCard.isEmpty()) {
+                        boolean offsetUnbilled = (cbOffsetUnbilled != null && cbOffsetUnbilled.isChecked());
+                        tx.isEffectingUnbilled = offsetUnbilled;
+                        tx.ccOffsetTarget = offsetUnbilled ? "unbilled" : "billed";
+                    } else {
+                        tx.isEffectingUnbilled = false;
+                        tx.ccOffsetTarget = "";
                     }
-                    boolean offsetUnbilled = (cbOffsetUnbilled != null && cbOffsetUnbilled.isChecked());
-                    tx.isEffectingUnbilled = offsetUnbilled;
-                    tx.ccOffsetTarget = offsetUnbilled ? "unbilled" : "billed";
                 }
             } else {
                 tx.account = selectedSource;

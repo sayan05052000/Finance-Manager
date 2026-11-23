@@ -183,9 +183,6 @@ function doPost(e) {
               break;
             }
           }
-          if (!taggedCard && (checkLoan === 'credit card' || checkAccount === 'credit card') && ctx.values.length === 2) {
-            taggedCard = String(ctx.values[1][ctx.cols.colCardName - 1] || '').trim();
-          }
         }
       }
 
@@ -348,13 +345,6 @@ function doPost(e) {
         if (!ccCtx) ccCtx = getCreditCardContext(ss);
         return ccCtx;
       };
-
-      if (!rowTaggedCard && rowLoan.toUpperCase() === 'CREDIT CARD') {
-        const ctx = getCcCtx();
-        if (ctx && ctx.values.length === 2) {
-          rowTaggedCard = String(ctx.values[1][ctx.cols.colCardName - 1] || '').trim();
-        }
-      }
 
       let cr = rowCredit;
       if (cr === 0 && tx.credit) cr = Number(tx.credit) || 0;
@@ -940,7 +930,28 @@ function doPost(e) {
         data: getFullDatabase(ss)
       });
     }
-
+    if (action === 'sortByDateASC' || action === 'sortByDate') {
+      if (typeof sortTransactionsByDateAsc === 'function') {
+        try {
+          sortTransactionsByDateAsc();
+        } catch (eSort1) {
+          try {
+            sortTransactionsByDateAsc();
+          } catch (eSort2) {
+            console.warn('sortByDateASC execution error: ' + eSort2);
+            fallbackSortTransactionsByDateASC(ss);
+          }
+        }
+      } else {
+        fallbackSortTransactionsByDateASC(ss);
+      }
+      runCalculationScriptsAndFlush();
+      return jsonResponse({
+        status: 'success',
+        message: 'Transactions sorted by date successfully',
+        data: getFullDatabase(ss)
+      });
+    }
     if (action === 'deleteGoal') {
       const sheet = ss.getSheetByName('Goals');
       if (!sheet) throw new Error('Goals sheet not found');
@@ -1030,7 +1041,7 @@ function validateGoalAllocations(rows, contributionJson, excludeRowIndex) {
             mfAllocations[mfVal] = (mfAllocations[mfVal] || 0) + p;
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (incomingContrib.accounts && typeof incomingContrib.accounts === 'object') {
@@ -1140,7 +1151,7 @@ function getTransactions(ss, limit, page) {
         if (cName) creditCardNamesList.push(cName);
       }
     }
-  } catch (ignored) {}
+  } catch (ignored) { }
 
   return values.map((row, idx) => {
     let dateVal = cols.colDate > 0 ? row[cols.colDate - 1] : '';
@@ -1185,9 +1196,6 @@ function getTransactions(ss, limit, page) {
     const procVal = cols.colProcessed > 0 ? String(row[cols.colProcessed - 1] || '').trim() : '';
 
     let taggedCard = (cols.colTaggedCard > 0 && row.length >= cols.colTaggedCard && row[cols.colTaggedCard - 1]) ? String(row[cols.colTaggedCard - 1]).trim() : '';
-    if (!taggedCard && loanVal.toUpperCase() === 'CREDIT CARD' && creditCardNamesList.length === 1) {
-      taggedCard = creditCardNamesList[0];
-    }
 
     let isEffectingUnbilled = true;
     if (credit === 0 && (dws > 0 || debit < 0)) {
@@ -1829,4 +1837,23 @@ function getCreditCards(ss) {
     });
   }
   return results;
+}
+
+function fallbackSortTransactionsByDateASC(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Transactions');
+  if (!sheet) return;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) return; // Header row + at least 2 data rows needed to sort
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return;
+  const transHeaders = sheet.getRange(1, 1, 1, Math.max(15, lastCol)).getValues()[0];
+  const cols = findTransactionsColumnIndices(transHeaders);
+  const colDate = cols.colDate > 0 ? cols.colDate : 1;
+
+  try {
+    sheet.getRange(2, 1, lastRow - 1, lastCol).sort({ column: colDate, ascending: true });
+  } catch (e) {
+    console.warn('fallbackSortTransactionsByDateASC error: ' + e);
+  }
 }

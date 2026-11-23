@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.9] - 2026-11-22
+
+### Changed & Enhanced
+- **Optional Credit Card Tagging**:
+  - **Add Transaction Dialog ([`AddTransactionBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AddTransactionBottomSheet.java), [`dialog_add_transaction.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/dialog_add_transaction.xml))**:
+    - Tagging a credit card when choosing `CREDIT CARD` loan is now completely optional.
+    - Updated section header to `Tag to Credit Card (Optional):`.
+    - Added `"None (Optional)"` as the primary default option in the credit card spinner, allowing users to record credit card transactions without linking them to a specific physical card.
+    - Removed mandatory error blocking (`"Please select a Credit Card."`).
+    - Dynamically hides the "Offset Unbilled Amount" container whenever `"None (Optional)"` or no card is selected, and reveals it with contextual card-specific details when a card is selected.
+  - **Untagged Transaction Persistence & Isolation**:
+    - Removed implicit auto-tagging fallbacks across [`FinanceRepository.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/data/FinanceRepository.java), [`androidscript.gs`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/google-apps-script/androidscript.gs), [`TransactionsAdapter.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/adapter/TransactionsAdapter.java), [`TransactionDetailsBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/TransactionDetailsBottomSheet.java), [`LedgerFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/LedgerFragment.java), and [`AccountTransactionsBottomSheet.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/AccountTransactionsBottomSheet.java).
+    - Untagged transactions do not alter any credit card unbilled/billed balance, display cleanly without card badges, and only tagged transactions appear in card-specific transaction histories.
+
+---
+
+## [v2.8] - 2026-11-20
+
+### Fixed & Enhanced
+- **Holdings Loss & Negative 1-Day Change Dynamic Styling**:
+  - **Individual Holding Cards ([`HoldingsAdapter.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/adapter/HoldingsAdapter.java))**:
+    - **Total Returns & Current Value**: If a holding is in loss (`returns < 0`, `absReturn < 0`, or `currentValue < investedValue`), both `tvReturns` and `tvCurrentValue` are dynamically tinted with [`@color/red_rose`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/values/colors.xml) rather than static green.
+    - **1-Day Change & Label**: When 1-day change is negative (`oneDayChange < 0`), `tv1DChange` renders in `@color/red_rose` with explicit negative formatting (`-₹X`), and `tvHolding1DChangeLabel` updates to **"1-Day Loss"** (versus **"1-Day Gain"** for positive days).
+  - **Portfolio Summary & KPI Cards ([`HoldingsFragment.java`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/fragment/HoldingsFragment.java))**:
+    - `tvMarketValue`, `tvOneDayChange`, `tvOneDayChangePercent`, `tvTotalReturns`, `tvTotalReturnsRoi`, and `tvPostTaxEstimate` dynamically switch to `@color/red_rose` when overall returns or 1-day change are negative.
+    - `tvSavingsType1DChange` in Savings Type Breakdown dynamically switches to `@color/red_rose` when negative.
+
+---
+
+## [v2.7] - 2026-11-20
+
+### Added
+- **Ledger Chronological Sort Option (`sortByDateASC`)**:
+  - Added an interactive **"⇅ Sort Date"** action button in the Ledger screen header row ([`fragment_ledger.xml`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/res/layout/fragment_ledger.xml)).
+  - Includes user confirmation dialog ([`FinMngrDialog.showConfirmation`](file:///c:/Users/samiy/OneDrive/Documents/projects/android/Finance-Manager/finance-android/app/src/main/java/com/samiy/financemanager/ui/dialog/FinMngrDialog.java)) before executing remote sheet reordering.
+  - Calls `sortByDateASC` in Google Apps Script via a dedicated queued mutation (`FinanceRepository.sortTransactionsByDate`), which executes `sortByDateASC()` in the Google Sheet's Apps Script project, runs `runCalculationScriptsAndFlush()`, and resyncs the updated database.
+- **Real-Time Progress Feedback in UI**:
+  - **Ledger Screen Progress Banner**: Added `layoutSortProgressLedger` with an indeterminate ProgressBar and dynamic status message (`tvSortProgressMessage`) that reports phase-by-phase execution ("Calling sortByDateASC in Google Sheet...", "Syncing with live Google Sheet...").
+  - **Button State Management**: The sort button switches to `"⏳ Sorting..."`, is disabled, and dimmed during processing to prevent concurrent requests.
+  - **Global Sync Coordination**: Integrated with `SwipeRefreshLayout`, the global top progress bar (`progressBarGlobalSync`), and in-app toasts (`FinMngrToast.showUpdating` / `showSuccess`).
+- **Google Apps Script Backend Support (`androidscript.gs`)**:
+  - Implemented `action === 'sortByDateASC'` (and alias `'sortByDate'`) across both `doGet` and `doPost`.
+  - Invokes `sortByDateASC()` if declared in the Apps Script project, with fallback to `fallbackSortTransactionsByDateASC()` if not defined.
+  - Automatically runs `runCalculationScriptsAndFlush()` to recalculate remainders, running balances, and mutual fund calculations, and flushes spreadsheet modifications before returning the synchronized database.
+
+---
+
 ## [v2.5] - 2026-11-19
 
 ### Fixed & Hardened

@@ -1,5 +1,6 @@
 package com.samiy.financemanager.ui.fragment;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -167,20 +169,63 @@ public class HoldingsFragment extends Fragment {
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         if (db == null) return;
 
+        Context context = requireContext();
         PortfolioSummary ps = db.portfolioSummary != null ? db.portfolioSummary : new PortfolioSummary();
 
         tvTotalInvested.setText(formatCurrency(ps.totalInvested));
         tvMarketValue.setText(formatCurrency(ps.currentValuation));
 
-        String changeSign = ps.oneDayGain >= 0 ? "+" : "";
-        tvOneDayChange.setText(changeSign + formatCurrency(ps.oneDayGain));
-        tvOneDayChangePercent.setText(changeSign + String.format(Locale.US, "%.2f", ps.oneDayGainPercent) + "% today");
+        // Market Value: show red if portfolio is in loss
+        if (ps.totalReturns < 0 || (ps.totalInvested > 0 && ps.currentValuation < ps.totalInvested)) {
+            tvMarketValue.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+        } else {
+            tvMarketValue.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
+        }
 
-        String retSign = ps.totalReturns >= 0 ? "+" : "";
-        tvTotalReturns.setText(retSign + formatCurrency(ps.totalReturns));
-        tvTotalReturnsRoi.setText(retSign + String.format(Locale.US, "%.2f", ps.totalReturnsRoi) + "% ROI");
+        // 1-Day Market Change (Red if negative/loss, Green if positive/gain, Neutral if zero)
+        if (ps.oneDayGain < 0) {
+            tvOneDayChange.setText("-" + formatCurrency(Math.abs(ps.oneDayGain)));
+            tvOneDayChange.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+            tvOneDayChangePercent.setText(String.format(Locale.US, "%.2f", ps.oneDayGainPercent) + "% today");
+            tvOneDayChangePercent.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+        } else if (ps.oneDayGain > 0) {
+            tvOneDayChange.setText("+" + formatCurrency(ps.oneDayGain));
+            tvOneDayChange.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
+            tvOneDayChangePercent.setText("+" + String.format(Locale.US, "%.2f", ps.oneDayGainPercent) + "% today");
+            tvOneDayChangePercent.setTextColor(ContextCompat.getColor(context, R.color.green_emerald));
+        } else {
+            tvOneDayChange.setText(formatCurrency(0));
+            tvOneDayChange.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+            tvOneDayChangePercent.setText("0.00% today");
+            tvOneDayChangePercent.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+        }
 
-        tvPostTaxEstimate.setText(retSign + formatCurrency(ps.afterTaxApprox));
+        // Total Returns (ROI) (Red if negative/loss, Green if positive/gain, Neutral if zero)
+        if (ps.totalReturns < 0 || ps.totalReturnsRoi < 0) {
+            tvTotalReturns.setText("-" + formatCurrency(Math.abs(ps.totalReturns)));
+            tvTotalReturns.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+            tvTotalReturnsRoi.setText(String.format(Locale.US, "%.2f", ps.totalReturnsRoi) + "% ROI");
+            tvTotalReturnsRoi.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+        } else if (ps.totalReturns > 0 || ps.totalReturnsRoi > 0) {
+            tvTotalReturns.setText("+" + formatCurrency(ps.totalReturns));
+            tvTotalReturns.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
+            tvTotalReturnsRoi.setText("+" + String.format(Locale.US, "%.2f", ps.totalReturnsRoi) + "% ROI");
+            tvTotalReturnsRoi.setTextColor(ContextCompat.getColor(context, R.color.green_emerald));
+        } else {
+            tvTotalReturns.setText(formatCurrency(0));
+            tvTotalReturns.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+            tvTotalReturnsRoi.setText("0.00% ROI");
+            tvTotalReturnsRoi.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+        }
+
+        // Net Post-Tax Estimate
+        if (ps.afterTaxApprox < 0) {
+            tvPostTaxEstimate.setText("-" + formatCurrency(Math.abs(ps.afterTaxApprox)));
+            tvPostTaxEstimate.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+        } else {
+            tvPostTaxEstimate.setText("+" + formatCurrency(ps.afterTaxApprox));
+            tvPostTaxEstimate.setTextColor(ContextCompat.getColor(context, R.color.blue_sky));
+        }
         tvActiveSchemes.setText(ps.totalAssetsCount + " Assets");
 
         // Savings Type Breakdown
@@ -197,8 +242,16 @@ public class HoldingsFragment extends Fragment {
                 tvName.setText(sts.name);
                 tvCount.setText(sts.holdingsCount + " holdings");
 
-                String sSign = sts.oneDayChange >= 0 ? "+" : "";
-                tv1D.setText(sSign + formatCurrency(sts.oneDayChange));
+                if (sts.oneDayChange < 0) {
+                    tv1D.setText("-" + formatCurrency(Math.abs(sts.oneDayChange)));
+                    tv1D.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+                } else if (sts.oneDayChange > 0) {
+                    tv1D.setText("+" + formatCurrency(sts.oneDayChange));
+                    tv1D.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
+                } else {
+                    tv1D.setText(formatCurrency(0));
+                    tv1D.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+                }
                 tvVal.setText(formatCurrency(sts.currentValuation));
 
                 layoutSavingsTypeBreakdown.addView(itemView);

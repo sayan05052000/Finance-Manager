@@ -209,8 +209,6 @@ public class AccountTransactionsBottomSheet extends BaseBottomSheetDialogFragmen
                 if ("CREDIT CARD".equalsIgnoreCase(t.loans != null ? t.loans.trim() : "")) {
                     if (t.taggedCreditCard != null && t.taggedCreditCard.trim().equalsIgnoreCase(entityName)) {
                         matches = true;
-                    } else if ((t.taggedCreditCard == null || t.taggedCreditCard.trim().isEmpty()) && onlyOneCreditCard) {
-                        matches = true;
                     }
                 }
             } else if (TYPE_LOAN.equals(entityType)) {

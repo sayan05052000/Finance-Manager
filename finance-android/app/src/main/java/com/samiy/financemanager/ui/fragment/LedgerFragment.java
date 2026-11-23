@@ -49,6 +49,31 @@ public class LedgerFragment extends Fragment {
     private RecyclerView rvLedger;
     private TransactionsAdapter adapter;
 
+    private TextView btnSortByDateLedger;
+    private View layoutSortProgressLedger;
+    private TextView tvSortProgressMessage;
+    private boolean isSorting = false;
+
+    private final FinanceRepository.SyncStatusListener syncStatusListener = new FinanceRepository.SyncStatusListener() {
+        @Override
+        public void onSyncStarted(String message) {
+            if (isAdded() && isSorting && tvSortProgressMessage != null) {
+                tvSortProgressMessage.setText(message != null ? message : "Processing in Google Sheet...");
+            }
+        }
+
+        @Override
+        public void onSyncFinished(String message, boolean isError) {
+            if (isAdded() && isSorting && tvSortProgressMessage != null) {
+                if (isError) {
+                    tvSortProgressMessage.setText(message != null ? message : "Sync error");
+                } else {
+                    tvSortProgressMessage.setText("Sync complete!");
+                }
+            }
+        }
+    };
+
     // Preserved user-selected filters so background resync never wipes active filters
     private String savedSelectedCycle = "All Cycles";
     private String savedSelectedType = "All Types";
@@ -107,6 +132,30 @@ public class LedgerFragment extends Fragment {
             });
         }
 
+        btnSortByDateLedger = v.findViewById(R.id.btnSortByDateLedger);
+        layoutSortProgressLedger = v.findViewById(R.id.layoutSortProgressLedger);
+        tvSortProgressMessage = v.findViewById(R.id.tvSortProgressMessage);
+
+        if (btnSortByDateLedger != null) {
+            btnSortByDateLedger.setOnClickListener(view -> {
+                if (!GoogleAuthManager.getInstance(requireContext()).isAuthorized()) {
+                    FinMngrToast.showError(getContext(), "You are not authorized");
+                    return;
+                }
+                if (isSorting) {
+                    FinMngrToast.showInfo(getContext(), "Sorting is already in progress...");
+                    return;
+                }
+
+                FinMngrDialog.showConfirmation(requireContext(),
+                        "Sort Transactions by Date",
+                        "This will call sortByDateASC in Google Sheets to order all transactions chronologically (oldest to newest) and sync your database. Proceed?",
+                        "Sort & Sync",
+                        this::executeSortByDate
+                );
+            });
+        }
+
         setupFilters();
         swipeRefresh.setOnRefreshListener(this::refreshData);
 
@@ -116,9 +165,99 @@ public class LedgerFragment extends Fragment {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        if (getContext() != null) {
+            FinanceRepository.getInstance(requireContext()).addSyncStatusListener(syncStatusListener);
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (getContext() != null) {
+            FinanceRepository.getInstance(requireContext()).removeSyncStatusListener(syncStatusListener);
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (getContext() != null) {
+            FinanceRepository.getInstance(requireContext()).removeSyncStatusListener(syncStatusListener);
+        }
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
         populateUI();
+    }
+
+    private void executeSortByDate() {
+        if (!isAdded()) return;
+        isSorting = true;
+
+        if (btnSortByDateLedger != null) {
+            btnSortByDateLedger.setEnabled(false);
+            btnSortByDateLedger.setText("⏳ Sorting...");
+            btnSortByDateLedger.setAlpha(0.6f);
+        }
+        if (layoutSortProgressLedger != null) {
+            layoutSortProgressLedger.setVisibility(View.VISIBLE);
+        }
+        if (tvSortProgressMessage != null) {
+            tvSortProgressMessage.setText("Calling sortByDateASC in Google Sheet...");
+        }
+        if (swipeRefresh != null) {
+            swipeRefresh.setRefreshing(true);
+        }
+
+        FinMngrToast.showUpdating(getContext(), "Sorting transactions by date in Google Sheet...");
+
+        FinanceRepository.getInstance(requireContext()).sortTransactionsByDate(new FinanceRepository.DataCallback() {
+            @Override
+            public void onLoaded(FinanceDatabase db) {
+                if (isAdded()) {
+                    isSorting = false;
+                    if (btnSortByDateLedger != null) {
+                        btnSortByDateLedger.setEnabled(true);
+                        btnSortByDateLedger.setText("⇅ Sort Date");
+                        btnSortByDateLedger.setAlpha(1.0f);
+                    }
+                    if (layoutSortProgressLedger != null) {
+                        layoutSortProgressLedger.setVisibility(View.GONE);
+                    }
+                    if (swipeRefresh != null) {
+                        swipeRefresh.setRefreshing(false);
+                    }
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).updateHeaderInfo();
+                    }
+                    populateUI();
+                    FinMngrToast.showSuccess(getContext(), "Transactions sorted by date & synced!");
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                if (isAdded()) {
+                    isSorting = false;
+                    if (btnSortByDateLedger != null) {
+                        btnSortByDateLedger.setEnabled(true);
+                        btnSortByDateLedger.setText("⇅ Sort Date");
+                        btnSortByDateLedger.setAlpha(1.0f);
+                    }
+                    if (layoutSortProgressLedger != null) {
+                        layoutSortProgressLedger.setVisibility(View.GONE);
+                    }
+                    if (swipeRefresh != null) {
+                        swipeRefresh.setRefreshing(false);
+                    }
+                    FinMngrToast.showError(getContext(), "Sort failed: " + error);
+                }
+            }
+        });
     }
 
     private void setupFilters() {
@@ -408,12 +547,6 @@ public class LedgerFragment extends Fragment {
 
         // Tagged Credit Card resolution
         String taggedCard = tx.taggedCreditCard != null ? tx.taggedCreditCard.trim() : "";
-        if (taggedCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(tx.loans != null ? tx.loans.trim() : "")) {
-            FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
-            if (db != null && db.creditCards != null && db.creditCards.size() == 1) {
-                taggedCard = db.creditCards.get(0).cardName;
-            }
-        }
 
         String details = (tx.getDisplaySource() != null ? tx.getDisplaySource() : "") +
                 (tx.date != null ? " • " + tx.date : "") +

@@ -100,15 +100,8 @@ public class TransactionsAdapter extends RecyclerView.Adapter<TransactionsAdapte
         holder.tvSourceBadge.setText(tx.getDisplaySource().toUpperCase(Locale.ROOT));
         holder.tvDate.setText(tx.getFormattedDate());
 
-        // Resolve tagged credit card with fallback if only 1 card exists
+        // Resolve tagged credit card
         String taggedCard = tx.taggedCreditCard != null ? tx.taggedCreditCard.trim() : "";
-        if (taggedCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(tx.loans != null ? tx.loans.trim() : "")) {
-            FinanceDatabase db = FinanceRepository.getInstance(holder.itemView.getContext()).getDatabase();
-            if (db != null && db.creditCards != null && db.creditCards.size() == 1) {
-                taggedCard = db.creditCards.get(0).cardName;
-            }
-        }
-
         if (holder.tvCardBadge != null) {
             if (!taggedCard.isEmpty()) {
                 holder.tvCardBadge.setText("💳 " + taggedCard);

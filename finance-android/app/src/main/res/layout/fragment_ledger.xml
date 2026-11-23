@@ -266,7 +266,38 @@
             </GridLayout>
         </LinearLayout>
 
-        <!-- Ledger Header Row: Section title + Contextual Add Transaction Button -->
+        <!-- Sorting / Syncing Progress Banner -->
+        <LinearLayout
+            android:id="@+id/layoutSortProgressLedger"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_chip_blue"
+            android:padding="10dp"
+            android:layout_marginTop="10dp"
+            android:visibility="gone">
+
+            <ProgressBar
+                android:id="@+id/pbSortProgress"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:indeterminate="true"
+                android:indeterminateTint="@color/blue_sky"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:id="@+id/tvSortProgressMessage"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Sorting transactions by date in Google Sheet..."
+                android:textColor="@color/blue_sky"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Ledger Header Row: Section title + Actions -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -282,7 +313,26 @@
                 android:text="Recent Transactions"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/btnSortByDateLedger"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_pill_dark"
+                android:text="⇅ Sort Date"
+                android:textColor="@color/blue_sky"
+                android:textSize="11.5sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:clickable="true"
+                android:focusable="true" />
 
             <TextView
                 android:id="@+id/btnAddTransactionLedger"

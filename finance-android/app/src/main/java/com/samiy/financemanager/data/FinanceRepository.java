@@ -620,11 +620,6 @@ public class FinanceRepository {
 
                 // Resolve tagged credit card name and apply effect optimistically
                 String cardName = tx.taggedCreditCard != null ? tx.taggedCreditCard.trim() : "";
-                if (cardName.isEmpty() && "CREDIT CARD".equalsIgnoreCase(tx.loans != null ? tx.loans.trim() : "")) {
-                    if (currentDb != null && currentDb.creditCards != null && currentDb.creditCards.size() == 1) {
-                        cardName = currentDb.creditCards.get(0).cardName;
-                    }
-                }
                 if (!cardName.isEmpty()) {
                     tx.taggedCreditCard = cardName;
                     applyCreditCardTransactionEffect(currentDb, cardName, tx);
@@ -717,11 +712,6 @@ public class FinanceRepository {
                 }
 
                 String targetCard = toRemove.taggedCreditCard != null ? toRemove.taggedCreditCard.trim() : "";
-                if (targetCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(toRemove.loans != null ? toRemove.loans.trim() : "")) {
-                    if (currentDb.creditCards != null && currentDb.creditCards.size() == 1) {
-                        targetCard = currentDb.creditCards.get(0).cardName;
-                    }
-                }
                 cardNameForReversal = targetCard;
                 return null;
             }
@@ -767,6 +757,44 @@ public class FinanceRepository {
 
                 String postBody = gson.toJson(payload);
                 return executePostAndSync(postBody);
+            }
+
+            @Override
+            public void onSuccess(FinanceDatabase syncedDb) {
+                if (callback != null) callback.onLoaded(syncedDb);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (callback != null) callback.onError(errorMessage);
+            }
+        });
+    }
+
+    public void sortTransactionsByDate(DataCallback callback) {
+        if (!GoogleAuthManager.getInstance(context).isAuthorized()) {
+            mainHandler.post(() -> {
+                if (callback != null) callback.onError("You are not authorized. Log in with " + GoogleAuthManager.AUTHORIZED_EMAIL);
+            });
+            return;
+        }
+
+        enqueueMutation("Sorting transactions by date in Google Sheet...", new QueuedMutation() {
+            @Override
+            public String getActionName() {
+                return "sort transactions by date";
+            }
+
+            @Override
+            public String revalidate(FinanceDatabase currentDb) {
+                return null;
+            }
+
+            @Override
+            public FinanceDatabase execute(FinanceDatabase currentDb) throws Exception {
+                JsonObject payload = new JsonObject();
+                payload.addProperty("action", "sortByDateASC");
+                return executePostAndSync(payload.toString());
             }
 
             @Override

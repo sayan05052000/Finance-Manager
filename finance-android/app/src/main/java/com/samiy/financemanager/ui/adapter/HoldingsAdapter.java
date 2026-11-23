@@ -1,11 +1,13 @@
 package com.samiy.financemanager.ui.adapter;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.samiy.financemanager.R;
@@ -71,6 +73,7 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Holding h = items.get(position);
+        Context context = holder.itemView.getContext();
         holder.tvSchemeName.setText(h.schemeName);
         holder.tvSavingsType.setText(h.savingsType != null && !h.savingsType.isEmpty() ? h.savingsType : "Mutual Fund");
 
@@ -82,12 +85,41 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
         holder.tvCurrentValue.setText(formatCurrency(h.currentValue));
         holder.tvInvested.setText("Inv: " + formatCurrency(h.investedValue));
 
-        String changeSign = h.oneDayChange >= 0 ? "+" : "";
-        holder.tv1DChange.setText(changeSign + formatCurrency(h.oneDayChange));
+        // 1-Day Change (Red if negative/loss, Green if positive/gain, Neutral if zero)
+        if (h.oneDayChange < 0) {
+            holder.tv1DChange.setText("-" + formatCurrency(Math.abs(h.oneDayChange)));
+            holder.tv1DChange.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+            if (holder.tv1DChangeLabel != null) {
+                holder.tv1DChangeLabel.setText("1-Day Loss");
+            }
+        } else if (h.oneDayChange > 0) {
+            holder.tv1DChange.setText("+" + formatCurrency(h.oneDayChange));
+            holder.tv1DChange.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
+            if (holder.tv1DChangeLabel != null) {
+                holder.tv1DChangeLabel.setText("1-Day Gain");
+            }
+        } else {
+            holder.tv1DChange.setText(formatCurrency(0));
+            holder.tv1DChange.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+            if (holder.tv1DChangeLabel != null) {
+                holder.tv1DChangeLabel.setText("1-Day Change");
+            }
+        }
 
-        String returnsSign = h.returns >= 0 ? "+" : "";
-        String returnsText = "Tot: " + returnsSign + formatCurrency(h.returns) + " (" + String.format(Locale.US, "%.2f", h.absReturn) + "%)";
-        holder.tvReturns.setText(returnsText);
+        // Total Returns & Current Value (Red if in loss, Green if in profit)
+        boolean isLoss = h.returns < 0 || h.absReturn < 0 || (h.investedValue > 0 && h.currentValue < h.investedValue);
+        if (isLoss) {
+            String absReturnStr = String.format(Locale.US, "%.2f", Math.abs(h.absReturn));
+            holder.tvReturns.setText("Tot: -" + formatCurrency(Math.abs(h.returns)) + " (-" + absReturnStr + "%)");
+            holder.tvReturns.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+            holder.tvCurrentValue.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
+        } else {
+            String returnsSign = h.returns >= 0 ? "+" : "";
+            String returnsText = "Tot: " + returnsSign + formatCurrency(h.returns) + " (" + String.format(Locale.US, "%.2f", h.absReturn) + "%)";
+            holder.tvReturns.setText(returnsText);
+            holder.tvReturns.setTextColor(ContextCompat.getColor(context, R.color.green_emerald));
+            holder.tvCurrentValue.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
+        }
 
         // Transaction count badge
         String key = h.schemeName != null ? h.schemeName.trim().toLowerCase(Locale.US) : "";
@@ -132,7 +164,7 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvSchemeName, tvSavingsType, tvSubCategory;
-        TextView tvCurrentValue, tvInvested, tv1DChange, tvReturns;
+        TextView tvCurrentValue, tvInvested, tv1DChangeLabel, tv1DChange, tvReturns;
         TextView tvHoldingTxCount, btnViewTransactions, btnAddTransaction;
 
         ViewHolder(View itemView) {
@@ -142,6 +174,7 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
             tvSubCategory = itemView.findViewById(R.id.tvHoldingSubCategory);
             tvCurrentValue = itemView.findViewById(R.id.tvHoldingCurrentValue);
             tvInvested = itemView.findViewById(R.id.tvHoldingInvested);
+            tv1DChangeLabel = itemView.findViewById(R.id.tvHolding1DChangeLabel);
             tv1DChange = itemView.findViewById(R.id.tvHolding1DChange);
             tvReturns = itemView.findViewById(R.id.tvHoldingReturns);
             tvHoldingTxCount = itemView.findViewById(R.id.tvHoldingTxCount);

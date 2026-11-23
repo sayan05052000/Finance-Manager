@@ -158,13 +158,6 @@ public class TransactionDetailsBottomSheet extends BaseBottomSheetDialogFragment
 
         // Tagged Credit Card resolution
         String taggedCard = transaction.taggedCreditCard != null ? transaction.taggedCreditCard.trim() : "";
-        if (taggedCard.isEmpty() && "CREDIT CARD".equalsIgnoreCase(transaction.loans != null ? transaction.loans.trim() : "")) {
-            FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
-            if (db != null && db.creditCards != null && db.creditCards.size() == 1) {
-                taggedCard = db.creditCards.get(0).cardName;
-            }
-        }
-
         if (!taggedCard.isEmpty()) {
             layoutTaggedCard.setVisibility(View.VISIBLE);
             tvTaggedCard.setText("💳 " + taggedCard);
