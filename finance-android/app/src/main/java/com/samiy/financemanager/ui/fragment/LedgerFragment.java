@@ -53,6 +53,49 @@ public class LedgerFragment extends Fragment {
     private View layoutSortProgressLedger;
     private TextView tvSortProgressMessage;
     private boolean isSorting = false;
+    private final android.os.Handler sortTimeoutHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable sortTimeoutRunnable = () -> {
+        if (isSorting) {
+            setSortingUi(false, null);
+            stopRefreshing();
+            if (isAdded()) {
+                FinMngrToast.showInfo(getContext(), "Sort request timed out. You can try again.");
+            }
+        }
+    };
+
+    private void setSortingUi(boolean sorting, String message) {
+        this.isSorting = sorting;
+        if (sorting) {
+            sortTimeoutHandler.removeCallbacks(sortTimeoutRunnable);
+            sortTimeoutHandler.postDelayed(sortTimeoutRunnable, 60000L); // 60s safety watchdog
+        } else {
+            sortTimeoutHandler.removeCallbacks(sortTimeoutRunnable);
+        }
+
+        if (btnSortByDateLedger != null) {
+            btnSortByDateLedger.setEnabled(!sorting);
+            btnSortByDateLedger.setText(sorting ? "⏳ Sorting..." : "⇅ Sort Date");
+            btnSortByDateLedger.setAlpha(sorting ? 0.6f : 1.0f);
+        }
+        if (layoutSortProgressLedger != null) {
+            layoutSortProgressLedger.setVisibility(sorting ? View.VISIBLE : View.GONE);
+        }
+        if (tvSortProgressMessage != null && message != null) {
+            tvSortProgressMessage.setText(message);
+        }
+    }
+
+    private void stopRefreshing() {
+        if (swipeRefresh != null) {
+            swipeRefresh.post(() -> {
+                if (swipeRefresh != null) {
+                    swipeRefresh.setRefreshing(false);
+                    swipeRefresh.clearAnimation();
+                }
+            });
+        }
+    }
 
     private final FinanceRepository.SyncStatusListener syncStatusListener = new FinanceRepository.SyncStatusListener() {
         @Override
@@ -64,12 +107,9 @@ public class LedgerFragment extends Fragment {
 
         @Override
         public void onSyncFinished(String message, boolean isError) {
-            if (isAdded() && isSorting && tvSortProgressMessage != null) {
-                if (isError) {
-                    tvSortProgressMessage.setText(message != null ? message : "Sync error");
-                } else {
-                    tvSortProgressMessage.setText("Sync complete!");
-                }
+            stopRefreshing();
+            if (isSorting) {
+                setSortingUi(false, null);
             }
         }
     };
@@ -125,8 +165,8 @@ public class LedgerFragment extends Fragment {
                     if (getActivity() instanceof MainActivity) {
                         ((MainActivity) getActivity()).updateHeaderInfo();
                     }
+                    stopRefreshing();
                     populateUI();
-                    refreshData();
                 });
                 dialog.show(getChildFragmentManager(), "AddTxDialog");
             });
@@ -143,7 +183,15 @@ public class LedgerFragment extends Fragment {
                     return;
                 }
                 if (isSorting) {
-                    FinMngrToast.showInfo(getContext(), "Sorting is already in progress...");
+                    FinMngrDialog.showConfirmation(requireContext(),
+                            "Reset Sorting State?",
+                            "A sort operation was previously started. Would you like to reset the state and try sorting again?",
+                            "Reset & Sort Again",
+                            () -> {
+                                setSortingUi(false, null);
+                                executeSortByDate();
+                            }
+                    );
                     return;
                 }
 
@@ -157,7 +205,12 @@ public class LedgerFragment extends Fragment {
         }
 
         setupFilters();
-        swipeRefresh.setOnRefreshListener(this::refreshData);
+        if (swipeRefresh != null) {
+            swipeRefresh.setColorSchemeResources(R.color.colorPrimary, R.color.green_mint, R.color.blue_sky);
+            swipeRefresh.setOnRefreshListener(this::refreshData);
+            swipeRefresh.setOnChildScrollUpCallback((parent, child) -> rvLedger != null && rvLedger.canScrollVertically(-1));
+            stopRefreshing();
+        }
 
         populateUI();
 
@@ -175,6 +228,8 @@ public class LedgerFragment extends Fragment {
     @Override
     public void onStop() {
         super.onStop();
+        sortTimeoutHandler.removeCallbacks(sortTimeoutRunnable);
+        stopRefreshing();
         if (getContext() != null) {
             FinanceRepository.getInstance(requireContext()).removeSyncStatusListener(syncStatusListener);
         }
@@ -183,6 +238,8 @@ public class LedgerFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        sortTimeoutHandler.removeCallbacks(sortTimeoutRunnable);
+        stopRefreshing();
         if (getContext() != null) {
             FinanceRepository.getInstance(requireContext()).removeSyncStatusListener(syncStatusListener);
         }
@@ -191,46 +248,34 @@ public class LedgerFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        stopRefreshing();
+        if (!isSorting) {
+            setSortingUi(false, null);
+        }
         populateUI();
     }
 
     private void executeSortByDate() {
         if (!isAdded()) return;
-        isSorting = true;
-
-        if (btnSortByDateLedger != null) {
-            btnSortByDateLedger.setEnabled(false);
-            btnSortByDateLedger.setText("⏳ Sorting...");
-            btnSortByDateLedger.setAlpha(0.6f);
-        }
-        if (layoutSortProgressLedger != null) {
-            layoutSortProgressLedger.setVisibility(View.VISIBLE);
-        }
-        if (tvSortProgressMessage != null) {
-            tvSortProgressMessage.setText("Calling sortByDateASC in Google Sheet...");
-        }
+        setSortingUi(true, "Calling sortByDateASC in Google Sheet...");
         if (swipeRefresh != null) {
             swipeRefresh.setRefreshing(true);
         }
 
         FinMngrToast.showUpdating(getContext(), "Sorting transactions by date in Google Sheet...");
 
+        // Immediately sort UI locally as well
+        if (allTransactions != null && !allTransactions.isEmpty()) {
+            java.util.Collections.sort(allTransactions, Transaction.DATE_DESC_COMPARATOR);
+            applyFilters();
+        }
+
         FinanceRepository.getInstance(requireContext()).sortTransactionsByDate(new FinanceRepository.DataCallback() {
             @Override
             public void onLoaded(FinanceDatabase db) {
+                stopRefreshing();
+                setSortingUi(false, null);
                 if (isAdded()) {
-                    isSorting = false;
-                    if (btnSortByDateLedger != null) {
-                        btnSortByDateLedger.setEnabled(true);
-                        btnSortByDateLedger.setText("⇅ Sort Date");
-                        btnSortByDateLedger.setAlpha(1.0f);
-                    }
-                    if (layoutSortProgressLedger != null) {
-                        layoutSortProgressLedger.setVisibility(View.GONE);
-                    }
-                    if (swipeRefresh != null) {
-                        swipeRefresh.setRefreshing(false);
-                    }
                     if (getActivity() instanceof MainActivity) {
                         ((MainActivity) getActivity()).updateHeaderInfo();
                     }
@@ -241,19 +286,9 @@ public class LedgerFragment extends Fragment {
 
             @Override
             public void onError(String error) {
+                stopRefreshing();
+                setSortingUi(false, null);
                 if (isAdded()) {
-                    isSorting = false;
-                    if (btnSortByDateLedger != null) {
-                        btnSortByDateLedger.setEnabled(true);
-                        btnSortByDateLedger.setText("⇅ Sort Date");
-                        btnSortByDateLedger.setAlpha(1.0f);
-                    }
-                    if (layoutSortProgressLedger != null) {
-                        layoutSortProgressLedger.setVisibility(View.GONE);
-                    }
-                    if (swipeRefresh != null) {
-                        swipeRefresh.setRefreshing(false);
-                    }
                     FinMngrToast.showError(getContext(), "Sort failed: " + error);
                 }
             }
@@ -358,7 +393,8 @@ public class LedgerFragment extends Fragment {
         FinanceDatabase db = FinanceRepository.getInstance(requireContext()).getDatabase();
         if (db == null) return;
 
-        allTransactions = db.transactions != null ? db.transactions : new ArrayList<>();
+        allTransactions = db.transactions != null ? new ArrayList<>(db.transactions) : new ArrayList<>();
+        java.util.Collections.sort(allTransactions, Transaction.DATE_DESC_COMPARATOR);
 
         // 1. Populate Cycle Filter
         List<String> cycles = new ArrayList<>();
@@ -501,6 +537,7 @@ public class LedgerFragment extends Fragment {
         tvCycleBudgetRemainder.setText(formatCurrency(cycleRemainder));
         tvAccountLoanRemainder.setText(formatCurrency(cycleRemainder));
 
+        java.util.Collections.sort(filtered, Transaction.DATE_DESC_COMPARATOR);
         adapter.setItems(filtered);
 
         if (scrollState != null && rvLedger.getLayoutManager() != null) {
@@ -509,11 +546,14 @@ public class LedgerFragment extends Fragment {
     }
 
     private void refreshData() {
+        if (swipeRefresh != null) {
+            swipeRefresh.setRefreshing(true);
+        }
         FinanceRepository.getInstance(requireContext()).syncWithGoogleSheets(new FinanceRepository.DataCallback() {
             @Override
             public void onLoaded(FinanceDatabase db) {
+                stopRefreshing();
                 if (isAdded()) {
-                    swipeRefresh.setRefreshing(false);
                     populateUI();
                     FinMngrToast.showSuccess(getContext(), "Synced with Google Sheet");
                 }
@@ -521,8 +561,8 @@ public class LedgerFragment extends Fragment {
 
             @Override
             public void onError(String error) {
+                stopRefreshing();
                 if (isAdded()) {
-                    swipeRefresh.setRefreshing(false);
                     FinMngrToast.showError(getContext(), "Sync failed: " + error);
                 }
             }
@@ -574,30 +614,26 @@ public class LedgerFragment extends Fragment {
                     FinanceRepository.getInstance(requireContext()).deleteTransaction(tx.id, new FinanceRepository.DataCallback() {
                         @Override
                         public void onLoaded(FinanceDatabase updatedDb) {
+                            if (adapter != null) {
+                                adapter.unmarkDeleting(tx.id);
+                            }
+                            stopRefreshing();
                             if (isAdded()) {
-                                if (adapter != null) {
-                                    adapter.unmarkDeleting(tx.id);
-                                }
-                                if (swipeRefresh != null) {
-                                    swipeRefresh.setRefreshing(false);
-                                }
                                 if (getActivity() instanceof MainActivity) {
                                     ((MainActivity) getActivity()).updateHeaderInfo();
                                 }
                                 populateUI();
-                                refreshData();
                             }
                         }
 
                         @Override
                         public void onError(String error) {
+                            if (adapter != null) {
+                                adapter.unmarkDeleting(tx.id);
+                            }
+                            stopRefreshing();
                             if (isAdded()) {
-                                if (adapter != null) {
-                                    adapter.unmarkDeleting(tx.id);
-                                }
-                                if (swipeRefresh != null) {
-                                    swipeRefresh.setRefreshing(false);
-                                }
+                                FinMngrToast.showError(getContext(), "Delete failed: " + error);
                             }
                         }
                     });

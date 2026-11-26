@@ -85,6 +85,15 @@
                 android:text="Inv: ₹51,169.30"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tvHoldingNav"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="NAV: ₹55.80"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -118,6 +127,15 @@
                 android:layout_marginTop="2dp"
                 android:text="Tot: +₹465.23 (+0.91%)"
                 android:textColor="@color/green_emerald"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tvHoldingNavDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="NAV Date: 05/11/2026"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>

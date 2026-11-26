@@ -147,6 +147,43 @@ public class Transaction implements Serializable {
         return formatted;
     }
 
+    public long getEpochDay() {
+        String clean = getFormattedDate();
+        if (clean != null) {
+            String[] parts = null;
+            if (clean.contains("/")) {
+                parts = clean.split("/");
+            } else if (clean.contains("-")) {
+                parts = clean.split("-");
+            }
+            if (parts != null && parts.length == 3) {
+                try {
+                    int p0 = Integer.parseInt(parts[0].trim());
+                    int p1 = Integer.parseInt(parts[1].trim());
+                    int p2 = Integer.parseInt(parts[2].trim());
+                    if (p0 > 1000) {
+                        return (long) p0 * 10000L + p1 * 100L + p2;
+                    } else {
+                        return (long) p2 * 10000L + p1 * 100L + p0;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        return 0L;
+    }
+
+    public static final java.util.Comparator<Transaction> DATE_DESC_COMPARATOR = (t1, t2) -> {
+        if (t1 == null && t2 == null) return 0;
+        if (t1 == null) return 1;
+        if (t2 == null) return -1;
+        long day1 = t1.getEpochDay();
+        long day2 = t2.getEpochDay();
+        if (day1 != day2) {
+            return Long.compare(day2, day1); // descending (newest date first)
+        }
+        return Long.compare(t2.id, t1.id); // descending (newest row id first)
+    };
+
     public int getCycleMonth() {
         if (month > 0) return month;
         String clean = getFormattedDate();

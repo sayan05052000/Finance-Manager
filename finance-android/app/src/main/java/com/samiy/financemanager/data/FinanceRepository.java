@@ -166,6 +166,9 @@ public class FinanceRepository {
             }
 
             if (database != null) {
+                if (database.transactions != null) {
+                    java.util.Collections.sort(database.transactions, Transaction.DATE_DESC_COMPARATOR);
+                }
                 CalculationEngine.recalculate(database);
             }
         } catch (Exception e) {
@@ -267,6 +270,9 @@ public class FinanceRepository {
                     }
                 }
                 mergeRecentLocalTransactions(this.database, freshDb);
+            }
+            if (freshDb.transactions != null) {
+                java.util.Collections.sort(freshDb.transactions, Transaction.DATE_DESC_COMPARATOR);
             }
             CalculationEngine.recalculate(freshDb);
             this.database = freshDb;

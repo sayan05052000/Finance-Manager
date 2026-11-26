@@ -931,20 +931,7 @@ function doPost(e) {
       });
     }
     if (action === 'sortByDateASC' || action === 'sortByDate') {
-      if (typeof sortTransactionsByDateAsc === 'function') {
-        try {
-          sortTransactionsByDateAsc();
-        } catch (eSort1) {
-          try {
-            sortTransactionsByDateAsc();
-          } catch (eSort2) {
-            console.warn('sortByDateASC execution error: ' + eSort2);
-            fallbackSortTransactionsByDateASC(ss);
-          }
-        }
-      } else {
-        fallbackSortTransactionsByDateASC(ss);
-      }
+      fallbackSortTransactionsByDateASC(ss);
       runCalculationScriptsAndFlush();
       return jsonResponse({
         status: 'success',
@@ -1318,6 +1305,13 @@ function getHoldings(ss) {
     const absReturn = Number(h['ABS Return']) || (invested > 0 ? (returns / invested) * 100 : 0);
     const afterTax = Number(h['After tax Return Approx']) || (returns * 0.8);
 
+    let navDateVal = h['NAV Date'] || h['Nav Date'] || h['NAV date'] || h['Date'] || '';
+    if (navDateVal instanceof Date) {
+      navDateVal = Utilities.formatDate(navDateVal, 'Asia/Kolkata', 'dd/MM/yyyy');
+    } else if (navDateVal) {
+      navDateVal = String(navDateVal).trim();
+    }
+
     return {
       schemeName: h['Scheme Name'],
       schemeCode: h['Scheme Code'],
@@ -1331,7 +1325,7 @@ function getHoldings(ss) {
       avgBuyingNav: Number(h['Avg Buying Nav']) || 0,
       investedValue: invested,
       nav: Number(h['NAV']) || 0,
-      navDate: h['NAV Date'],
+      navDate: navDateVal,
       currentValue: current,
       returns: returns,
       absReturn: absReturn,
@@ -1852,7 +1846,33 @@ function fallbackSortTransactionsByDateASC(ss) {
   const colDate = cols.colDate > 0 ? cols.colDate : 1;
 
   try {
-    sheet.getRange(2, 1, lastRow - 1, lastCol).sort({ column: colDate, ascending: true });
+    const range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+    const data = range.getValues();
+
+    function parseToTime(val) {
+      if (!val) return 0;
+      if (val instanceof Date) return val.getTime();
+      const s = String(val).trim();
+      if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+          const d = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10);
+          const y = parseInt(parts[2], 10);
+          return new Date(y, m - 1, d).getTime();
+        }
+      }
+      const t = Date.parse(s);
+      return isNaN(t) ? 0 : t;
+    }
+
+    data.sort(function(a, b) {
+      const tA = parseToTime(a[colDate - 1]);
+      const tB = parseToTime(b[colDate - 1]);
+      return tA - tB;
+    });
+
+    range.setValues(data);
   } catch (e) {
     console.warn('fallbackSortTransactionsByDateASC error: ' + e);
   }

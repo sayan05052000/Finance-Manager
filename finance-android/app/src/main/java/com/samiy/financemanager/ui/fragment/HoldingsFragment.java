@@ -48,7 +48,7 @@ import java.util.Set;
 
 public class HoldingsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
-    private TextView tvTotalInvested, tvMarketValue, tvOneDayChange, tvOneDayChangePercent;
+    private TextView tvTotalInvested, tvMarketValue, tvMarketValueNavDate, tvOneDayChange, tvOneDayChangePercent;
     private TextView tvTotalReturns, tvTotalReturnsRoi, tvPostTaxEstimate, tvActiveSchemes;
     private TextView tvHoldingsHeader;
     private Spinner spHoldingsSort;
@@ -75,6 +75,7 @@ public class HoldingsFragment extends Fragment {
         swipeRefresh = v.findViewById(R.id.swipeRefreshHoldings);
         tvTotalInvested = v.findViewById(R.id.tvTotalInvested);
         tvMarketValue = v.findViewById(R.id.tvMarketValue);
+        tvMarketValueNavDate = v.findViewById(R.id.tvMarketValueNavDate);
         tvOneDayChange = v.findViewById(R.id.tvOneDayChange);
         tvOneDayChangePercent = v.findViewById(R.id.tvOneDayChangePercent);
         tvTotalReturns = v.findViewById(R.id.tvTotalReturns);
@@ -91,7 +92,8 @@ public class HoldingsFragment extends Fragment {
                     "Current Value",
                     "Invested Amount",
                     "Day Change",
-                    "Name"
+                    "Name",
+                    "NAV Date"
             };
             ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, sortOptions);
             sortAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
@@ -208,6 +210,18 @@ public class HoldingsFragment extends Fragment {
         tvTotalInvested.setText(formatCurrency(ps.totalInvested));
         tvMarketValue.setText(formatCurrency(ps.currentValuation));
 
+        // Latest NAV date
+        String latestNavDate = (ps.latestNavDate != null && !ps.latestNavDate.isEmpty())
+                ? ps.latestNavDate : getLatestNavDate(db.holdings);
+        if (tvMarketValueNavDate != null) {
+            if (latestNavDate != null && !latestNavDate.isEmpty()) {
+                tvMarketValueNavDate.setText("Latest NAV: " + latestNavDate);
+                tvMarketValueNavDate.setVisibility(View.VISIBLE);
+            } else {
+                tvMarketValueNavDate.setVisibility(View.GONE);
+            }
+        }
+
         // Market Value: show red if portfolio is in loss
         if (ps.totalReturns < 0 || (ps.totalInvested > 0 && ps.currentValuation < ps.totalInvested)) {
             tvMarketValue.setTextColor(ContextCompat.getColor(context, R.color.red_rose));
@@ -294,7 +308,11 @@ public class HoldingsFragment extends Fragment {
         // Holdings List
         if (db.holdings != null) {
             if (tvHoldingsHeader != null) {
-                tvHoldingsHeader.setText("Holdings Portfolio (" + db.holdings.size() + ")");
+                if (latestNavDate != null && !latestNavDate.isEmpty()) {
+                    tvHoldingsHeader.setText("Holdings Portfolio (" + db.holdings.size() + ") • " + latestNavDate);
+                } else {
+                    tvHoldingsHeader.setText("Holdings Portfolio (" + db.holdings.size() + ")");
+                }
             }
             applySortingAndSubmit();
             adapter.setMutualFundTransactions(db.mutualFundTransactions);
@@ -328,6 +346,11 @@ public class HoldingsFragment extends Fragment {
                     String name2 = h2.schemeName != null ? h2.schemeName.trim() : "";
                     cmp = name1.compareToIgnoreCase(name2);
                     break;
+                case 4: // NAV Date (Newest to Oldest)
+                    long d1 = h1.getNavEpochDay();
+                    long d2 = h2.getNavEpochDay();
+                    cmp = Long.compare(d2, d1);
+                    break;
             }
             if (cmp == 0 && currentSortIndex != 3) {
                 String name1 = h1.schemeName != null ? h1.schemeName.trim() : "";
@@ -338,6 +361,22 @@ public class HoldingsFragment extends Fragment {
         });
 
         adapter.setItems(sortedList);
+    }
+
+    public static String getLatestNavDate(List<Holding> holdings) {
+        if (holdings == null || holdings.isEmpty()) return "";
+        String latestDate = "";
+        long maxEpoch = 0L;
+        for (Holding h : holdings) {
+            if (h != null) {
+                long epoch = h.getNavEpochDay();
+                if (epoch > maxEpoch) {
+                    maxEpoch = epoch;
+                    latestDate = h.getFormattedNavDate();
+                }
+            }
+        }
+        return latestDate;
     }
 
     private void refreshData() {

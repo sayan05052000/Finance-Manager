@@ -121,11 +121,37 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
             holder.tvCurrentValue.setTextColor(ContextCompat.getColor(context, R.color.green_mint));
         }
 
-        // Transaction count badge
+        // NAV and NAV Date
+        String navStr = h.getFormattedNav();
+        if (holder.tvNav != null) {
+            if (!navStr.isEmpty()) {
+                holder.tvNav.setText("NAV: " + navStr);
+                holder.tvNav.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvNav.setVisibility(View.GONE);
+            }
+        }
+
+        String navDateStr = h.getFormattedNavDate();
+        if (holder.tvNavDate != null) {
+            if (!navDateStr.isEmpty()) {
+                holder.tvNavDate.setText("NAV Date: " + navDateStr);
+                holder.tvNavDate.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvNavDate.setVisibility(View.GONE);
+            }
+        }
+
+        // Transaction count and units badge
         String key = h.schemeName != null ? h.schemeName.trim().toLowerCase(Locale.US) : "";
         int count = txCounts.getOrDefault(key, 0);
-        if (count > 0) {
+        String unitsStr = h.units > 0 ? String.format(Locale.US, "%.3f units", h.units) : "";
+        if (count > 0 && !unitsStr.isEmpty()) {
+            holder.tvHoldingTxCount.setText(count + " txs • " + unitsStr);
+        } else if (count > 0) {
             holder.tvHoldingTxCount.setText(count + " txs");
+        } else if (!unitsStr.isEmpty()) {
+            holder.tvHoldingTxCount.setText(unitsStr);
         } else {
             holder.tvHoldingTxCount.setText(h.savingsType != null && !h.savingsType.isEmpty() ? h.savingsType : "Mutual Fund");
         }
@@ -164,7 +190,7 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvSchemeName, tvSavingsType, tvSubCategory;
-        TextView tvCurrentValue, tvInvested, tv1DChangeLabel, tv1DChange, tvReturns;
+        TextView tvCurrentValue, tvInvested, tvNav, tv1DChangeLabel, tv1DChange, tvReturns, tvNavDate;
         TextView tvHoldingTxCount, btnViewTransactions, btnAddTransaction;
 
         ViewHolder(View itemView) {
@@ -174,9 +200,11 @@ public class HoldingsAdapter extends RecyclerView.Adapter<HoldingsAdapter.ViewHo
             tvSubCategory = itemView.findViewById(R.id.tvHoldingSubCategory);
             tvCurrentValue = itemView.findViewById(R.id.tvHoldingCurrentValue);
             tvInvested = itemView.findViewById(R.id.tvHoldingInvested);
+            tvNav = itemView.findViewById(R.id.tvHoldingNav);
             tv1DChangeLabel = itemView.findViewById(R.id.tvHolding1DChangeLabel);
             tv1DChange = itemView.findViewById(R.id.tvHolding1DChange);
             tvReturns = itemView.findViewById(R.id.tvHoldingReturns);
+            tvNavDate = itemView.findViewById(R.id.tvHoldingNavDate);
             tvHoldingTxCount = itemView.findViewById(R.id.tvHoldingTxCount);
             btnViewTransactions = itemView.findViewById(R.id.btnViewHoldingTransactions);
             btnAddTransaction = itemView.findViewById(R.id.btnAddHoldingTransaction);

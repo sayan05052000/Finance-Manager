@@ -107,7 +107,7 @@ public class MainActivity extends AppCompatActivity implements GoogleAuthManager
                 String ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
                 tvHeaderAppVersion.setText("v" + ver);
             } catch (Exception ignored) {
-                tvHeaderAppVersion.setText("v3.2");
+                tvHeaderAppVersion.setText("v3.4");
             }
         }
         btnRefresh = findViewById(R.id.btnRefresh);

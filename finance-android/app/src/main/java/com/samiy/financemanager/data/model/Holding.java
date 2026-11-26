@@ -65,4 +65,31 @@ public class Holding implements Serializable {
     public double oneDayChangePercent;
 
     public Holding() {}
+
+    public String getFormattedNavDate() {
+        if (navDate == null || navDate.trim().isEmpty()) return "";
+        return com.samiy.financemanager.util.DateTimeHelper.formatDisplayDate(navDate);
+    }
+
+    public long getNavEpochDay() {
+        String clean = getFormattedNavDate();
+        if (clean != null && clean.contains("/")) {
+            String[] parts = clean.split("/");
+            if (parts.length == 3) {
+                try {
+                    int d = Integer.parseInt(parts[0].trim());
+                    int m = Integer.parseInt(parts[1].trim());
+                    int y = Integer.parseInt(parts[2].trim());
+                    return (long) y * 10000L + m * 100L + d;
+                } catch (Exception ignored) {}
+            }
+        }
+        return 0L;
+    }
+
+    public String getFormattedNav() {
+        if (nav <= 0) return "";
+        java.text.DecimalFormat df = new java.text.DecimalFormat("₹#,##0.00##");
+        return df.format(nav);
+    }
 }

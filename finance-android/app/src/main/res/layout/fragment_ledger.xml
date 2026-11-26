@@ -1,17 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/swipeRefreshLedger"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
     android:background="@color/bg_dark">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp">
 
         <!-- Filters Grid (3 Rows x 2 Columns - Zero horizontal scroll) -->
         <LinearLayout
@@ -351,13 +346,19 @@
                 android:focusable="true" />
         </LinearLayout>
 
-        <!-- Transaction List RecyclerView -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvLedger"
+        <!-- Transaction List RecyclerView inside SwipeRefreshLayout -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLedger"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginTop="12dp" />
+            android:layout_marginTop="12dp">
 
-    </LinearLayout>
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvLedger"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+</LinearLayout>

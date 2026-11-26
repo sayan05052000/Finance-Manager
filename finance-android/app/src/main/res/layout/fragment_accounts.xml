@@ -616,7 +616,7 @@
                 android:layout_marginTop="28dp"
                 android:layout_marginBottom="36dp"
                 android:gravity="center"
-                android:text="FinMngr v3.3"
+                android:text="FinMngr v3.4"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
 

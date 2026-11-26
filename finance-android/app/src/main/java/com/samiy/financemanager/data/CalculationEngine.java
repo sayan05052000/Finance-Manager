@@ -67,6 +67,19 @@ public class CalculationEngine {
             db.portfolioSummary.totalAssetsCount = db.holdings.size();
             db.portfolioSummary.totalUnits = totalUnits;
 
+            String latestNavDate = "";
+            long maxNavEpoch = 0L;
+            for (Holding h : db.holdings) {
+                if (h != null) {
+                    long epoch = h.getNavEpochDay();
+                    if (epoch > maxNavEpoch) {
+                        maxNavEpoch = epoch;
+                        latestNavDate = h.getFormattedNavDate();
+                    }
+                }
+            }
+            db.portfolioSummary.latestNavDate = latestNavDate;
+
             // Build SavingsType breakdown
             List<SavingsTypeSummary> breakdown = new ArrayList<>();
             for (Map.Entry<String, List<Holding>> entry : bySavingsType.entrySet()) {

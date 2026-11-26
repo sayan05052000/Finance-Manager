@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v3.4] - 2026-11-24
+
+### Added & Enhanced
+- **Holdings Latest NAV Date Display**:
+  - **Individual Holding Item Cards (`item_holding.xml`, `HoldingsAdapter.java`)**:
+    - Added dedicated NAV and NAV Date metrics into each holding details card (`tvHoldingNav` and `tvHoldingNavDate`), providing a clean, balanced 3-row layout:
+      - Current Value (`₹...`) | 1-Day Gain (`+₹...`)
+      - Invested (`Inv: ₹...`) | Total Returns (`Tot: +₹...`)
+      - Current NAV (`NAV: ₹...`) | NAV Date (`NAV Date: DD/MM/YYYY`)
+    - Added units held indicator into the card's metadata strip (`tvHoldingTxCount` -> e.g. `5 txs • 917.012 units`).
+  - **Portfolio Overview & Section Header (`fragment_holdings.xml`, `HoldingsFragment.java`, `CalculationEngine.java`)**:
+    - Added `tvMarketValueNavDate` directly under the Market Value KPI card ("MARKET VALUE BASED ON NAV"), displaying `Latest NAV: DD/MM/YYYY` to balance the top metric cards.
+    - Updated `tvHoldingsHeader` to show the portfolio count along with the latest NAV date (`Holdings Portfolio (N) • DD/MM/YYYY`).
+    - Added `NAV Date` sort option to the Holdings sort dropdown to allow sorting schemes from newest to oldest NAV date.
+  - **Data Models & Google Apps Script (`Holding.java`, `PortfolioSummary.java`, `androidscript.gs`)**:
+    - Added `getFormattedNavDate()`, `getNavEpochDay()`, and `getFormattedNav()` helpers in `Holding.java`.
+    - Automatically computes portfolio-level `latestNavDate` across holdings inside `CalculationEngine.java`.
+    - Robustly extracts, checks casing, and formats `navDate` in `androidscript.gs`.
+
+### Fixed
+- **Ledger Sorting & Sort Lockout Fix**:
+  - **Watchdog & Resilient State Management (`LedgerFragment.java`)**:
+    - Eliminated permanent `"Sorting is already in progress..."` lockup by moving `isSorting` cleanup outside of fragment lifecycle gates (`isAdded()`).
+    - Added a 60-second watchdog handler (`sortTimeoutHandler`) that automatically clears sorting state if network or Apps Script calls hang.
+    - Wired `setSortingUi(false, null)` into `onStop()`, `onDestroyView()`, `onResume()`, and `syncStatusListener.onSyncFinished()`.
+    - Added a confirmation fallback dialog allowing the user to reset state and retry immediately if an in-progress flag is ever detected.
+  - **Client-Side Chronological Sorting (`Transaction.DATE_DESC_COMPARATOR`)**:
+    - Created `Transaction.DATE_DESC_COMPARATOR` leveraging numeric `getEpochDay()` (`yyyyMMdd`) with row ID tiebreakers.
+    - Automatically sorts transactions reverse-chronologically in memory upon cache load, full sync, filter application, and before remote Apps Script dispatch.
+    - Ensured newest dates (e.g. `06/12/2026` or `24/11/2026`) are immediately and always placed above older dates, independent of spreadsheet cell string formats.
+  - **Google Apps Script Chronological Date Sorting (`androidscript.gs`)**:
+    - Replaced raw spreadsheet alphabetical sort in `fallbackSortTransactionsByDateASC` with date string parsing into epoch millisecond timestamps, ensuring accurate ordering in the underlying Google Sheet.
+- **Ledger Swipe-To-Refresh Stuck Spinner Fix**:
+  - **`fragment_ledger.xml`**: Re-scoped `SwipeRefreshLayout` from wrapping the entire screen down to wrapping only `RecyclerView` (`rvLedger`), keeping filter spinners and summary statistics card fixed at the top with zero touch conflicts.
+  - **Indicator Placement**: The refresh spinner indicator now appears cleanly over the transaction list (under "Recent Transactions") rather than floating over or obscuring the filter spinners.
+  - **Touch & Scroll Conflict Resolution**: Fixed scroll gesture interception where scrolling up through transactions was falsely detected as pull-to-refresh due to intermediate `LinearLayout` failing `canChildScrollUp()`.
+  - **`LedgerFragment.java` Resilient Dismissal**: Added `stopRefreshing()` helper executing on view queue (`post()`) to guarantee `setRefreshing(false)` and `clearAnimation()` run without interruption from immediate layout invalidation during `populateUI()`.
+  - **Lifecycle & Sync Status Listeners**: Wired `stopRefreshing()` into `syncStatusListener.onSyncFinished()`, `onResume()`, `onStop()`, and `onDestroyView()` so any sync completion (header button, auto-sync, or pull-to-refresh) dismisses the spinner immediately, even across tab switches.
+  - **Version Bump**: Bumped to `v3.4` (`versionCode 23`).
+
+---
+
 ## [v3.3] - 2026-11-23
 
 ### Added & Enhanced

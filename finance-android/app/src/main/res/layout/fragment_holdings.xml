@@ -211,6 +211,15 @@
                         android:textColor="@color/green_mint"
                         android:textSize="16sp"
                         android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvMarketValueNavDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Latest NAV: 05/11/2026"
+                        android:textColor="@color/text_muted"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
                 <!-- 3. 1-Day Market Change -->
@@ -662,7 +671,7 @@
                 android:layout_marginTop="28dp"
                 android:layout_marginBottom="36dp"
                 android:gravity="center"
-                android:text="FinMngr v3.3"
+                android:text="FinMngr v3.4"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
 

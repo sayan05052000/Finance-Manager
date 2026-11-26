@@ -240,6 +240,7 @@ public class AccountTransactionsBottomSheet extends BaseBottomSheetDialogFragmen
             tvEmpty.setVisibility(View.VISIBLE);
             tvEmpty.setText("No transactions recorded for " + entityName + ".");
         } else {
+            java.util.Collections.sort(matching, Transaction.DATE_DESC_COMPARATOR);
             rvTransactions.setVisibility(View.VISIBLE);
             tvEmpty.setVisibility(View.GONE);
             adapter.setItems(matching);

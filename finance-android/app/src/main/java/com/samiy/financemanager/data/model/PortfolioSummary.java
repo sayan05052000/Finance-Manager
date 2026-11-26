@@ -36,5 +36,8 @@ public class PortfolioSummary implements Serializable {
     @SerializedName("savingsTypeBreakdown")
     public List<SavingsTypeSummary> savingsTypeBreakdown = new ArrayList<>();
 
+    @SerializedName("latestNavDate")
+    public String latestNavDate = "";
+
     public PortfolioSummary() {}
 }
